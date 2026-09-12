@@ -16,7 +16,7 @@ The planned first release includes:
 
 ## Demo limitation
 
-Four players is the default demo group. Prompt Royale and Reverse Prompt retain that four-player scope. The simplified Word by Word demo supports three or four player phones and a separate host screen, with one room at a time; its dedicated specifications define that exception.
+Four players is the default demo group. Prompt Royale supports three or four players including the playing host; Word by Word supports three or four player phones plus a separate host screen. Both simplified demos run one room at a time and follow their dedicated specifications. Reverse Prompt retains its four-player demo scope.
 
 ## Reactor resources
 
@@ -36,12 +36,16 @@ npx create-reactor-app
 ## Documentation
 
 - [Hackathon overview](hackathon.md): event context and partners.
-- [App and game specification](app-spec.md): player experience, the three games, scoring, and MVP acceptance criteria.
+- [App and game specification](app-spec.md): broader three-game design; each game's dedicated demo rules take precedence.
+- [Python backend specification](backend-spec.md): broader backend baseline; its database/queue architecture is deferred for the Word by Word and Prompt Royale demos.
 - [Word by Word: hackathon game specification](word-by-word-spec.md): one room, three/four players, four private words, additive video reveal, and replay.
 - [Word by Word: hackathon technical stack](word-by-word-tech-stack.md): one FastAPI process, in-memory state, polling, Reactor, and local clips.
 - [Word by Word: simplification before and after](research/word-by-word/hackathon-simplification.md): removed infrastructure, reduced gameplay scope, and accepted demo limitations.
 - [Word by Word: Consequences reference](word-by-word.md): chosen traditional-game reference and the origin of the adaptation.
 - [Word by Word: Reactor and VEED research](research/word-by-word/README.md): provider capabilities, game fit, pricing discrepancies, and outstanding live verification.
-- [Python backend specification](backend-spec.md): architecture, data, APIs, generation jobs, and engineering practices.
+- [Prompt Royale game specification](games/prompt-royale/game-spec.md): simplified four-player demo rules, timing, scoring, failures, and acceptance criteria.
+- [Prompt Royale technology choices and stack](games/prompt-royale/tech-stack.md): one-process architecture, per-technology usage map, single retry, deployment, and validation.
+- [Prompt Royale simplification: before and after](games/prompt-royale/simplification.md): removed infrastructure, reduced scope, and explicit tradeoffs.
+- [Prompt Royale partner research](research/prompt-royale/README.md): Reactor and VEED fit, integration proposals, pricing, limits, and validation gates.
 
-The specifications describe the proposed implementation. The repository does not yet contain the app. Word by Word's dedicated hackathon documents override the broader app/backend requirements for that demo; the other games retain their separate plans.
+The specifications describe the proposed implementation. The repository does not yet contain the app. Word by Word and Prompt Royale each have dedicated hackathon documents that override the broader app/backend requirements for their demo; the games retain separate implementation plans.

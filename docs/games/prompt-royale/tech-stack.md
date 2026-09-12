@@ -1,0 +1,195 @@
+# Prompt Royale: hackathon technology choices and stack
+
+Version: 1.2, 12 September 2026. Status: selected simplified design with one bounded retry; dependencies, deployment, and live capture remain unvalidated.
+
+**One room, at most four players, one Python application process.** This replaces the earlier PostgreSQL/Celery/Redis/S3 design for the Prompt Royale demo. The broader [backend specification](../../backend-spec.md) is future context for this game, not a prerequisite. See the [game rules](game-spec.md), [before-and-after comparison](simplification.md), and [provider research](../../research/prompt-royale/README.md).
+
+## 1. Selected demo stack
+
+| Area | Choice | Purpose |
+| --- | --- | --- |
+| Frontend | React, TypeScript, Vite | A small set of phase screens. |
+| Styling/state | CSS Modules, CSS variables, React state/context | Responsive UI and local drafts; no additional state framework. |
+| Transport | Browser fetch; HTTP commands and one-second snapshot polling | Room updates without WebSocket connection/replay infrastructure. |
+| Frontend tools | Node.js 24 LTS, npm, package-lock.json | Build static assets and lock dependencies. |
+| Backend | Python 3.13, uv, FastAPI, Pydantic v2, Uvicorn | Rules, validation, sessions, polling API, and file responses. |
+| Room state | Python dictionaries/dataclasses plus asyncio.Lock | In-memory authoritative state; no database or ORM. |
+| Generation orchestration | Tracked asyncio tasks and a semaphore | Two active entry slots and one bounded retry per entry inside the app; no job broker. |
+| Scene provider | Reactor Helios via reactor-sdk; HTTPX for scoped token requests | One fixed provider/model integration. |
+| Input validation | Helios-compatible tokenizer, pinned during the integration spike | Count the complete effective prompt; no rewriting model. |
+| Media | FFmpeg, ffprobe, private local temporary directory | Prepare five-second MP4s and serve through authorized API routes. |
+| Playback | Native HTML video | Phone playback and optional projection of the normal screening screen. |
+| Optional host | VEED Fabric 1.0 through an offline fal-client preparation script | Pre-render generic host clips; runtime has no FAL key requirement. |
+| Checks | pytest, Ruff, TypeScript checking, ESLint, one Playwright round test | Focus on rules, privacy, and the actual group flow. |
+| Deployment | One Linux host, Caddy for HTTPS, one Uvicorn worker | Serve the built frontend and same-origin API. Containers are optional packaging. |
+
+Remove PostgreSQL, SQLAlchemy, psycopg, Alembic, Redis, Celery, boto3/S3, WebSockets, durable outboxes, and separate dispatcher/worker services from the required demo. Defer mypy and a separate Vitest suite; backend typing and frontend type checking remain.
+
+Keep the established runtime families, then pin compatible patch/package versions with uv.lock and package-lock.json in the first build. Install the tokenizer assets and FFmpeg before the event. These files and dependencies have not been added yet.
+
+### How the stack is used
+
+This is the implementation map for the demo, not a claim that these dependencies are already installed.
+
+| Part of the experience | Technology and responsibility |
+| --- | --- |
+| Join, lobby, prompt form | React/TypeScript render the phase screens; CSS Modules style them; React state holds the draft. Vite builds the browser assets. |
+| Submit and follow the round | Browser fetch sends commands and polls once per second. FastAPI routes the requests, Pydantic validates them, and Uvicorn serves the single application process. |
+| Keep the game consistent | Python in-memory objects hold the room and ballots. An asyncio.Lock protects short state changes; the housekeeping task enforces deadlines. |
+| Generate and retry a clip | A tracked asyncio task uses the Reactor SDK for the live session and HTTPX for scoped tokens. A semaphore limits active work; the same task handles the single retry. The pinned tokenizer checks the complete prompt before submission. |
+| Prepare and watch clips | ffprobe inspects the recording; FFmpeg produces the MP4. The backend serves private local files after authorization; native HTML video plays them in the browser. |
+| Vote and reveal | FastAPI validates the ballot, Python counts votes, and React renders the result from the next snapshot. No AI scoring service is involved. |
+| Present the host | An offline fal-client script uses VEED Fabric to prepare generic clips once. The browser plays those static assets; gameplay makes no VEED API requests. |
+| Build, check, and run | npm and uv lock/install dependencies; pytest, Ruff, TypeScript/ESLint, and Playwright check the demo. Caddy serves the built frontend and proxies the API over the same HTTPS origin. |
+
+The retry adds a counter, a short delay, and a second pass through the existing task. It adds no service or retry library. Exact package versions, the tokenizer artifact, and the Linux host remain choices to verify in the first integration build.
+
+## 2. Architecture and its boundary
+
+```mermaid
+flowchart LR
+    Phones[3–4 player browsers] -->|HTTP commands and polling| App[One FastAPI process]
+    App --> State[In-memory room and round]
+    App --> Tasks[Bounded asyncio tasks]
+    Tasks --> Reactor[Reactor Helios]
+    Tasks --> FFmpeg[FFmpeg subprocess]
+    FFmpeg --> Files[Private local clips]
+    App -->|Authorized media response| Phones
+    App --> Files
+    VEED[Offline VEED preparation] --> Static[Generic host assets]
+    Static --> Phones
+```
+
+Run exactly one Uvicorn worker, one application instance, and no live-reload process during the demo. More workers create separate processes and would split this in-memory room state. No serverless request runtime or autoscaling deployment is selected. [FastAPI workers](https://fastapi.tiangolo.com/deployment/server-workers/).
+
+Store strong references to active tasks, collect their errors, and cancel/await them at round end and graceful shutdown. Use the Reactor SDK asynchronously; run FFmpeg as an asynchronously awaited subprocess so it does not block polling and votes. Isolate entry failures so one exception does not cancel every other entry. Python documents task ownership and cancellation behavior. [asyncio tasks](https://docs.python.org/3.13/library/asyncio-task.html).
+
+This deliberately gives up durable execution: process failure loses the room and jobs. A new process starts empty and never resubmits interrupted generation automatically.
+
+## 3. Minimal state and HTTP contract
+
+Keep one room containing participants, host ID, current round, and last-seen times. The round contains a frozen roster/topic/preset/mode, phase and version, deadlines, submissions by player ID, entry statuses, shuffled screening order/index, ballots by player ID, and final result. Store task/session handles separately from the JSON views.
+
+```text
+lobby -> prompting -> generating -> screening -> voting -> results
+results -> lobby (Play again)
+any active phase -> results (unscored abort)
+```
+
+Use one lock for room admission and short state changes. Validate role, membership, round ID, phase/version, deadline, and duplicate actions under that lock. Never hold it while contacting a provider, downloading, or encoding. Completion tasks recheck the current round ID/phase before publishing; an old task cannot insert media into a new round.
+
+| Route | Behavior |
+| --- | --- |
+| POST /api/room | Create the only room with the host access code; return an existing valid host session on a repeated create. |
+| POST /api/room/join | Join in the lobby; repeat with the same cookie returns existing membership. |
+| GET /api/room | Return an authorized snapshot and update that participant's last-seen time. |
+| POST /api/room/start | Freeze 3–4 present players and topic; create the round once. |
+| POST /api/round/submission | Accept one immutable prompt per player. |
+| POST /api/round/next or /skip | Host advances or excludes the current clip before voting. |
+| POST /api/round/vote | Accept one eligible entry ID or explicit abstention. |
+| POST /api/round/abort or /again | Host ends scoring or returns a finished round to the lobby. |
+| DELETE /api/room | Host ends the room and cleans its files. |
+| GET /api/media/{opaque_id} | Authorize the current phase and membership, then serve the local MP4. |
+
+Commands return a fresh snapshot; errors return a short code/message. Exact repeated accepted submissions/ballots return their confirmation; altered ones return conflict. Host mutations carry expected phase version and, for screening, the current entry ID. A duplicate Next must not skip two clips. A small in-memory cache of host command IDs/receipts per room handles lost responses; no generic persistent idempotency service is needed.
+
+Use opaque random session cookies with HttpOnly, Secure, and SameSite settings, one origin, and Origin checks on mutations. Reject untrusted origins. Keep host access code and provider keys in environment variables. Limit join attempts and request sizes in the same process. No accounts/OAuth service is required.
+
+Build explicit player snapshots: public phase/topic/progress plus only that caller's accepted prompt/ballot. Supply the private own-entry flag only for voting, and keep it off projected screening views. Never serialize the entire room. Authors and prompts appear only at results; other ballots never appear. Media authorization follows the same reveal rules.
+
+Poll once per second while the page is active; do not overlap requests. Refetch immediately after a command, tab focus, or network recovery. Include server time, phase version, an increasing room revision for snapshot ordering, and a process boot ID; discard older revisions. An expired session/changed boot tells the browser to rejoin. This accepts approximately one-second UI lag under normal operation; it is not a measured SLA.
+
+A single one-second housekeeping task checks phase deadlines, host absence, and room expiry even when no browser polls. Also check deadlines on every mutation so a delayed tick cannot admit late votes. Use monotonic time internally and timestamps for display. No database scheduler is needed.
+
+## 4. Reactor and media path
+
+Use `reactor/helios`, fixed `sr_scale: "2x"`, 1280×768 landscape output, and a silent five-second final clip. Freeze one round seed and this rendering template:
+
+```text
+Topic: {curated_topic}
+Scene description: {accepted_player_prompt}
+Render one continuous shot of this scene.
+```
+
+Validate the entire input at no more than 500 tokens using the model-compatible tokenizer, as well as the game's 500-code-point player limit. Pin and verify the tokenizer during the first spike. Helios documents a 512-token encoder limit; a character counter alone does not enforce it. [Helios prompt guide](https://docs.reactor.inc/model-api-reference/helios/prompt-guide).
+
+Each accepted entry starts with one creation attempt. A confirmed transient failure may receive one retry under the policy below; there are never more than two creation attempts for an entry.
+
+1. In a shuffled dispatch order, acquire one of two entry slots, wait for the next allowed start, and recheck deadline/round/call allowance. Record attempted status before any creation request.
+2. Mint a short-lived token scoped to Helios, `max_sessions: 1`, and `max_session_duration_seconds: 60`; pass it to the SDK. The provider lifetime cap is essential even though app jobs are not durable. [Reactor authentication](https://docs.reactor.inc/authentication).
+3. Connect, record the session ID when known, apply the fixed settings/prompt/seed, and start. Bound the connect/capture/download lifecycle to 60 seconds from admission or the remaining phase time, whichever is shorter.
+4. Collect at least six seconds of received media, then request/download the full recording while connected. Use media timestamps, not a six-second sleep. Attempt session termination in a bounded finally path on success, failure, or cancellation. Never leave a session alive through voting.
+5. Use ffprobe and FFmpeg to take the first five seconds from the first decodable frame, encode H.264/MP4 with yuv420p and faststart, fixed dimensions, and no audio. Allow a small frame-rounding tolerance validated in the spike; no padding or choosing a preferred take. A too-short recording fails the entry.
+6. Give preparation at most 20 seconds within the original 180-second phase. Check byte limits (100 MiB source, 20 MiB final), retain the source only until preparation succeeds or the retry decision finishes, and publish the final local asset only if the round is still generating. Keep the entry slot through preparation to bound local resource use. Late files are deleted.
+
+Reactor's Python recording helper produces MPEG-TS, so keep FFmpeg even in the simplified design. Recording availability and timestamp alignment must be verified with the actual model/account. [Reactor recordings](https://docs.reactor.inc/concepts/recordings).
+
+Pass subprocess arguments without a shell and feed FFmpeg local files, not user URLs. Kill and reap the subprocess on timeout/cancellation. Scope each round's paths to a generated directory; only server-created opaque asset IDs resolve to files. Serve videos through an authorized FileResponse, not a public static mount. Verify byte-range playback on phones. [FastAPI file responses](https://fastapi.tiangolo.com/advanced/custom-response/#fileresponse).
+
+Reactor's built-in input moderation remains active. Replace the earlier unselected automatic OutputReviewAdapter requirement with the host's existing Skip/Abort controls for an invite-only supervised demo. This does not claim automated output safety or pre-screened clips. Automated output review is future work before expanding to unattended/public play. [Reactor moderation](https://docs.reactor.inc/resources/content-moderation).
+
+### One simple retry
+
+Each entry has an in-memory `retry_used` flag and `creation_attempts` counter. Allow one recovery pass across its generation/download/preparation pipeline, not a separate retry allowance at every stage. Keep the same prompt, topic, model, seed, and settings; never retry a successful clip to obtain a preferred result.
+
+- Retry a transient infrastructure failure only after confirming that no session was created or that the previous session ended. A recoverable download error can reuse the existing recording; a temporary preparation error can reuse the saved source. Neither starts a new paid generation. If no reusable recording exists, the recovery pass may create one replacement session.
+- Do not retry invalid input, moderation rejection, authentication/configuration errors, host exclusions, cancellation, or an ambiguous creation/termination. Unknown session status still blocks new live starts for operator verification.
+- Release the active entry slot, wait two seconds (or a longer provider `Retry-After`), then reacquire through the same semaphore/start limiter. Recheck round, deadline, and call allowance after waiting. First attempts already waiting for a slot proceed while the retry waits.
+- A replacement generation must have at least 80 seconds left at admission for its existing 60-second session lifecycle and 20-second preparation budget. A preparation-only retry needs its 20-second budget. A recording-download retry needs the configured download timeout plus preparation time. Waiting and cleanup still count toward the original 180-second phase; never extend it for a retry.
+- On the second failure, insufficient time/allowance, or terminal rejection, mark the entry unavailable. Show aggregate “Retrying” progress while recovery is pending; publish at most one clip per entry.
+
+Keep this branch inside the tracked entry task. Do not layer automatic new-session retries in HTTPX/the SDK on top of it; verify actual adapter behavior in the capture spike. Crash recovery remains out of scope.
+
+## 5. Capacity and spending
+
+### Hackathon limitation and future capacity
+
+Set `PROMPT_ROYALE_MAX_PLAYERS=4`; reject a configuration above four. Use `LIVE_PLAYER_LIMIT=3` for the first rehearsal, then explicitly raise it to four for the four-player rehearsal. For showtime, retain only a successfully rehearsed limit; never exceed four in either mode. This is an operator setting, not a player option. Enforce join/start counts under the room lock. There is no second room or five-player waitlist.
+
+Start with two entry tasks and at least six seconds between session-creation attempts, increased if actual account limits require it. Use one start-time lock and a semaphore rather than a distributed token bucket. Treat the Reactor account as exclusively used by this demo during rehearsal/showtime: limits are account-wide, not isolated by API key. Default documented quotas are five concurrent sessions and ten starts per minute; verify the account values. [Reactor rate limits](https://docs.reactor.inc/resources/rate-limits).
+
+Two entry slots mean four first attempts require two waves; retries may add work. Queueing, retry waits, capture, and preparation all count toward 180 seconds. Do not admit a new task without its configured preparation runway. A retry is optional when the remaining deadline cannot fit it. These limits require measurement, not a promise that every clip will finish. Future multiple rooms or other simultaneous games require shared admission control and likely a durable queue.
+
+### Simple call allowance
+
+Replace the financial reservation ledger with `MAX_GENERATION_ATTEMPTS_PER_ENTRY=2` (initial attempt plus one retry), at most eight creation attempts for a four-player round, and an initial `MAX_LIVE_SESSION_STARTS=16` per process run. Before Start, require remaining allowance of `2 * roster_size`, covering the initial attempts and possible replacements. Increment before every creation request, including retries; never refund unknown/failed attempts. Retrying an existing download/preparation does not consume a session start. Play again does not reset the counter. Changing the allowance belongs to deployment setup, not a player control.
+
+At the researched $0.0017 per billable second and a 60-second provider cap, first-attempt model exposure is $0.306 for three entries or $0.408 for four. Allowing one replacement for every entry raises those bounds to $0.612 and $0.816 respectively. The unchanged 16-start run limit represents $1.632, enough allowance for two four-player rounds if every entry uses a replacement. These are estimates for that observed rate, excluding other infrastructure, not current billing guarantees. Recheck price and balance in the provider dashboard before the demo. [Pricing endpoint](https://api.reactor.inc/pricing), [billing](https://docs.reactor.inc/resources/billing).
+
+The counter is not durable and does not cap spending across process restarts or other account users. Launches default to fixture mode. Before each live-enabled launch, the operator checks outstanding sessions, balance, and the remaining allowance, then explicitly supplies the live flag and that allowance. Do not automatically restart a crashed process with live generation enabled. Record the check in the demo runbook; no billing integration is required.
+
+## 6. Failure and cleanup
+
+| Failure | Demo response |
+| --- | --- |
+| Confirmed transient infrastructure failure | One retry if session status is known, allowance remains, and it fits the original deadline; otherwise unavailable. |
+| Confirmed pre-creation 429 | Use the same one-retry allowance and honor Retry-After plus local start pacing; no third attempt. |
+| Transient download/preparation failure | Use the one recovery pass on the existing recording/source when possible; no new session merely to repeat preparation. |
+| Invalid input, moderation rejection, authentication/configuration error | Terminal; do not retry or rewrite the prompt. |
+| Session creation/termination uncertain | Keep the session counted as occupied; block new live starts until operator verification. Cancel queued entries within the round deadline. |
+| Round deadline, host absence, abort | Stop admission, cancel owned tasks, attempt termination, freeze completed entries or finalize unscored as the game rules require. |
+| Lost browser response | Re-fetch state or return the existing accepted action; never create another generation. |
+| Process crash/restart | Discard the room, purge orphaned app files, require rejoin; provider lifetime caps bound already-created sessions. No job replay. |
+
+Delete round files on Play again/end/expiry, after cancelling their tasks; late writers remove their own files. Purge the demo-owned temporary directory on startup. Best-effort shutdown cleanup is helpful but not a crash guarantee. The operator purges remaining files after the event within 24 hours. No backup/history or automated retention SLA is promised. Provider retention remains separate.
+
+Log concise phase/job timings, session IDs, status, retry reason/number, termination failures, and attempted-call count. Do not log prompts, raw tokens, or private ballots. Use ordinary logs and `/health`; a metrics stack and ten-room performance target are deferred.
+
+## 7. VEED and deployment
+
+Prepare one optional reusable intro and one celebration with standard `veed/fabric-1.0` at 480p using an owned mascot image and recorded audio. The endpoint takes image/audio inputs. Download and check the files once, include matching text, and ship them as static generic assets. No runtime speech provider, live avatar, queue webhook, or room-specific rendering is needed. Missing assets fall back to text. [Fabric API](https://fal.ai/models/veed/fabric-1.0/api).
+
+Build the React app, serve its static output through Caddy, and proxy `/api` to the single Uvicorn process on the same host. Install FFmpeg and use a private writable temporary directory with enough disk for four bounded sources. Validate outbound Reactor WebRTC connectivity from that host. A Dockerfile is optional for reproducibility; Docker Compose services are not required. The exact host is an operational choice to settle in the spike.
+
+Keep code in four small areas: frontend phase screens; backend room/rules/API; generation/capture; media preparation. Add a fixtures adapter behind the same generation function and an offline VEED preparation script. Avoid a general game-plugin, repository, or provider marketplace framework.
+
+## 8. Build order and validation
+
+1. **Capture spike:** pin a compatible SDK/runtime/tokenizer, generate one live entry, prepare its MP4, play it on a phone, and verify termination and observed charge. This is the main integration risk.
+2. **Fixture round:** implement the single room, polling, prompt/vote rules, anonymous media access, results, and replay. Fixtures are labelled and independent of live credentials.
+3. **Live round:** attach bounded tasks, the single retry, provider caps, call allowance, timeout/failure outcomes, and cleanup. Rehearse three players, then four, on the actual host and phone browsers.
+4. **Presentation:** add optional VEED clips and polish only after the round is usable.
+
+Use pytest for scoring, duplicate actions, cap enforcement, deadline races, and mocked provider failures. Cover failure → retry → success, no third attempt, unchanged inputs, reuse of a saved recording, refusal when time/allowance is insufficient, and no retry for rejected/unknown sessions. Use one Playwright scenario with separate player contexts for a full round and a refresh. Manually verify Safari/Chrome playback, host absence, a process restart, and one failed/late entry. Pin and build dependencies; run Ruff, TypeScript checks, ESLint, pytest, and that browser flow. Do not build a separate load-testing or exhaustive distributed-recovery suite for this demo.
+
+Record the rehearsed player limit, preset/capture timings, dependency versions, account quota/price check, and demo reset/cleanup steps. A passing fixture flow does not establish live generation readiness. No checks above have been run yet because this repository still contains documentation only.

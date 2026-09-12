@@ -4,6 +4,8 @@ Status: proposed MVP specification, 12 September 2026.
 
 **Word by Word hackathon override:** its [dedicated demo spec](word-by-word-spec.md) and [simplified stack](word-by-word-tech-stack.md) take precedence over the shared requirements below. That demo uses one room, three/four player phones, one host screen, four words, and disposable in-memory state. The broader room infrastructure and other games remain separate plans; they are not prerequisites for this demo.
 
+**Prompt Royale demo scope:** its dedicated [game specification](games/prompt-royale/game-spec.md) and [technology stack](games/prompt-royale/tech-stack.md) take precedence over shared defaults and acceptance criteria here. Build one room for 3–4 players with a fixed host, curated topics, fixed timers, one initial generation attempt plus one bounded retry per entry, and browser polling. Ready checks, host failover, paired display, durable recovery, and the other games are not prerequisites for this demo. See the [before-and-after simplification](games/prompt-royale/simplification.md); the broader designs for the other games remain unchanged.
+
 ## 1. Product concept
 
 VibeParty turns a group of friends into the creators and audience of AI-generated entertainment. Players join a room on their phones, contribute words or prompts, watch the results, and compete through voting or guessing.
@@ -32,7 +34,7 @@ Names are working titles. Except for explicitly confirmed design directions, the
 ### Included
 
 - Private rooms, a join code and QR link, guest names, and reconnectable guest sessions.
-- Three to eight active players per round; the host can also play.
+- Game-specific player limits: **Prompt Royale supports three to four for the hackathon, including the playing host**; Word by Word supports three to four plus its separate host screen. See the dedicated demo specifications; the broader Reverse Prompt plan remains separate.
 - A lobby, game selection, configurable rounds, visible timers, and synchronized phase changes.
 - All three games, playable videos, anonymous contest entries, private relay turns, voting, similarity scoring, and end-of-round reveals.
 - Generation progress, bounded retries, timeout handling, and limits on generation spending.
@@ -48,8 +50,8 @@ Public matchmaking, accounts, persistent profiles, payments, public galleries, n
 
 1. A host creates a room, enters a display name, and receives a short join code and QR link.
 2. Guests join with a name. Duplicate names receive a visible suffix; names never determine identity.
-3. The host selects a game and settings. Players see a short rule card and mark themselves ready.
-4. The host starts when all three to eight active players are ready. Starting freezes the player roster, settings, provider preset, and any role order.
+3. The host selects a game and settings. Players see a short rule card; ready checks apply only where the selected game requires them.
+4. The host starts when the roster meets the selected game's player limits and any readiness requirements. Word by Word and Prompt Royale follow their dedicated demo start rules. Starting freezes the player roster, settings, provider preset, and any role order.
 5. The server advances the game through its phases. Every screen shows what to do next and how much time remains.
 6. Players watch the reveal and results. The host can play another round, choose another game, or end the room.
 
@@ -65,7 +67,7 @@ The host can start valid rounds, extend an input timer once, remove a player, tr
 
 | Setting | MVP default |
 | --- | --- |
-| Active players | Prompt Royale / Reverse Prompt: 3–8. Word by Word demo: 3–4, plus a separate host screen. |
+| Active players | Prompt Royale demo: 3–4 including the playing host. Word by Word demo: 3–4 plus a separate host screen. Reverse Prompt broader plan: 3–8. |
 | Rounds | One round per game launch; replay from results |
 | Word by Word | Four fixed slots, one word per slot, 45-second private collection, then host-controlled connected video segments; see the [demo specification](word-by-word-spec.md) |
 | Prompt Royale | 60 seconds to submit a prompt; 30 seconds to vote |
@@ -73,7 +75,7 @@ The host can start valid rounds, extend an input timer once, remove a player, tr
 | Individually written prompt / guess length | 1–500 characters after trimming, subject to provider and scoring token limits |
 | Video preset | Target 5 seconds for Prompt Royale / Reverse Prompt; Word by Word requests approximately 6 seconds per segment. Landscape and muted by default. |
 | Generation deadline | 180 seconds per Prompt Royale / Reverse Prompt generation phase; Word by Word has a 120-second total build limit, with provider cleanup separate from saved playback. These are product limits, not latency claims. |
-| Input extension | Prompt Royale / Reverse Prompt: host may add 30 seconds once per input phase. Word by Word demo: no extension. |
+| Input extension | Reverse Prompt: host may add 30 seconds once per input phase. Word by Word and Prompt Royale demos: no extension. |
 
 For the contest, the generation phase covers all entries in parallel. For the relay, each step has its own generation phase. The UI explains that larger relay groups require more sequential generations. Use a three-player room for a short demo; time estimates must come from measured provider performance.
 
@@ -115,18 +117,30 @@ After all words are accepted, privately build four connected video segments, eac
 
 ## 5. Game 2: Prompt Royale
 
+The dedicated [game specification](games/prompt-royale/game-spec.md) owns the simplified demo behavior and overrides shared room/recovery rules for this game. See its companion [technology choices and stack](games/prompt-royale/tech-stack.md) and [before-and-after comparison](games/prompt-royale/simplification.md).
+
+### Hackathon limitation
+
+Cap Prompt Royale at **four active players, including the playing host**, with a minimum of three and one room. Reject a fifth join and joins during an active round. Use a fixed host without ready checks, timer extensions, transfer, or removal; host absence aborts the round after 30 seconds. A server restart clears the room. Larger groups and durable recovery are future work; see [limitations and future work](games/prompt-royale/game-spec.md#hackathon-limitations-and-future-exploration).
+
 ### Objective
 
 Everyone receives the same topic and tries to create the group's favorite clip.
 
+### Rationale and inspiration
+
+Prompt Royale takes inspiration from **Quiplash by Jackbox Games**, whose creative prompt-and-vote format lets players answer prompts, including fill-in-the-blank sentences, and then pits two answers against each other for the other players to vote on. Credit for that inspiration goes to Jackbox Games. [Quiplash on Steam](https://store.steampowered.com/app/351510/Quiplash/).
+
+Prompt Royale adapts this format to AI-generated video: everyone writes a prompt for the same topic, each accepted prompt becomes a short clip, and the group watches all eligible clips before voting for a favorite. The rationale is to give players a simple creative starting point and a shared reveal, with the group deciding which result is most entertaining.
+
 ### Rules and sequence
 
-1. The host selects a topic from a small curated list or enters one before the round starts. Example: “The worst possible first day at a new job.”
+1. The host selects a topic from a small curated list before the round starts. Example: “The worst possible first day at a new job.”
 2. All players see the topic and write privately for 60 seconds. One final submission is allowed per player; local drafts are editable until submission.
 3. Submissions remain hidden. Start generation when every player has submitted or the deadline expires. A missed submission creates no entry and no generation request.
 4. Generate one clip per accepted prompt with the same frozen model, duration, resolution, aspect ratio, and rendering template. Use bounded concurrency. Do not offer paid rerolls during a contest.
-5. After every job finishes or the phase deadline expires, freeze the set of playable, approved clips. Label entries with neutral identifiers and use one server-shuffled screening order for the room.
-6. Screen every eligible clip before voting. A host can mark an unplayable entry unavailable before the ballot opens; the exclusion is public. Hide author names, submitted prompts, and vote totals until results.
+5. After every entry finishes or the phase deadline expires, freeze the set of playable clips. Label entries with neutral identifiers and use one server-shuffled screening order for the room.
+6. Screen every eligible clip before voting, within one 180-second screening deadline. The host can skip an unplayable or unsuitable entry before the ballot opens; the exclusion is public. This supervised demo does not require an automated output-review service. Hide author names, submitted prompts, and vote totals until results.
 7. Each player on the frozen roster may vote once for another player's eligible clip or abstain. Players whose own generation failed may still vote. Ballots lock on submission.
 8. Close voting when everyone has voted or abstained, or after 30 seconds. Count votes on the server, reveal the winning clip, and then reveal authors, prompts, and vote totals.
 
@@ -144,7 +158,7 @@ winners = all entries with the highest positive round_score
 - If no votes are cast, display “No winner — no votes cast.”
 - If fewer than two clips are eligible, allow a showcase and mark the round unscored.
 - Freeze the ballot set at voting start. If a later playback failure makes the ballot materially unusable, abort scoring for the round rather than changing the candidates after votes arrive.
-- A failure or disqualification of one entry does not block the rest. Only safe infrastructure retries of the same request are allowed, subject to the shared generation policy.
+- A failed or excluded entry does not block the rest. Retry a confirmed transient failure once with unchanged inputs, only within the original deadline and allowance. Reuse existing recordings for download/preparation failures; create at most two sessions per submission. Never retry rejected content or unknown session creation/termination. After failure or retry exhaustion, continue with usable clips or show an unscored result.
 - MVP rankings are per round. Do not combine raw votes with Reverse Prompt similarity scores into an overall leaderboard.
 
 ## 6. Game 3: Reverse Prompt
@@ -224,7 +238,7 @@ Rooms and media are private by default. Players are told that submitted generati
 | --- | --- |
 | Join and reconnect | Three separate browsers join one room; refreshing retains identity and restores the current phase without duplicate entries. |
 | Word by Word | Three/four players follow the four-slot rules; private answers stay hidden; three live runs including a variation demonstrate additions, continuity, and saved replay. Meet the [demo acceptance checks](word-by-word-spec.md#8-demo-acceptance). |
-| Prompt Royale | All players receive one topic; clips and authors are anonymous until results; self-votes and duplicate votes are rejected; ties produce joint winners. |
+| Prompt Royale | Three to four players receive one topic; a fifth active player or larger start roster is rejected; clips and authors are anonymous until results; self-votes and duplicate votes are rejected; ties produce joint winners. |
 | Reverse Prompt | A three-player chain produces three videos; only the next player can retrieve its input video; eligible guesses are compared with `P0`; the author is unscored. |
 | Privacy | Direct API calls, WebSocket events, snapshots, and media URLs cannot expose other players' hidden content before the proper phase. |
 | Scoring | Frozen-model paraphrase examples generally outrank unrelated examples; identical valid prompts score 100; empty guesses cannot be submitted; the numeric formula has deterministic boundary tests. |
