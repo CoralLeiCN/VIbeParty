@@ -8,6 +8,8 @@ Build one complete, presenter-led game for **exactly three people in one private
 
 ## 1. The game we are demonstrating
 
+**Inspiration and credit:** Reverse Prompt is inspired by the classic game [Telephone](https://en.wikipedia.org/wiki/Telephone_game). Telephone's message-passing mechanic is the origin of this game: players whisper a message along a group, then compare the original and final versions to discover how it changed. Our adaptation passes the idea through AI-generated videos and human descriptions, then adds final guesses and similarity scoring.
+
 One player writes a scene. Reactor generates a five-second video. The next player privately describes that video, creating a new video; the third player repeats this. Everyone watches the final result, the two interpreters guess the original prompt, and the full chain is revealed with similarity scores.
 
 The essential experience is seeing how a scene changes through human interpretation. Keep real generation, private clues, separate final guesses, and an entertaining reveal. English text, individual phone browsers, and a presenter guiding the room are sufficient. Scores are casual entertainment: players remember different clues, so this is not a fair ranked contest.

@@ -22,7 +22,9 @@ The table combines the interfaces above with VEED's [public API listing](https:/
 
 ## Game requirements that shape the fit
 
-The [game specification](../../games/reverse-prompt/game-spec.md) defines a private telephone-style relay:
+**Inspiration and credit:** Reverse Prompt is inspired by the classic game [Telephone](https://en.wikipedia.org/wiki/Telephone_game), where players pass a whispered message through a group and compare its original and final versions. Our adaptation uses AI-generated videos and human descriptions, then adds final guesses and similarity scoring.
+
+The [game specification](../../games/reverse-prompt/game-spec.md) defines this private relay:
 
 1. The author writes `P0`; generate `V0`.
 2. The next player watches only `V0`, writes `P1`, and generates `V1` **from P1 alone**.

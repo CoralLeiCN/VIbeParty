@@ -24,7 +24,7 @@ The hackathon demo includes:
 Two more games appear on the portal as **Coming soon**:
 
 - **Prompt Royale:** Write prompts for the same topic, watch the generated clips anonymously, and vote for a favorite. The most votes wins.
-- **Reverse Prompt:** Pass an idea through a chain of videos and descriptions, then guess the original prompt. Guesses score on similarity in meaning, and the final reveal shows how the idea changed.
+- **Reverse Prompt:** Inspired by the classic game [Telephone](https://en.wikipedia.org/wiki/Telephone_game), pass an idea through a chain of AI-generated videos and human descriptions, then guess the original prompt. Guesses score on similarity in meaning, and the final reveal shows how the idea changed.
 
 ## Demo limitation
 

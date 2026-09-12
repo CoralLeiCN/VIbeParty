@@ -12,6 +12,8 @@ These changes are applied to the [current game spec](game-spec.md) and [current 
 
 ## Gameplay before and after
 
+Both versions are inspired by the classic game [Telephone](https://en.wikipedia.org/wiki/Telephone_game). The adaptation keeps its message-passing mechanic and adds AI-generated videos, human descriptions, final guesses, and similarity scoring; see the [game specification's inspiration and credit](game-spec.md#1-the-game-we-are-demonstrating).
+
 | Area | Before: broader MVP | After: hackathon demo |
 | --- | --- | --- |
 | Players and rooms | 3–8 players; infrastructure supporting multiple rooms | Exactly 3 players, one room at a time |

@@ -10,6 +10,8 @@ VibeParty is a browser party-game app that turns a group's creative contribution
 
 The [Worlds hackathon](hackathon.md) delivery goal is a complete group experience: enter the app, finish a game, and return for another round. Each game provides its own way to create and reveal the result.
 
+**Inspiration and credit:** Reverse Prompt is inspired by the classic game [Telephone](https://en.wikipedia.org/wiki/Telephone_game), where players pass a whispered message from person to person and compare the final message with the original. Our adaptation passes the idea through AI-generated videos and human descriptions, then adds final guesses and similarity scoring.
+
 ## 2. Where requirements live
 
 The [portal specification](portal-spec.md) owns game availability, home-page content, host/join entry, session continuation, return navigation, and the portal build plan. A completed game specification does not by itself make that game available in the portal.
