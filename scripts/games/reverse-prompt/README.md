@@ -17,9 +17,9 @@ Room codes are four ASCII digits such as `0042`, distinct from the organizer pas
 
 ## Coordinated live checks
 
-Current checkpoint, 12 September 2026: the user stopped further live-trial coordination. Live generation is disabled. Reverse001 saved one real clip; Reverse002 failed on its first generation and stopped unscored. Both sessions were independently closed, with seven attempts remaining at the last verified checkpoint; the two unused slot allocations were cancelled. The integration worktree holding the canonical ledger has since been removed, and that file is unavailable. Restore the original campaign record to durable storage before live operation; do not replace it with a fresh nine-attempt allocation. The procedure below is retained for operation after an explicit change to that instruction; it does not authorize another call.
+Latest checkpoint, 12 September 2026: the user requested enabling live mode. The primary checkout and current task now enable it and share the durable quota at `/Users/coral/repos/VIbeParty/.local/vibeparty-persistent/reverse-prompt/quota.json`. The missing ledger's recorded balance was reconstructed from saved Reverse001/002 evidence: two closed attempts, seven remaining, no unresolved session. Original attempt/session IDs were unavailable and the recovered entries say so. No allowance was added. See [live enablement](../../../docs/research/reverse-prompt/live-enablement.md) for configuration and verification. The earlier pause in trials is superseded by this request; the remaining full-relay acceptance check is still open.
 
-Ask the integration session for the exclusive live slot and the single persistent campaign path. No automatic initialization is performed. The coordinator deliberately authorizes this once, with nine attempts:
+Use the existing shared campaign path above. Do not run initialization for this campaign. For a separately authorized first-ever campaign, initialization is an explicit operator action with nine attempts:
 
 ```sh
 .venv/bin/python scripts/games/reverse-prompt/quota_operator.py /absolute/persistent/campaign/quota.json initialize
