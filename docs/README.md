@@ -64,6 +64,7 @@ Each game uses the same document names. Start with its game spec, then follow th
 
 Additional references:
 
+- [Experiments](experiments/README.md): dated comparisons, account checks, and measured results, including Helios vs FastH3 pricing, speed, and 480p support.
 - [Word by Word: standard test scenarios](games/word-by-word/test-scenarios.md): category instructions, exact example answers, expected scene additions, and a result record to reuse in future tests.
 - [Word by Word: Consequences](research/word-by-word/consequences.md): traditional-game reference and the origin of the adaptation.
 - Reverse Prompt's archived [game spec](games/reverse-prompt/archive/game-spec-v1.md) and [technical stack](games/reverse-prompt/archive/tech-stack-v1.md): historical designs before simplification.
@@ -93,6 +94,8 @@ docs/
   research/<game>/
     README.md            # Provider research
     consequences.md      # Word by Word's reference note
+  experiments/           # Dated comparisons and experiment evidence
+    README.md
 ```
 
 Use `word-by-word`, `prompt-royale`, and `reverse-prompt` as the game folder names. Keep standards that apply across games in `shared/`, game-specific rules and implementation decisions in `games/`, supporting evidence in `research/`, and superseded designs in the relevant game's `archive/`.

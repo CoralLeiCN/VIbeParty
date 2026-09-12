@@ -1,0 +1,40 @@
+{
+  "observed_at_utc": "2026-09-12T15:45:42.710540+00:00",
+  "source": "https://api.reactor.inc/pricing",
+  "settings": {
+    "credits_per_dollar": 10000,
+    "purchase": {
+      "min_dollars": 1,
+      "max_dollars": 1000
+    },
+    "auto_topup": {
+      "min_dollars": 5
+    },
+    "max_account_credits": 0,
+    "currency_code": "USD"
+  },
+  "models": [
+    {
+      "id": "3dc9e64e-ebc1-4824-a63b-2ad0dbb15ca8",
+      "name": "fast-h3",
+      "rate": {
+        "amount_per_sec": 70,
+        "amount_per_sec_usd": "0.0070",
+        "currency_code": "USD",
+        "unit": "credits",
+        "denomination": "second"
+      }
+    },
+    {
+      "id": "75c908ff-ffa2-4360-9fd6-85b181dd2d43",
+      "name": "helios",
+      "rate": {
+        "amount_per_sec": 17,
+        "amount_per_sec_usd": "0.0017",
+        "currency_code": "USD",
+        "unit": "credits",
+        "denomination": "second"
+      }
+    }
+  ]
+}

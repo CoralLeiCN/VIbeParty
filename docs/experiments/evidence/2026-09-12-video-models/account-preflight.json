@@ -1,0 +1,16 @@
+{
+  "observed_at_utc": "2026-09-12T15:45:42.710865+00:00",
+  "credential_source": "repository .env REACTOR_API_KEY (value omitted)",
+  "endpoint": "https://api.reactor.inc/tokens",
+  "sessions_opened": 0,
+  "generations_submitted": 0,
+  "balance": "unverified: browser is not signed in; no documented usage API",
+  "reactor/helios": {
+    "http_status": 200,
+    "token_returned": true
+  },
+  "reactor/fast-h3": {
+    "http_status": 200,
+    "token_returned": true
+  }
+}
