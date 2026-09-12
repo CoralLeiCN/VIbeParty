@@ -2,13 +2,13 @@
 
 [All docs](../../README.md) · [Game spec](game-spec.md) · [Simplification](simplification.md) · [Research](../../research/reverse-prompt/README.md)
 
-Version: 2.2 local demo scope. Updated: 12 September 2026. Status: selected design, not installed or runtime-verified.
+Version: 2.3 local FastH3 demo scope. Updated: 12 September 2026. Status: FastH3 replacement integrated from `cfc422c` and `9e71dbb`; local tests and the fixture walkthrough pass. Real provider acceptance remains open.
 
 **The stack is sufficient for the three-player demo.** Use one persistent Python application, in-memory game state, and private local video files. The outstanding feasibility test is turning a fresh Reactor stream into a playable five-second clip within the demo's time budget. Follow the [game specification](game-spec.md); this document replaces the broader [backend requirements](../../backend-spec.md) for Reverse Prompt. See [before and after](simplification.md) and the [archived architecture](archive/tech-stack-v1.md).
 
 ## 1. Stack we will use
 
-**Reactor Helios generates all three relay videos. Sentence Transformers scores guesses locally. No OpenAI API key or service is required.** Live video generation still requires Reactor credentials; their availability has not been verified in this documentation review.
+**Reactor FastH3 is selected for all three independent relay videos. Sentence Transformers scores guesses locally. No OpenAI API key or service is required.** Live video generation requires Reactor credentials and an exclusive allocation. The FastH3 adapter is integrated; its live flags remain disabled in the combined demo pending acceptance.
 
 | Layer | Choice | Purpose |
 | --- | --- | --- |
@@ -17,7 +17,7 @@ Version: 2.2 local demo scope. Updated: 12 September 2026. Status: selected desi
 | Frontend tooling | Node.js 24 LTS, npm lockfile | Build static assets; FastAPI serves them during the local demo |
 | Backend | Python 3.13, FastAPI, Pydantic 2, Uvicorn | Rules, guest cookies, validation, media authorization, provider calls |
 | State and concurrency | Python dataclasses/dictionaries, `asyncio.Lock`, retained asyncio task references | One room and one generation at a time, in one process |
-| Video generation | Reactor Helios, `reactor-sdk` | Fresh text-only video session for each relay step |
+| Video generation | Reactor FastH3 (`reactor/fast-h3`), locked `reactor-sdk` 1.5.1 | Fresh text-only video session for each relay step |
 | Video preparation | FFmpeg and ffprobe | Produce and validate a short browser-compatible MP4 |
 | Similarity scoring | Sentence Transformers, `sentence-transformers/all-MiniLM-L6-v2`, CPU PyTorch | One local embedding batch for the original and two guesses, then cosine scoring |
 | Input handling | Local format/token validation; Reactor's generation-input filters | No separate app content classifier; presenter can stop/reset |
@@ -27,7 +27,7 @@ Version: 2.2 local demo scope. Updated: 12 September 2026. Status: selected desi
 | Python tooling and checks | uv lockfile, pytest, Ruff; TypeScript compiler | Reproducible dependencies and focused rule/privacy checks |
 | Optional presentation | Manually exported VEED intro MP4 | Static asset only; no `fal-client` or VEED runtime key required |
 
-React documents Vite as a SPA building option. Node 24 and Python 3.13 are supported baselines; resolve compatible patch versions and commit lockfiles during implementation. No exact dependency set has yet been installed. [React guidance](https://react.dev/learn/build-a-react-app-from-scratch), [Node releases](https://nodejs.org/en/about/previous-releases), [Python lifecycle](https://devguide.python.org/versions/).
+The shared manifests and lockfiles contain the installed dependency set. The FastH3 replacement uses the existing generic SDK command interface and requests no new dependency or model-selector environment variable.
 
 ## 2. Small architecture and ownership
 
@@ -35,7 +35,7 @@ React documents Vite as a SPA building option. Node 24 and Python 3.13 are suppo
 flowchart LR
     Phones[Three player browsers] -->|LAN HTTP: commands and polling| App[One FastAPI process on laptop]
     App --> State[In-memory room]
-    App --> Reactor[Reactor Helios]
+    App --> Reactor[Reactor FastH3]
     App --> Scorer[Local Sentence Transformers and CPU PyTorch]
     App --> FFmpeg[FFmpeg subprocess]
     FFmpeg --> Files[Private local MP4 files]
@@ -84,17 +84,17 @@ Resolve media IDs through the current round's server map, never a client-supplie
 
 ## 4. Reactor integration and essential limits
 
-Use model `reactor/helios`, main video only, no audio, and a fresh creator-owned session per accepted prompt. The input is that prompt plus one fixed instruction, such as “A single continuous shot depicting the described scene. No captions or on-screen text.” Keep the original player text separately for scoring. Never pass previous prompts, images, videos, or session state into the next generation. Helios supports this text-only scene role. [Helios documentation](https://docs.reactor.inc/model-api-reference/helios/overview).
+Use fixed model `reactor/fast-h3` and a fresh creator-owned session per accepted prompt. The input is that prompt plus the existing fixed instruction: “A single continuous shot depicting the described scene. No captions or on-screen text.” Keep the original player text separately for scoring. Never pass previous prompts, images, videos, or session state into the next generation. Consume only `main_video`; the game's saved output remains silent even though FastH3 also generates audio. [FastH3 overview](https://docs.reactor.inc/model-api-reference/fast-h3/overview).
 
-The selected capture route uses decoded SDK frames, following the requested frame-assembly approach. The local encoder and provider-fake checks pass; a real Helios-to-phone spike must still prove this sequence:
+The game owner has specified the following replacement contract. Local tests and a real FastH3-to-phone spike must establish its behavior before live acceptance:
 
-1. Persist one consumed attempt and set the unresolved-session guard before contacting Reactor. Create a token limited to `reactor/helios`, one session, and **90 seconds maximum session duration**. Passing a JWT means the limit belongs in that token; do not assume the SDK constructor overrides it.
-2. Start a fresh creator-owned session, disable super-resolution, send only the current prompt plus the fixed instruction, and start generation. Capture the first120 decoded BGRA frames from `main_video.on_raw_frame`. SDK1.5.1 copies native buffers into immutable bytes before this callback. Missing frame IDs/timestamps may be zero and are not treated as duplicate frames.
-3. Transfer frames through a bounded16-frame queue to an async FFmpeg subprocess. Reject dimension changes, invalid landscape frames, known timestamp reordering, a source timestamp span over15 seconds, or queue overflow. Each frame is bounded to1280×768 pixels; never accumulate full frames in an unbounded event-loop queue. The90-second application deadline includes connection, capture, encoding and validation.
-4. Encode the accepted frames in order as five seconds of silent H.264/yuv420p at24 fps, preserving dimensions, with faststart and source metadata removed. Output must be below10 MiB. This is a fixed first-frame policy; it does not select a best take. No provider recording request, recording download, browser screenshot, or automatic session retry is used.
-5. Terminate the creator-owned session immediately after encoding or on error/reset. Independently verify terminal state before clearing the persistent guard. Keep the encoder launch and process owned across cancellation, kill/await it when needed, and retain the provider-side duration cap as the crash fallback. Then use ffprobe plus a bounded FFmpeg decode to reject corrupt or incorrectly sized output before publishing to the matching active round. Validation has a20-second cap within the remaining application deadline.
+1. Persist one consumed attempt and set the unresolved-session guard before contacting Reactor. Mint a token restricted to `reactor/fast-h3`, `max_sessions=1`, and `max_session_duration_seconds=90`. Retain the 90-second application deadline covering connection, generation, capture, encoding and validation.
+2. Confirm acknowledgments for `set_autoplay(false)`, `set_canvas` with aspect `16:9`, and `set_flush_on_clip_end(true)`. Enqueue the current text plus fixed instruction with opaque attempt metadata and `seconds=5.167`. Require a correlated `clip_queued` identity, a matching completion event and a declared 124-frame source length. A compact completion event may omit that length: preserve acknowledged metadata or make one read-only lookup of the same playout item; never enqueue again. A differing duration fails this selected contract. The command/event definitions are documented in the [FastH3 schema](https://docs.reactor.inc/model-api-reference/fast-h3/schema).
+3. Explicitly play that clip ID. Admit decoded BGRA frames only after its matching `clip_started` event. Save the first 120 frames, and reject playback that ends early. SDK frame/event ordering must be measured on the actual connection; provider-fake ordering is insufficient evidence.
+4. Transfer frames through the existing bounded 16-frame queue into an owned FFmpeg subprocess. Expect 1344×768 frames for this selected canvas; reject changed dimensions, known timestamp reordering, a source timestamp span over 15 seconds, or queue overflow. Preserve the handling of absent frame IDs/timestamps. Encode five seconds of silent H.264/yuv420p at 24 fps, with faststart, no source metadata and an output below 10 MiB. No provider recording download or automatic retry is part of this route.
+5. Terminate the creator session once the selected frames are saved, or on error/reset. Independently verify terminal state before clearing the persistent guard or publishing media. Keep encoder launch/cancellation owned, kill/await it when required, then validate the MP4 with ffprobe and bounded decoding within the remaining deadline. The provider duration cap remains a crash fallback.
 
-The actual FFmpeg tests encode120 frames into a five-second MP4 and decode its first/last frames to verify order. Provider fakes verify independent sessions, current-only prompts, quota and cleanup. These tests do not establish real Helios delivery timing or phone compatibility. See [capture evidence](../../development/handoffs/reverse-prompt.md) and the pinned [Python SDK](https://docs.reactor.inc/sdk-reference/python/reactor) / [token authentication](https://docs.reactor.inc/authentication) references.
+Existing FFmpeg tests establish encoding and frame order for supplied frames, and the prior provider fakes cover independence, quota and cleanup. The replacement must add coverage for clip acknowledgment, generation, explicit playback, frame admission and failed/short playback. Live timing and phone compatibility remain open. See the [game handoff](../../development/handoffs/reverse-prompt.md), [Python SDK](https://docs.reactor.inc/sdk-reference/python/reactor) and [token authentication](https://docs.reactor.inc/authentication).
 
 **Use one active provider session, one attempt per step, and no automatic session-creation retries.** Initialize a persistent `demo-quota.json` explicitly with nine remaining attempts and no unresolved session. Decrement atomically before connection, never refund ambiguous attempts, and never replenish on room reset or process restart. A missing/corrupt guard file blocks live mode until the operator initializes or repairs it. Do not bake automatic quota initialization into startup.
 
@@ -135,7 +135,7 @@ VEED is optional polish: create one generic intro manually, export an MP4, and p
 
 Use focused pytest checks for role/phase authorization, duplicate and stale submissions, cosine rules, failed scoring, session quota, and reset during generation. Check TypeScript and Ruff; rehearse the full flow in three browser sessions, including one real phone. A separate browser testing stack, migration tests, multi-room load tests, and a broad CI matrix are deferred. These checks map to [DEMO-01 through DEMO-08](game-spec.md#7-demo-acceptance).
 
-The implementation now has passing local application, encoder and offline-scoring checks. No live trial has been run: account balance and previous-session closure are still unverified, so the provider-to-phone spike remains open. If that fails, fix or deliberately revise the demo before proceeding; never silently substitute prerecorded output for a claimed live round.
+The integrated fixture application, FastH3 provider-fake/encoder tests and offline scoring checks pass. Real provider capture and physical-phone rehearsal remain open; consult the coordinator's [trial record](../../development/live-provider-slots.md) for the active slot and single persistent campaign path before paid work.
 
 ## Adopted application integration (foundation)
 

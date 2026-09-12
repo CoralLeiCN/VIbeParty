@@ -11,7 +11,7 @@ from backend.shared.room_codes import UNAVAILABLE_MESSAGE, normalize_room_code
 
 from .config import GameSettings
 from .quota import GuardError, Quota
-from .reactor_video import HeliosProvider
+from .reactor_video import FastH3Provider
 from .rehearsal import GUESSES, PROMPTS, SAMPLE_SCORES, RehearsalProvider
 from .scoring import LocalScorer, normalize
 
@@ -66,7 +66,7 @@ class Game:
         self.guard = None
         self.guard_error = None
         self.media_root = context.settings.media_dir(GAME)
-        self.live_provider = provider or HeliosProvider(
+        self.live_provider = provider or FastH3Provider(
             self.config.reactor_api_key.get_secret_value(), self.quota
         )
         self.work: asyncio.Task | None = None

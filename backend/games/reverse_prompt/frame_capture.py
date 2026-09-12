@@ -10,11 +10,11 @@ from .media import MAX_OUTPUT
 FPS = 24
 FRAME_COUNT = 5 * FPS
 QUEUE_LIMIT = 16
-MAX_FRAME_BYTES = 1280 * 768 * 4
+MAX_FRAME_BYTES = 1344 * 768 * 4
 
 
 class FrameCapture:
-    def __init__(self):
+    def __init__(self, expected_dimensions=None):
         self.loop = asyncio.get_running_loop()
         self.lock = threading.Lock()
         self.ready = asyncio.Event()
@@ -22,6 +22,7 @@ class FrameCapture:
         self.accepting = False
         self.error = None
         self.dimensions = None
+        self.expected_dimensions = expected_dimensions
         self.received = 0
         self.encoded = 0
         self.identities = set()
@@ -38,6 +39,14 @@ class FrameCapture:
         with self.lock:
             self.accepting = False
             self.queue.clear()
+
+    def finish(self):
+        """A playback boundary must not pad a short clip with idle frames."""
+        with self.lock:
+            self.accepting = False
+            if self.received < FRAME_COUNT:
+                self.error = ValueError("Playback ended before five seconds were captured")
+        self.ready.set()
 
     def on_frame(self, bgra, width, height, frame_id, timestamp_us, _user_data):
         # The pinned SDK supplies immutable bytes on its native delivery thread.
@@ -56,6 +65,8 @@ class FrameCapture:
                 ):
                     raise ValueError("Invalid decoded landscape frame")
                 size = (width, height)
+                if self.expected_dimensions is not None and size != self.expected_dimensions:
+                    raise ValueError("Unexpected provider video dimensions")
                 if self.dimensions is not None and self.dimensions != size:
                     raise ValueError("Video dimensions changed during capture")
                 # Zero means absent metadata in SDK 1.5.1, not one repeated frame.

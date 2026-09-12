@@ -52,7 +52,7 @@ The small persistent quota file is intentional: game state can be disposable, bu
 
 - **Frontend:** React 19, TypeScript, Vite, CSS Modules, native fetch/polling; Node 24 and npm for builds.
 - **Backend:** Python 3.13, FastAPI, Pydantic 2, Uvicorn with one worker; standard-library state, locks, and tasks.
-- **Video:** Reactor Helios via `reactor-sdk`, FFmpeg/ffprobe, private local disk.
+- **Video:** Reactor FastH3 via the locked `reactor-sdk`, FFmpeg/ffprobe, private local disk. The user selected this replacement on 12 September; see the current technical plan for its integration and live-verification status.
 - **Scoring:** Sentence Transformers with `sentence-transformers/all-MiniLM-L6-v2`, CPU PyTorch, and cosine similarity; preload a pinned model for local inference.
 - **Input checks:** Local format/token limits and Reactor's generation-input filters; no app moderation API. HTTPX is needed only if Reactor token minting uses it.
 - **Local runtime and checks:** Host laptop, one Uvicorn worker, LAN HTTP, uv/npm lockfiles, pytest, Ruff, TypeScript. Verify SDK/scorer compatibility on the laptop before the demo.

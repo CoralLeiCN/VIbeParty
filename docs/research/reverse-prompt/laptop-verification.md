@@ -1,6 +1,10 @@
 # Laptop verification — 12 September 2026
 
-This record separates working local behavior from unverified live acceptance. No paid Reactor calls have run in this session. Session A has not allocated an exclusive slot or initialized the nine-attempt campaign because operator account/session readiness is pending.
+This record separates working local behavior from unverified live acceptance. The first allocated real FastH3 capture passed in slot `2026-09-12-reverse-001`: one attempt,5s1344×768 MP4,16.49s total and independently confirmed terminal closure. A initialized the one shared nine-attempt campaign;8 remain. See the [current switch evidence](fasth3-switch.md#first-real-capture). Historical no-trial statements below describe prior checkpoints.
+
+## Current provider: MiniMax FastH3
+
+The user selected FastH3 through Reactor. The [switch record](fasth3-switch.md) documents the new queue/playback adapter, tests, browser checks and open live gates. Historical Helios and recording findings below describe earlier milestones. Current capture uses1344×768 and a matching FastH3 playback event; the unused recording downloader has been removed.
 
 ## Four-digit room-code acceptance
 
@@ -55,7 +59,7 @@ Organizer-admission follow-up `74e1150`: 30 Reverse Prompt/shared tests pass (23
 | ID | Evidence | Remaining |
 | --- | --- | --- |
 | DEMO-01 | Three CUA identities complete party; HTTP tests reject fourth and nonhost start/reset | Physical group rehearsal |
-| DEMO-02 | Provider fake receives exactly three current-only prompts; real adapter creates a fresh client/token each call | Three real independent Helios videos |
+| DEMO-02 | Provider fake receives exactly three current-only prompts; real adapter creates a fresh client/token each call | Three real independent MiniMax FastH3 videos |
 | DEMO-03 | HTTP tests cover private snapshots, full GET, HEAD, range and expired-turn media; CUA private clue flow | Live media repeat |
 | DEMO-04 | Real pinned scorer offline; exact/paraphrase/token/tie tests; author exclusion; failed/timeout unscored behavior | Full live round using local scorer |
 | DEMO-05 | Same receipt on duplicate; conflicting/stale bodies rejected; reset cancels retained provider work | Live duplicate/failure rehearsal |

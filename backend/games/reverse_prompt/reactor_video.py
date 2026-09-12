@@ -1,18 +1,20 @@
-"""One fresh Helios session per prompt, with independently proven closure."""
+"""One fresh MiniMax FastH3 session per prompt, with independently proven closure."""
 
 import asyncio
-import re
 import time
 from pathlib import Path
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import quote
 
 import httpx
 
 from .frame_capture import FrameCapture
-from .media import MAX_SOURCE, validate
+from .media import validate
 from .quota import Quota
 
 API = "https://api.reactor.inc"
+MODEL = "reactor/fast-h3"
+SOURCE_SECONDS = 5.167  # The published minimum snaps to 124 frames at 24 fps.
+SOURCE_FRAMES = 124
 INSTRUCTION = (
     "A single continuous shot depicting the described scene. No captions or on-screen text."
 )
@@ -23,71 +25,140 @@ class GenerationError(RuntimeError):
     pass
 
 
-async def download_recording(client, clip, jwt: str, destination: Path):
-    """Ordered init + media fragments, bounded memory/disk and cancellable I/O."""
-    base = clip.playlist_url
-    origin = urlsplit(API).netloc
+def payload(message: dict) -> dict:
+    if not isinstance(message, dict):
+        raise GenerationError("Invalid provider message")
+    data = message.get("data", message)
+    if not isinstance(data, dict):
+        raise GenerationError("Invalid provider message")
+    return data
 
-    def headers(url):
-        parsed = urlsplit(url)
-        if parsed.scheme != "https" or parsed.username or parsed.password:
-            raise GenerationError("Invalid recording URL")
-        return {"Authorization": f"Bearer {jwt}"} if parsed.netloc == origin else {}
 
-    async def fetch(url, limit):
-        # Never forward the token to a signed CDN or follow an unchecked redirect.
-        async with client.stream("GET", url, headers=headers(url)) as response:
-            if response.status_code == 202:
-                return None
-            response.raise_for_status()
-            chunks = bytearray()
-            async for chunk in response.aiter_bytes(65536):
-                if len(chunks) + len(chunk) > limit:
-                    raise GenerationError("Recording exceeds the media limit")
-                chunks.extend(chunk)
-            return bytes(chunks)
+def clip_info(message: dict) -> dict:
+    data = payload(message)
+    clip = data.get("clip", data)
+    if (
+        not isinstance(clip, dict)
+        or not isinstance(clip.get("clip_id"), str)
+        or not 1 <= len(clip["clip_id"]) <= 200
+    ):
+        raise GenerationError("Missing provider clip identity")
+    return clip
 
-    while True:
-        body = await fetch(base, 1024 * 1024)
-        if body is not None:
-            break
-        await asyncio.sleep(0.5)
-    text = body.decode()
-    if not text.startswith("#EXTM3U") or "#EXT-X-KEY" in text or "#EXT-X-STREAM-INF" in text:
-        raise GenerationError("Unsupported recording playlist")
-    segments = []
-    for line in text.splitlines():
-        line = line.strip()
-        if line.startswith("#EXT-X-MAP:"):
-            match = re.search(r'URI="([^"]+)"', line)
-            if not match:
-                raise GenerationError("Missing recording init")
-            segments.append(urljoin(base, match[1]))
-        elif line and not line.startswith("#"):
-            segments.append(urljoin(base, line))
-    if not 1 <= len(segments) <= 100:
-        raise GenerationError("Invalid recording segments")
-    size = 0
-    with destination.open("wb") as handle:
-        for segment in segments:
-            data = await fetch(segment, MAX_SOURCE - size)
-            if data is None:
-                raise GenerationError("Recording segment is not ready")
-            handle.write(data)
-            size += len(data)
+
+def source_frames(clip: dict) -> int | None:
+    frames = clip.get("frames")
+    if frames is None:
+        return None
+    if type(frames) not in {int, float} or frames != SOURCE_FRAMES:
+        raise GenerationError("Unexpected generated clip length")
+    return SOURCE_FRAMES
+
+
+class ClipPlayback:
+    """Correlate the sole submitted clip before admitting streamed frames."""
+
+    def __init__(self, capture: FrameCapture):
+        self.capture = capture
+        self.failure = asyncio.get_running_loop().create_future()
+        self.changed = asyncio.Event()
+        self.generated = {}
+        self.clip_id = None
+        self.play_requested = False
+        self.started = False
+
+    def fail(self, reason="Provider rejected generation"):
+        if not self.failure.done():
+            self.failure.set_result(reason)
+
+    def message(self, message):
+        try:
+            payload(message)
+            kind = message.get("type")
+            if kind in {"command_error", "clip_failed", "error"}:
+                self.fail()
+            elif kind == "clip_generated":
+                clip = clip_info(message)
+                if len(self.generated) >= 4 and clip["clip_id"] not in self.generated:
+                    raise GenerationError("Unexpected provider clips")
+                self.generated[clip["clip_id"]] = clip
+                self.changed.set()
+            elif kind in {"clip_started", "clip_finished", "clip_stopped"}:
+                clip = clip_info(message)
+                if not self.play_requested:
+                    raise GenerationError("Unexpected provider playback")
+                if clip["clip_id"] != self.clip_id:
+                    raise GenerationError("Provider played a different clip")
+                if kind == "clip_started" and not self.started:
+                    self.started = True
+                    self.capture.start()
+                elif kind in {"clip_finished", "clip_stopped"}:
+                    self.capture.finish()
+        except GenerationError as error:
+            self.fail(str(error))
+
+    async def wait(self, task):
+        """Wake even if a command is waiting for an acknowledgment that never arrives."""
+        try:
+            done, _ = await asyncio.wait({task, self.failure}, return_when=asyncio.FIRST_COMPLETED)
+            if self.failure in done:
+                raise GenerationError(self.failure.result())
+            return task.result()
+        finally:
+            if not task.done():
+                task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    async def command(self, reactor, name, data, acknowledgment=None):
+        if self.failure.done():
+            raise GenerationError(self.failure.result())
+        result = await self.wait(asyncio.create_task(reactor.send_command(name, data)))
+        if acknowledgment and (
+            not isinstance(result, dict) or result.get("type") != acknowledgment
+        ):
+            raise GenerationError("Provider command was not confirmed")
+        return result
+
+    async def ready(self, reactor, queued):
+        clip_id = queued["clip_id"]
+        self.clip_id = clip_id
+        while clip_id not in self.generated:
+            self.changed.clear()
+            await self.wait(asyncio.create_task(self.changed.wait()))
+        # Compact completion events must not erase the correlated enqueue metadata.
+        acknowledged = source_frames(queued)
+        generated = source_frames(self.generated[clip_id])
+        if generated or acknowledged:
+            return "generated" if generated else "enqueue"
+        # One read of the existing clip; this never repeats the paid enqueue.
+        reply = await self.command(reactor, "get_queue", {}, "queue_update")
+        clips = payload(reply).get("playout")
+        if not isinstance(clips, list) or len(clips) > 20:
+            raise GenerationError("Invalid provider queue")
+        for clip in clips:
+            if isinstance(clip, dict) and clip.get("clip_id") == clip_id:
+                if source_frames(clip):
+                    return "queue"
+                break
+        raise GenerationError("Missing generated clip length")
 
 
 async def terminal(client, jwt: str, session_id: str) -> bool:
     response = await client.get(
-        f"{API}/sessions/{session_id}", headers={**HEADERS, "Authorization": f"Bearer {jwt}"}
+        f"{API}/sessions/{quote(session_id, safe='')}",
+        headers={**HEADERS, "Authorization": f"Bearer {jwt}"},
     )
     if response.status_code == 404:
         return True
     response.raise_for_status()
-    return response.json().get("state") in {"CLOSED", "INACTIVE"}
+    data = response.json()
+    return data.get("session_id", session_id) == session_id and data.get("state") in {
+        "CLOSED",
+        "INACTIVE",
+    }
 
 
-class HeliosProvider:
+class FastH3Provider:
     def __init__(self, key: str, quota: Quota):
         self.key = key
         self.quota = quota
@@ -97,27 +168,19 @@ class HeliosProvider:
         from reactor_sdk import Reactor
 
         directory.mkdir(parents=True, exist_ok=True)
+        output = directory / "video.mp4"
         started = time.monotonic()
         attempt = await asyncio.to_thread(self.quota.consume)
-        self.last_evidence = {"attempt": attempt, "closed": False, "model": "reactor/helios"}
+        self.last_evidence = {"attempt": attempt, "closed": False, "model": MODEL}
         reactor = None
         jwt = None
         sid = None
         connected = False
-        # sid callback is on the event loop. Persist before resuming provider work.
+        published = False
         sid_tasks = []
-        failure = asyncio.get_running_loop().create_future()
-        capture = FrameCapture()
+        capture = FrameCapture(expected_dimensions=(1344, 768))
+        playback = ClipPlayback(capture)
         capture_task = None
-        chunks = 0
-
-        def on_message(message):
-            nonlocal chunks
-            kind = message.get("type")
-            if kind == "chunk_complete":
-                chunks += 1
-            if kind in {"command_error", "error"} and not failure.done():
-                failure.set_result("Provider rejected generation")
 
         def on_session(value):
             nonlocal sid
@@ -137,7 +200,7 @@ class HeliosProvider:
                             "authorization_details": [
                                 {
                                     "type": "session",
-                                    "resources": {"models": {"match": ["reactor/helios"]}},
+                                    "resources": {"models": {"match": [MODEL]}},
                                     "constraints": {
                                         "max_sessions": 1,
                                         "max_session_duration_seconds": 90,
@@ -148,17 +211,12 @@ class HeliosProvider:
                     )
                     response.raise_for_status()
                     jwt = response.json()["jwt"]
-                    reactor = Reactor(model_name="reactor/helios", jwt=jwt)
+                    if not isinstance(jwt, str) or not jwt:
+                        raise GenerationError("Missing provider token")
+                    reactor = Reactor(model_name=MODEL, jwt=jwt)
                     reactor.on("session_id_changed", on_session)
-                    reactor.on("message", on_message)
-                    reactor.on(
-                        "error",
-                        lambda _error: (
-                            failure.set_result("Provider session failed")
-                            if not failure.done()
-                            else None
-                        ),
-                    )
+                    reactor.on("message", playback.message)
+                    reactor.on("error", lambda _error: playback.fail("Provider session failed"))
                     reactor.track("main_video").on_raw_frame(capture.on_frame)
                     await reactor.connect()
                     connected = True
@@ -168,53 +226,70 @@ class HeliosProvider:
                     await asyncio.to_thread(self.quota.session, attempt, sid)
                     if sid_tasks:
                         await asyncio.gather(*sid_tasks)
-                    await reactor.send_command("set_sr_scale", {"sr_scale": "off"})
-                    await reactor.send_command(
-                        "set_prompt", {"prompt": prompt + "\n\n" + INSTRUCTION}
+                    for name, data, ack in (
+                        ("set_autoplay", {"enabled": False}, "autoplay_accepted"),
+                        ("set_canvas", {"aspect": "16:9"}, "canvas_accepted"),
+                        ("set_flush_on_clip_end", {"enabled": True}, "flush_accepted"),
+                    ):
+                        await playback.command(reactor, name, data, ack)
+                    self.last_evidence["startup_seconds"] = round(time.monotonic() - started, 3)
+                    # A fresh session and text-only request give each relay its own scene.
+                    reply = await playback.command(
+                        reactor,
+                        "enqueue",
+                        {
+                            "prompt": prompt + "\n\n" + INSTRUCTION,
+                            "seconds": SOURCE_SECONDS,
+                            "metadata": attempt,
+                        },
+                        "clip_queued",
                     )
-                    output = directory / "video.mp4"
+                    queued = clip_info(reply)
+                    if queued.get("metadata", attempt) != attempt:
+                        raise GenerationError("Provider acknowledged a different clip")
+                    source_frames(queued)
+                    metadata_source = await playback.ready(reactor, queued)
+                    self.last_evidence.update(
+                        frame_metadata_source=metadata_source,
+                        source_frames=SOURCE_FRAMES,
+                        source_seconds=SOURCE_FRAMES / 24,
+                        generated_seconds=round(time.monotonic() - started, 3),
+                    )
                     capture_task = asyncio.create_task(capture.record(output))
-                    capture.start()
-                    try:
-                        await reactor.send_command("start", {})
-                        done, _ = await asyncio.wait(
-                            {capture_task, failure}, return_when=asyncio.FIRST_COMPLETED
-                        )
-                        if failure in done:
-                            raise GenerationError(failure.result())
-                        capture_task.result()
-                    finally:
-                        if not capture_task.done():
-                            capture_task.cancel()
-                        await asyncio.gather(capture_task, return_exceptions=True)
-                    # End GPU use as soon as the first 120 decoded frames are saved.
+                    playback.play_requested = True
+                    # Capture starts only on this clip's matching clip_started event.
+                    await playback.command(reactor, "play", {"clip_id": queued["clip_id"]})
+                    await playback.wait(capture_task)
+                    # End GPU use as soon as 120 frames of the ready clip are saved.
                     await self._close(reactor, client, jwt, sid, attempt)
                     reactor.close()
                     reactor = None
                     metadata = await validate(output)
-                    self.last_evidence.update(
-                        metadata,
-                        **capture.evidence(),
-                        chunks=chunks,
-                        total_seconds=round(time.monotonic() - started, 3),
-                    )
+                    self.last_evidence.update(metadata, **capture.evidence())
+                    published = True
                     return output
             finally:
                 capture.stop()
-                if capture_task is not None and not capture_task.done():
-                    capture_task.cancel()
+                if capture_task is not None:
+                    if not capture_task.done():
+                        capture_task.cancel()
                     await asyncio.gather(capture_task, return_exceptions=True)
                 if reactor is not None:
-                    # Cancellation of generation still awaits owned cleanup.
                     try:
                         await self._close(reactor, client, jwt, sid, attempt)
                     except (Exception, asyncio.CancelledError):
-                        pass  # Persistent guard deliberately remains set.
+                        pass  # Uncertain closure deliberately retains the persistent guard.
                     reactor.close()
                 if sid_tasks:
                     await asyncio.gather(*sid_tasks, return_exceptions=True)
-                # If mint/connect was ambiguous with no session identity, no automatic clear.
-                self.last_evidence.update(connected=connected, chunks=chunks, **capture.evidence())
+                if not published:
+                    output.unlink(missing_ok=True)
+                self.last_evidence.update(
+                    connected=connected,
+                    playback_started=playback.started,
+                    total_seconds=round(time.monotonic() - started, 3),
+                    **capture.evidence(),
+                )
 
     async def _close(self, reactor, client, jwt, sid, attempt):
         async with asyncio.timeout(12):
@@ -226,7 +301,8 @@ class HeliosProvider:
                 raise GenerationError("Session closure needs operator verification")
             if not await terminal(client, jwt, sid):
                 response = await client.delete(
-                    f"{API}/sessions/{sid}", headers={**HEADERS, "Authorization": f"Bearer {jwt}"}
+                    f"{API}/sessions/{quote(sid, safe='')}",
+                    headers={**HEADERS, "Authorization": f"Bearer {jwt}"},
                 )
                 if response.status_code != 404:
                     response.raise_for_status()

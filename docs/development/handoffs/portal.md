@@ -43,7 +43,7 @@ The combined LAN scenario passed with a controlled `0042` for each new party. Ma
 
 For reproducible leading-zero acceptance, stop the normal server, run `.venv/bin/python -m scripts.rehearsal_room_codes`, then `PORTAL_URL=http://<laptop-LAN-IP>:8000 PORTAL_EXPECT_CODE=0042 npm --prefix frontend run test:integration`. This explicit harness forces fixture mode, disables every live flag, uses separate disposable media, and overrides only its own process's code generator. Stop it and restore `bash scripts/demo.sh` for normal secure random codes. The final demo uses the normal command.
 
-Six final portal browser scenarios pass against the strict resolver. The complete three-game controlled-code sequence and supplementary direct-join scenario pass. Screenshots below include `0042` on actual game screens. Phone views remain desktop Chromium contexts, not physical devices.
+Six final portal browser scenarios pass against the strict resolver. The complete three-game controlled-code sequence and supplementary direct-join scenario passed with `0042`. The connected screenshots below were subsequently refreshed during the normal random-code walkthrough after the FastH3 integration. Phone views remain desktop Chromium contexts, not physical devices.
 
 ## Evidence
 
@@ -83,6 +83,16 @@ Additional integrated milestones:
 
 ## Remaining release gates
 
-No Session A paid attempts or exclusive provider slots were granted. [Trial ledger](../live-provider-slots.md) records requests. Reactor's [billing documentation](https://docs.reactor.inc/resources/billing) says account usage/billing APIs are still in development. The read-only dashboard attempt redirected to sign-in; no signed-in account was available. Shared balance and earlier-session closure therefore still need operator confirmation before any slot transfers or Reverse persistent campaign allocation.
+The user directed use of the existing key without dashboard prechecks. Three separately allocated Word trials authenticated and generated their first clip; local capture issues prevented valid saved output. All three sessions are independently confirmed closed and their slots released. The third received 156 of 158 advertised frames and reached the 30-second step deadline. Word live acceptance remains blocked on capture completeness; no fourth attempt is allocated. Actual spend is unmeasured. Reverse's first independent live capture then succeeded (five-second MP4, 16.490 seconds total). A later full-relay trial failed on its first generation; its quota records two closed attempts, seven remaining and no unresolved session. The user's newer instruction to stop coordinating trials is now applied: no further sessions are allocated. The [trial ledger](../live-provider-slots.md) records outcomes and preserved limits.
 
-Live generated footage and game-specific live acceptance remain unverified. Prompt live topic generation also needs its configured provider credential. Guarded Word FastH3 and Reverse direct-frame capture adapters are integrated; their real provider trials remain unverified. Desktop Chromium phone viewports are not physical phones: actual Safari/Chrome playback, laptop firewall and group LAN rehearsal remain open. Remote deployment is deferred.
+Game-specific live acceptance remains open. Prompt live topic generation also needs its configured provider credential. Word FastH3 corrections and Reverse's independent FastH3 replacement are integrated. Desktop Chromium phone viewports are not physical phones: actual Safari/Chrome playback, laptop firewall and group LAN rehearsal remain open. Remote deployment is deferred.
+
+## Post-release integration checkpoint — 12 September
+
+The portal and original three-game fixture release are on local `main` at `9ed93a1b6d189743184b13cdadf25e14973e5ac0`; the requested remaining-work checklist landed as `c226ed8941abc5e4425b2fd9c6ef7aadfdafe0a5`. Subsequent game work continues on `codex/app-integration` using normal merges.
+
+Integrated Word's first-trial diagnostics/metadata fix (`7e4dd39`, merge `307d64acf471e5ffaf423f1daa9ff7de6836425a`) and absent-frame-metadata correction (`853fe02`). Integrated Reverse's FastH3 replacement and compact-event handling (`cfc422c`, `9e71dbb`, merge `9e6d2ba67ebc3393e5ed1d639abba45a70a559de`). Shared selected-provider references were aligned in `30f4512`; no dependency or lockfile change was needed.
+
+`bash scripts/check.sh` passes: **155 backend tests**, Ruff/format, ESLint, TypeScript and production build; the same two upstream deprecation warnings remain. Against the rebuilt normal LAN server, `PORTAL_URL=http://10.0.100.107:8000 npm --prefix frontend run test:integration` passes both scenarios in 21.2 seconds. The full three-game fixture round, refresh/continuation, close/switch, private media invalidation and direct pasted-code join still work at desktop and phone sizes. Connected screenshots were refreshed and the Reverse phone result inspected. The combined server remains in fixture mode with live flags disabled and no active rehearsal party.
+
+Main subsequently received the Word live diagnostics/evidence as `fbb481c08ba7dbf81e38ebbe49788fe9a904b02a`, following category-scenario documentation `17da453ef15c6ee36157ccb2a71ff603876d3119`. Integration absorbed both, preserved the owner's complete landing handoff and retained the newer remaining-work checklist.

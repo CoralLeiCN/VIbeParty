@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from backend.games.reverse_prompt.config import GameSettings
 from backend.games.reverse_prompt.quota import Quota
-from backend.games.reverse_prompt.reactor_video import HeliosProvider
+from backend.games.reverse_prompt.reactor_video import FastH3Provider
 from backend.shared.config import Settings
 
 parser = argparse.ArgumentParser()
@@ -24,7 +24,7 @@ async def run():
     if not config.reverse_prompt_live_enabled or not config.reactor_api_key.get_secret_value():
         raise SystemExit("Live mode/key not configured; request the integration slot first.")
     quota = Quota(settings.reverse_prompt_quota_file)
-    provider = HeliosProvider(config.reactor_api_key.get_secret_value(), quota)
+    provider = FastH3Provider(config.reactor_api_key.get_secret_value(), quota)
     directory = settings.media_dir("reverse-prompt") / "spike"
     try:
         async with asyncio.timeout(2 if args.force_timeout else 105):

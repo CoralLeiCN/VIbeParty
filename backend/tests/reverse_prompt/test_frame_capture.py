@@ -101,3 +101,24 @@ async def test_cancelled_capture_awaits_encoder_exit_and_ignores_late_frames(tmp
     assert capture.process.returncode is not None
     capture.on_frame(pixels(), 640, 384, 0, 0, b"")
     assert capture.received == 1 and not capture.queue
+
+
+async def test_playback_end_rejects_short_video_and_ignores_idle_padding():
+    capture = FrameCapture()
+    capture.start()
+    capture.on_frame(pixels(), 640, 384, 0, 0, b"")
+    capture.finish()
+    for _ in range(120):
+        capture.on_frame(pixels(), 640, 384, 0, 0, b"")
+    with pytest.raises(ValueError, match="Playback ended"):
+        await capture.next_frame()
+    assert capture.received == 1
+
+
+async def test_provider_canvas_is_checked_before_encoding():
+    capture = FrameCapture(expected_dimensions=(1344, 768))
+    capture.start()
+    capture.on_frame(pixels(), 640, 384, 0, 0, b"")
+    with pytest.raises(ValueError, match="Unexpected provider video dimensions"):
+        await capture.next_frame()
+    assert capture.received == 0

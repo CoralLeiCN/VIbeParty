@@ -228,11 +228,11 @@ function Entry({ entry, refresh }: GameEntryProps & { refresh: () => void }) {
                 Scripted rehearsal · sample clips & scores
               </option>
               <option value="live">
-                Live · Reactor videos & local scoring
+                Live · MiniMax FastH3 & local scoring
               </option>
             </select>
             <p className={s.note}>
-              Live scenes go to Reactor. Final guesses are compared locally.
+              MiniMax FastH3 generates your videos through Reactor. Final guesses are compared locally.
               Live play requires the operator’s allocated trial slot.
             </p>
           </>
@@ -347,7 +347,7 @@ function RoundView({
               <a href={state.join_url}>{state.join_url}</a>
             </div>
             <p className={s.note}>
-              Scene prompts go to Reactor during live play. Final guesses stay
+              MiniMax FastH3 makes each live scene through Reactor. Final guesses stay
               on the laptop for local comparison.
             </p>
             {state.start_blocked && (

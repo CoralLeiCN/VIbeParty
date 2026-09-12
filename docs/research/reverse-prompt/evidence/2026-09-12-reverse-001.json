@@ -1,0 +1,32 @@
+{
+  "slot": "2026-09-12-reverse-001",
+  "evidence": {
+    "closed": true,
+    "model": "reactor/fast-h3",
+    "startup_seconds": 7.051,
+    "frame_metadata_source": "generated",
+    "source_frames": 124,
+    "source_seconds": 5.166666666666667,
+    "generated_seconds": 10.46,
+    "duration": 5.0,
+    "width": 1344,
+    "height": 768,
+    "bytes": 1953399,
+    "capture_method": "decoded_frames",
+    "frames": 120,
+    "encoded_frames": 120,
+    "fps": 24,
+    "source_timestamp_span_us": 0,
+    "connected": true,
+    "playback_started": true,
+    "total_seconds": 16.49
+  },
+  "remaining": 8,
+  "unresolved": false,
+  "closure_proof": "terminal provider GET",
+  "session_identity_recorded_privately": true,
+  "paid_attempts_in_slot": 1,
+  "prompt": "A red balloon floats past a blue tower.",
+  "synthetic": false,
+  "actual_spend": "unmeasured"
+}

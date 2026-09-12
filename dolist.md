@@ -2,28 +2,33 @@
 
 Updated 12 September 2026. This checklist tracks work remaining after the verified portal and three-game fixture release (`4d973a8`, landed on local `main` as `9ed93a1`).
 
-The portal, four-digit room codes, game rules, fixture rounds, continuation and switching are implemented. The release passed 139 backend tests, lint/format/build checks, six portal browser scenarios and connected LAN browser rehearsals. Real provider acceptance and physical-phone rehearsal remain open. Fixed rehearsal clips and simulated provider tests do not count as live generation evidence.
+The portal, four-digit room codes, game rules, fixture rounds, continuation and switching are implemented. That release passed 139 backend tests, lint/format/build checks, six portal browser scenarios and connected LAN browser rehearsals. Subsequent integration work now passes 155 backend tests and both connected LAN browser scenarios. Word's three real trials generated output but saved no valid clip; all three sessions are independently confirmed closed. Real provider acceptance and physical-phone rehearsal remain open. Fixed rehearsal clips and simulated provider tests do not count as live generation evidence.
 
-## 1. Account readiness and trial coordination
+## 1. Trial status and preserved limits
 
 Owner: presenter/operator and portal integration owner.
 
-- [ ] Confirm the Reactor account's available credits and record the agreed trial allowance. The API key is configured, but the available dashboard session required sign-in and its balance was not verified.
-- [ ] Confirm that previous provider sessions have ended. Resolve any uncertain session before allocating new work.
+The user has stopped cross-task live-trial coordination and asked this task to stop listening to other tasks. Do not monitor, message or wait for those tasks, allocate further paid work, or resume trials unless the user restarts that work. Preserve every completed attempt and closure record. This checklist reflects the local integration checkpoint.
+
+- [ ] Record billing information when available. The API key is configured; the user has explicitly waived the dashboard balance and account-wide prior-session precheck for the first bounded Word by Word trial. Those account facts remain unverified, and they do not block this allocated trial.
+- [ ] Resolve any uncertain session created by a trial before allocating new work. Independent closure verification remains required.
 - [ ] Grant one exclusive game-worktree trial slot at a time in the [trial record](docs/development/live-provider-slots.md), with an identifier, allowed attempts and duration limits.
 - [ ] After every trial, record attempts, elapsed time, measured spend, saved evidence and independently confirmed provider shutdown before transferring the slot.
 - [ ] Enable each game's live flags only after its required evidence and allocation exist. Keep credentials and session tokens in private configuration; record no secrets in this checklist or research notes.
 
 No paid trial or Reverse Prompt campaign initialization had been performed at this checkpoint. Reactor bills while a session holds a GPU, including idle time; a dropped connection alone does not establish that billing stopped. See [Reactor billing](https://docs.reactor.inc/resources/billing).
 
+Coordination update, 12 September: Word completed three separately allocated attempts. The first exposed compact completion metadata; the second exposed absent frame IDs/timestamps. Both adapter corrections are integrated. The third received 156 of 158 advertised frames and hit its 30-second step deadline without a valid saved clip. All three sessions are independently confirmed `CLOSED`, all slots are released, and no fourth attempt is allocated. Elapsed times were 14.066, 12.728 and 38.415 seconds; actual spend remains unmeasured. Reverse subsequently completed one independent capture, then its full-relay attempt failed on the first generation. Two Reverse attempts are consumed, seven remain, and the quota records both closed with no unresolved session. No further attempts are allocated; coordination is stopped.
+
 ## 2. Word by Word real generation
 
 Owner: Word by Word game owner, with integration coordinating the slot.
 
-- [ ] Review and integrate the later Word trial-diagnostics milestone: implementation `217eddf299ba0027dbbf22dd1d539c8571a069af`, handoff head `753d2eb5a06dbfe17d8f219992f8a3d4ca0d036b`. These follow the fixture release and are not part of `4d973a8`.
-- [ ] Run the first allocated FastH3 trial on the actual laptop/network: one session, four sequential additive clips, a 180-second provider cap, a 120-second application deadline and a 30-second deadline per step.
+- [x] Integrate the later Word diagnostics and real-trial metadata corrections, including `2fbd4a9` and `853fe02`. These follow the fixture release and are not part of `4d973a8`.
+- [x] Run the first bounded trial and two separately allocated follow-ups on the laptop/network: one session per attempt, a 180-second provider cap, 120-second application deadline and 30-second step deadline. Each failed before saving a valid clip; all sessions closed.
+- [ ] Resolve the measured capture shortfall: trial 003 received 156 of 158 advertised frames, with absent optional identifiers. Investigate callback boundaries/transport delivery or a reliable provider export. Preserve the accepted capture requirement until an explicit revision is agreed; then obtain a new allocation and prove a complete four-clip chain.
 - [ ] Inspect the four saved clips for correct capture boundaries, six-second duration and additive continuity: previous scene elements should persist when a new contribution is added.
-- [ ] Prove that the complete cumulative prompt supports the accepted 120-code-point Unicode contribution limit within FastH3's 1,024-token bound. Do not shorten accepted text silently. Resolve any incompatibility before enabling live play.
+- [ ] Prove that the complete cumulative prompt supports the accepted 120-code-point Unicode contribution limit within FastH3's token bound. The owner checked the newer published 800-character cap: the maximum cumulative prompt is 732 code points. The separate 1,024-token compatibility gate remains open. Do not shorten accepted text silently.
 - [ ] Complete the specified two forest/fox/dance/confetti trials and one group-selected variation, recording timing and actual spend.
 - [ ] Confirm provider termination independently and play the saved sequence after termination without further generation.
 - [ ] Verify real failure/stop behavior: preserve usable saved clips, discard late results and block rematch/switching while cleanup is unresolved.
@@ -48,19 +53,19 @@ Acceptance: both topic modes and full live rounds work on the intended devices w
 
 Owner: Reverse Prompt game owner, with integration coordinating the persistent campaign.
 
-The user has now selected MiniMax FastH3 through Reactor for Reverse Prompt. The currently integrated version uses Helios; the game owner is implementing the replacement. The new adapter has not been integrated or verified live.
+The user selected MiniMax FastH3 through Reactor for Reverse Prompt. The replacement and compact-event correction are integrated from `cfc422c` and `9e71dbb`; shared technical/environment references are aligned. It passes local tests and one independent real capture; full relay and physical-device acceptance remain open.
 
-- [ ] Finish and review the game-owned FastH3 replacement: enqueue a clip, wait for generation, explicitly play it, and capture a private MP4. Preserve a fresh independent session per relay step, current-prompt-only input, role privacy, attempt accounting and cleanup guards.
-- [ ] Update Reverse Prompt's technical specification and shared environment descriptions for FastH3, then integrate the committed implementation/tests. The game owner has confirmed that the locked Reactor SDK supports this route; no new dependency or model-selector setting is currently requested.
-- [ ] Allocate the persistent campaign deliberately at one agreed quota-file location. Preserve the nine-attempt allowance and unresolved-session history across restarts and worktrees; do not initialize extra campaigns to obtain more attempts.
-- [ ] Run one independent real FastH3 capture through the replacement adapter. Verify generation completion, playback and capture of usable frames and produces a five-second, 24 fps, silent H.264 MP4 under the media limits.
+- [x] Review and integrate the game-owned FastH3 replacement: enqueue a clip, wait for generation, explicitly play it, and capture a private MP4. Preserve a fresh independent session per relay step, current-prompt-only input, role privacy, attempt accounting and cleanup guards.
+- [x] Align the technical specification and shared environment descriptions with FastH3. The locked SDK supports this route; no new dependency or model-selector setting is needed.
+- [x] Initialize one nine-attempt campaign at `/Users/coral/.codex/worktrees/5a4f/VIbeParty/.local/vibeparty-persistent/reverse-prompt/quota.json`. Every worktree must use that exact `REVERSE_PROMPT_QUOTA_FILE`; never initialize another campaign or replenish this one. Slot `2026-09-12-reverse-001` consumed one attempt and is closed; a later first relay generation consumed one more attempt. Seven remain, with no unresolved session or further allocation.
+- [x] Complete one independent real FastH3 capture: 124 declared source frames, 120 captured/encoded frames, five-second 24 fps silent H.264, 1344×768, 1,953,399 bytes; total 16.490 seconds. The provider session is independently confirmed closed. Saved playback/visual review is recorded by the game owner.
 - [ ] Record real frame timing, visual quality, dimensions, file size, total latency, remaining attempts and independently confirmed provider closure.
 - [ ] Complete a full live relay using three fresh sessions, each receiving only the current player's prompt. Check that B and C see only their permitted clue at each step.
 - [ ] Score the real final guesses with the already verified local MiniLM model. Confirm that author A remains unscored and that inference failure produces an unscored reveal.
 - [ ] Run the allocated forced-failure trial and verify an unscored result, owned encoder cancellation, persistent attempt consumption and cleanup blocking when closure is uncertain.
 - [ ] Complete the remaining live/event-device portions of DEMO-02, DEMO-07 and DEMO-08, then update the evidence checklist.
 
-The proposed first campaign sequence is one capture, a three-attempt full relay and one forced-failure attempt; allocation is still pending. Local tests already verify 120 supplied frames becoming an ordered five-second MP4, cancellation and offline scoring. Those existing capture checks do not establish compatibility with the new FastH3 playback flow; that replacement still needs its own tests and real trial. See the [Reverse handoff](docs/development/handoffs/reverse-prompt.md), [laptop evidence](docs/research/reverse-prompt/laptop-verification.md) and [runbook](scripts/games/reverse-prompt/README.md).
+The proposed first campaign sequence is one capture, a three-attempt full relay and one forced-failure attempt; only the first capture passed. The live relay failed on its first generation; its remaining two attempts were cancelled when coordination stopped. Full-relay and forced-failure verification remain unfinished. Replacement tests now verify full and compact completion metadata, queue lookup without another enqueue, matching playback, 120 supplied frames becoming an ordered five-second MP4, cancellation and persistent cleanup. Offline scoring also passes. Word's real frame shortfall reinforces the need to measure Reverse's actual playback/capture; supplied-frame tests do not pass that gate. See the [Reverse handoff](docs/development/handoffs/reverse-prompt.md), [laptop evidence](docs/research/reverse-prompt/laptop-verification.md) and [runbook](scripts/games/reverse-prompt/README.md).
 
 ## 5. Physical-phone and combined live rehearsal
 
@@ -88,3 +93,11 @@ Owner: portal integration owner.
 - [ ] Commit and land the resulting verified live milestone on `main`.
 
 Remote hosting, public deployment, TLS/domain setup and optional visual extras remain deferred. Keep the provider specifications and trial plans aligned with the accepted Reverse Prompt FastH3 change.
+
+## 7. Planned walkthrough videos and test reports
+
+The newer [testing and video evidence plan](docs/development/testing-and-video-plan.md) is preserved from `main`. Its new deliverables are planned, not completed by the existing screenshots and test results.
+
+- [ ] Verify independent player sessions and screenshot export in the Codex built-in browser, then capture the specified fixture walkthrough for each game. Use the new Word category scenario IDs and record actual inputs when reviewing older fixed examples.
+- [ ] Add independently runnable game browser scenarios and put Word contributions through visible forms, retaining the combined switching check.
+- [ ] Implement capture manifests, FFmpeg screenshot-walkthrough exports, HTML test reports and a combined run summary; inspect all three exported videos. Continuous recording remains a separate capability to verify.
