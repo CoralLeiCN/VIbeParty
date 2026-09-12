@@ -1,6 +1,6 @@
 # Word by Word: Consequences reference
 
-Status: reference note recorded on 12 September 2026. Consequences is the founder-selected reference. The [hackathon game specification](word-by-word-spec.md) resolves the adaptation's rules, and the [technical plan](word-by-word-tech-stack.md) selects its simplified implementation. Those documents take precedence over illustrative examples here. See the [before-and-after comparison](research/word-by-word/hackathon-simplification.md).
+Status: reference note recorded on 12 September 2026. Consequences is the founder-selected reference. The [hackathon game specification](../../games/word-by-word/game-spec.md) resolves the adaptation's rules, and the [technical plan](../../games/word-by-word/tech-stack.md) selects its simplified implementation. Those documents take precedence over illustrative examples here. See the [before-and-after comparison](../../games/word-by-word/simplification.md).
 
 ## Confirmed direction
 
@@ -46,4 +46,4 @@ The assembled sentence could be: “In a forest, a fox is dancing as snow falls.
 
 The earlier visible-sentence flow, two-sentence default, immediate word disclosure, and single final generation are superseded. Provider access, capture, continuity, latency, and cost still need live verification; that uncertainty is separate from the now-specified gameplay rules.
 
-See the [app specification](app-spec.md#4-game-1-word-by-word) for the shared party experience and the [backend specification](backend-spec.md) for implementation planning.
+See the [portal specification](../../portal-spec.md) for party entry and navigation and the [Word by Word technical stack](../../games/word-by-word/tech-stack.md) for demo implementation planning.

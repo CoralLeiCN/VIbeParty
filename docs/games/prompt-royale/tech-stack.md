@@ -1,4 +1,6 @@
-# Prompt Royale: hackathon technology choices and stack
+# Prompt Royale: hackathon technical stack
+
+[All docs](../../README.md) · [Game spec](game-spec.md) · [Simplification](simplification.md) · [Research](../../research/prompt-royale/README.md)
 
 Version: 1.2, 12 September 2026. Status: selected simplified design with one bounded retry; dependencies, deployment, and live capture remain unvalidated.
 

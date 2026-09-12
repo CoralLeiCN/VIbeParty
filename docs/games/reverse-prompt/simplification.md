@@ -1,4 +1,6 @@
-# Reverse Prompt: before and after simplification
+# Reverse Prompt: hackathon simplification
+
+[All docs](../../README.md) · [Game spec](game-spec.md) · [Technical stack](tech-stack.md) · [Research](../../research/reverse-prompt/README.md)
 
 Updated: 12 September 2026. Decision: scope Reverse Prompt to a presenter-led hackathon demonstration with one room and three players.
 

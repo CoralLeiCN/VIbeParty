@@ -1,8 +1,10 @@
 # Reverse Prompt: hackathon game specification
 
+[All docs](../../README.md) · [Technical stack](tech-stack.md) · [Simplification](simplification.md) · [Research](../../research/reverse-prompt/README.md)
+
 Version: 2.1 demo scope. Updated: 12 September 2026. Status: proposed, not implemented.
 
-Build one complete, presenter-led game for **exactly three people in one private room**. This is the current source of truth for Reverse Prompt, superseding its broader requirements in the [shared app specification](../../app-spec.md). See the [tech stack](tech-stack.md), [before and after](simplification.md), and [archived original spec](archive/game-spec-v1.md).
+Build one complete, presenter-led game for **exactly three people in one private room**. This is the current source of truth for Reverse Prompt. The [app specification](../../app-spec.md) defines the wider product boundaries. See the [tech stack](tech-stack.md), [before and after](simplification.md), and [archived original spec](archive/game-spec-v1.md).
 
 ## 1. The game we are demonstrating
 

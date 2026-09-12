@@ -1,6 +1,8 @@
 # Word by Word: hackathon technical stack
 
-Status: simplified implementation plan, 12 September 2026. This replaces the previous multi-service plan for Word by Word. Implementation has not started. Follow the [demo game spec](word-by-word-spec.md); see [before and after](research/word-by-word/hackathon-simplification.md) for the removed scope.
+[All docs](../../README.md) · [Game spec](game-spec.md) · [Simplification](simplification.md) · [Research](../../research/word-by-word/README.md)
+
+Status: simplified implementation plan, 12 September 2026. This replaces the previous multi-service plan for Word by Word. Implementation has not started. Follow the [demo game spec](game-spec.md); see [before and after](simplification.md) for the removed scope.
 
 ## 1. Decision
 
@@ -124,7 +126,7 @@ Configuration is limited to the host passcode, Reactor credential, live/fixture 
 1. **Video first:** run `forest → fox → dancing → confetti` through the actual model, capture four clips, close the session, and replay them. Confirm continuity, elapsed time, and cost. Run it inside the intended deployment container too.
 2. **One-room flow:** build the host screen and phone form with in-memory state and polling. Exercise the fixed three/four-player assignments using a clearly labelled fixture round.
 3. **Connect the live task:** plug the successful capture function into that flow; keep the same public reveal and privacy checks.
-4. **Rehearse:** run the [demo acceptance checks](word-by-word-spec.md#8-demo-acceptance), including a provider timeout, refresh, duplicate action, and attempted future-clip access.
+4. **Rehearse:** run the [demo acceptance checks](game-spec.md#8-demo-acceptance), including a provider timeout, refresh, duplicate action, and attempted future-clip access.
 
 Write focused pytest checks for assignment, submission ownership/locking, duplicate start/next protection, hidden snapshot/media access, and timeout results using a fake provider. Run Ruff, TypeScript checking, and the frontend build. Perform the phone/host rehearsal manually. Defer a full Vitest/Testing Library/Playwright matrix, mypy rollout, load testing, migration testing, and process-failover testing until after the hackathon.
 

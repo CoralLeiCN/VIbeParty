@@ -1,8 +1,10 @@
 # Prompt Royale: hackathon game specification
 
+[All docs](../../README.md) · [Technical stack](tech-stack.md) · [Simplification](simplification.md) · [Research](../../research/prompt-royale/README.md)
+
 Version: 1.2, 12 September 2026. Status: simplified demo design with one bounded retry; no application or live performance has been validated yet.
 
-This is the authoritative scope for the Prompt Royale hackathon demo. It overrides the broader room, recovery, and generation requirements in the [app specification](../../app-spec.md) for this game. See the [demo stack](tech-stack.md), [before-and-after decisions](simplification.md), and [partner research](../../research/prompt-royale/README.md).
+This is the authoritative scope for the Prompt Royale hackathon demo. The [app specification](../../app-spec.md) defines the wider product boundaries. See the [demo stack](tech-stack.md), [before-and-after decisions](simplification.md), and [partner research](../../research/prompt-royale/README.md).
 
 ## 1. Concept and rationale
 

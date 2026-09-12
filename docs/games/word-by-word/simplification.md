@@ -1,6 +1,8 @@
-# Word by Word: hackathon simplification, before and after
+# Word by Word: hackathon simplification
 
-Decision: 12 September 2026, following the instruction to prioritize a hackathon demonstration. The earlier specification planned a broader multiplayer MVP. The revised [game spec](../../word-by-word-spec.md) and [technical stack](../../word-by-word-tech-stack.md) now target one presenter running a short room successfully.
+[All docs](../../README.md) · [Game spec](game-spec.md) · [Technical stack](tech-stack.md) · [Research](../../research/word-by-word/README.md)
+
+Decision: 12 September 2026, following the instruction to prioritize a hackathon demonstration. The earlier specification planned a broader multiplayer MVP. The revised [game spec](game-spec.md) and [technical stack](tech-stack.md) now target one presenter running a short room successfully.
 
 These changes update the design documents only; neither version has been implemented.
 

@@ -22,7 +22,7 @@ The table combines the interfaces above with VEED's [public API listing](https:/
 
 ## Game requirements that shape the fit
 
-The [game specification](../../app-spec.md#6-game-3-reverse-prompt) defines a private telephone-style relay:
+The [game specification](../../games/reverse-prompt/game-spec.md) defines a private telephone-style relay:
 
 1. The author writes `P0`; generate `V0`.
 2. The next player watches only `V0`, writes `P1`, and generates `V1` **from P1 alone**.

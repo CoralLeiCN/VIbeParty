@@ -1,4 +1,6 @@
-# Reverse Prompt: hackathon tech choices and stack
+# Reverse Prompt: hackathon technical stack
+
+[All docs](../../README.md) · [Game spec](game-spec.md) · [Simplification](simplification.md) · [Research](../../research/reverse-prompt/README.md)
 
 Version: 2.1 demo scope. Updated: 12 September 2026. Status: selected design, not installed or runtime-verified.
 

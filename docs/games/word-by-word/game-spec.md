@@ -1,8 +1,10 @@
-# Word by Word: hackathon demo specification
+# Word by Word: hackathon game specification
+
+[All docs](../../README.md) · [Technical stack](tech-stack.md) · [Simplification](simplification.md) · [Research](../../research/word-by-word/README.md)
 
 Status: simplified demo design, 12 September 2026. This replaces the earlier broader MVP specification. The repository still contains planning documents, not an implemented game.
 
-Build one complete moment: **friends secretly contribute words, then watch those words become additions to the same video scene**. Consequences remains the selected reference. See the [technical plan](word-by-word-tech-stack.md), [before-and-after comparison](research/word-by-word/hackathon-simplification.md), and [reference note](word-by-word.md).
+Build one complete moment: **friends secretly contribute words, then watch those words become additions to the same video scene**. Consequences remains the selected reference. See the [technical plan](tech-stack.md), [before-and-after comparison](simplification.md), and [reference note](../../research/word-by-word/consequences.md).
 
 ## 1. Demo scope
 
@@ -12,7 +14,7 @@ Build one complete moment: **friends secretly contribute words, then watch those
 - Private collection before generation, followed by a host-controlled reveal and replay.
 - Cooperative, with no scoring or voting.
 
-This dedicated specification takes precedence over the shared room and infrastructure requirements in the broader app/backend documents for the Word by Word demo. Other games remain separate plans.
+This specification owns Word by Word's demo rules and acceptance; its [technical stack](tech-stack.md) owns implementation. The [app specification](../../app-spec.md) defines the wider product boundaries. Other games remain separate plans.
 
 ## 2. Fixed words and assignments
 
@@ -116,4 +118,4 @@ The demo is ready when these checks pass on the actual host and network:
 5. Duplicate submission/start/next actions do not duplicate accepted words, sessions, or reveal advances. One provider timeout produces a bounded partial/failed result.
 6. Refresh a phone and the host; reset the server once to confirm that a lost room is explained. Confirm generation stops, secrets stay on the backend, and files are cleared on reset.
 
-Record results in the [research directory](research/word-by-word/). Broader load testing and the earlier five-story, all-device qualification matrix are deferred. No live provider verification has been performed yet.
+Record results in the [research directory](../../research/word-by-word/). Broader load testing and the earlier five-story, all-device qualification matrix are deferred. No live provider verification has been performed yet.

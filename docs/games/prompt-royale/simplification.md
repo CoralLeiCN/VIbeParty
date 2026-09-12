@@ -1,4 +1,6 @@
-# Prompt Royale: hackathon simplification — before and after
+# Prompt Royale: hackathon simplification
+
+[All docs](../../README.md) · [Game spec](game-spec.md) · [Technical stack](tech-stack.md) · [Research](../../research/prompt-royale/README.md)
 
 Decision: 12 September 2026. The goal is one reliable, supervised, four-player demonstration of the creative round. This updates the specifications; it does not implement an application.
 

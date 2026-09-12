@@ -1,12 +1,12 @@
 # Word by Word: Reactor and VEED research
 
-Researched: 12 September 2026. Scope: the [Consequences-inspired Word by Word game](../../word-by-word.md). This is a review of public vendor documentation and API schemas, not a completed integration or a measurement of generation quality. No authenticated generation, account quota check, or paid trial was performed.
+Researched: 12 September 2026. Scope: the [Consequences-inspired Word by Word game](consequences.md). This is a review of public vendor documentation and API schemas, not a completed integration or a measurement of generation quality. No authenticated generation, account quota check, or paid trial was performed.
 
 ## Recommendation
 
 **Evaluate Reactor for the evolving scene. Use VEED only where a narrator or finished-video editing adds value.** Reactor documents both continuous prompt steering through Helios and connected clips through FastH3. These support the continuous and segmented options evaluated here. VEED's Fabric API documents talking-character generation from an image and audio, while its Subtitles API processes an existing video. These are useful supporting roles; the reviewed VEED APIs do not establish arbitrary live additions to a shared scene. This recommendation is our assessment of the documented interfaces. [Helios](https://docs.reactor.inc/model-api-reference/helios/overview), [FastH3](https://docs.reactor.inc/model-api-reference/fast-h3/overview), [Fabric API](https://fal.ai/models/veed/fabric-1.0/api), [Subtitles API](https://fal.ai/models/veed/subtitles/api).
 
-**Hackathon specification decision:** the [demo game spec](../../word-by-word-spec.md) selects four private words followed by a host-controlled additive reveal. The [simplified technical plan](../../word-by-word-tech-stack.md) selects FastH3 with server-side capture and local clips in one FastAPI process. Helios and VEED are deferred from the demo build. See [before and after](hackathon-simplification.md). These are design selections, not completed provider trials.
+**Hackathon specification decision:** the [demo game spec](../../games/word-by-word/game-spec.md) selects four private words followed by a host-controlled additive reveal. The [simplified technical plan](../../games/word-by-word/tech-stack.md) selects FastH3 with server-side capture and local clips in one FastAPI process. Helios and VEED are deferred from the demo build. See [before and after](../../games/word-by-word/simplification.md). These are design selections, not completed provider trials.
 
 The key experiment is visual continuity: can “forest → fox → dancing → snow” retain the forest and the same fox while visibly adding the action and weather? A command being accepted is not evidence that its word appeared correctly.
 
@@ -51,7 +51,7 @@ These are test prompts, not validated outputs. For a continuous public stream, d
 
 **Selected use:** generate the forest clip, then use it as the parent for a clip that introduces the fox, and continue that chain for dancing and snow. Track each contribution against its captured asset and reveal only the eligible clip. Last-frame conditioning still needs a continuity test; it does not prove the model remembers every earlier fact.
 
-The original schema link was unavailable, but the [FastH3 API page](https://www.reactor.inc/models/fast-h3/api) was retrieved during follow-up research. Its implications are incorporated in the [technical plan](../../word-by-word-tech-stack.md#5-reactor-integration-contract), including clip duration, generic SDK use, command reconciliation, and capture before replay. Account access and runtime behavior remain untested.
+The original schema link was unavailable, but the [FastH3 API page](https://www.reactor.inc/models/fast-h3/api) was retrieved during follow-up research. Its implications are incorporated in the [technical plan](../../games/word-by-word/tech-stack.md#5-reactor-integration-contract), including clip duration, generic SDK use, command reconciliation, and capture before replay. Account access and runtime behavior remain untested.
 
 ### Other Reactor options considered
 
@@ -128,4 +128,4 @@ Keep this as research until access and a trial budget are available. The followi
 
 Questions for the partners: Which models/endpoint versions and credits are included? Are session spectators restricted from commands and hidden logs? What are the real quotas, current rates, recording settings, retention/deletion controls, and output-moderation options? Does VEED provide a separate live-avatar SDK for this event?
 
-This research supports **FastH3 as the first integration candidate for the selected staged reveal**, without establishing that additive scene preservation works reliably. The [demo game spec](../../word-by-word-spec.md) and [simplified technical plan](../../word-by-word-tech-stack.md) record the decisions; dated live trial results must establish whether the selected implementation meets them.
+This research supports **FastH3 as the first integration candidate for the selected staged reveal**, without establishing that additive scene preservation works reliably. The [demo game spec](../../games/word-by-word/game-spec.md) and [simplified technical plan](../../games/word-by-word/tech-stack.md) record the decisions; dated live trial results must establish whether the selected implementation meets them.
