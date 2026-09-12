@@ -24,4 +24,6 @@ bash scripts/check.sh
 npm --prefix frontend run test:portal  # combined demo must be running
 ```
 
+[Game testing and video evidence plan](docs/development/testing-and-video-plan.md) describes the Codex browser walkthroughs, per-game checks, and planned video exports.
+
 [Portal evidence and integration status](docs/development/handoffs/portal.md) · [Shared contracts](docs/development/contracts/shared.md) · [Worktree ownership and merge procedure](docs/parallel-development-plan.md) · [All specifications](docs/README.md).
