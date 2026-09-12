@@ -28,12 +28,12 @@ The current demo has four slots: **Place → Character → Action → Consequenc
 
 Keep the demo's existing join-order ownership when rehearsing its phone flow:
 
-| Joined player | Three-player demo | Four-player demo |
-| --- | --- | --- |
-| First | Place + Consequence | Place |
-| Second | Character | Character |
-| Third | Action | Action |
-| Fourth | — | Consequence |
+| Joined player | One-player demo | Two-player demo | Three-player demo | Four-player demo |
+| --- | --- | --- | --- | --- |
+| First | All four slots | Place + Action | Place + Consequence | Place |
+| Second | — | Character + Consequence | Character | Character |
+| Third | — | — | Action | Action |
+| Fourth | — | — | — | Consequence |
 
 The three-player category example above and this four-slot demo have different assignments. Record which flow was tested; use the game specification's fixed assignments for current demo acceptance, including rematches. “Scene change” is the example's label for the demo's Consequence slot.
 
@@ -127,7 +127,7 @@ Save dated results in the [research directory](../../research/word-by-word/). Re
 Date / tester:
 Fixture version: categories-v1
 Scenario ID / repeat number:
-Flow: three-role evaluation / three-player demo / four-player demo
+Flow: three-role evaluation / one-player demo / two-player demo / three-player demo / four-player demo
 Mode: live / fixture
 Model / version / SDK / rendering preset / seed, if used:
 Starting image reference, if used:

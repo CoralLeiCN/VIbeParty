@@ -179,7 +179,7 @@ class Game:
                 raise AppError(
                     409, "round_in_progress", "A round is in progress. Try again in the lobby."
                 )
-            if len(room.players) >= 4:
+            if len(room.players) >= room.player_count:
                 raise AppError(409, "party_full", "This party is full.")
             name = name.strip()
             if not 1 <= len(name) <= 24 or any(
@@ -193,14 +193,35 @@ class Game:
             room.touch(self.clock())
             return player_token, self.snapshot(player_token)
 
+    async def set_player_count(self, token: str, round_id: str, player_count: int) -> dict:
+        async with self.lock:
+            room = self.round_for(token, round_id)
+            if room.round.phase != "LOBBY":
+                raise AppError(409, "round_started", "Change the player count in the lobby.")
+            if self.busy():
+                raise AppError(409, "cleanup_pending", "Finishing the previous session.")
+            if type(player_count) is not int or not 1 <= player_count <= 4:
+                raise AppError(422, "invalid_player_count", "Choose between 1 and 4 players.")
+            if player_count < len(room.players):
+                raise AppError(
+                    409,
+                    "players_already_joined",
+                    "Reset the roster before choosing fewer players than have already joined.",
+                )
+            room.player_count = player_count
+            room.touch(self.clock())
+            return self.snapshot(token)
+
     async def start(self, token: str, round_id: str, mode: str) -> dict:
         async with self.lock:
             room = self.round_for(token, round_id)
             r = room.round
             if r.phase != "LOBBY":
                 raise AppError(409, "round_started", "This round has already started.")
-            if not 3 <= len(room.players) <= 4:
-                raise AppError(409, "need_players", "Join on 3–4 phones before starting.")
+            if len(room.players) != room.player_count:
+                raise AppError(
+                    409, "need_players", "Wait for the selected number of players to join."
+                )
             if self.busy():
                 raise AppError(409, "cleanup_pending", "Finishing the previous session.")
             if mode not in {"fixture", "live"}:

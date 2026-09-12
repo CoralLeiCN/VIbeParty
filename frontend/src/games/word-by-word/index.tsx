@@ -36,6 +36,7 @@ type Snapshot = {
   phase: "LOBBY" | "INPUT" | "GENERATING" | "REVEAL" | "RESULTS";
   mode: "fixture" | "live";
   players: string[];
+  player_count: number;
   join_url: string;
   server_time: number;
   input_deadline: number | null;
@@ -207,7 +208,7 @@ function Admission({
         </h2>
         <p>
           {entry === "host"
-            ? "Open this screen on a laptop. Invite 3–4 friends to join on their phones, then reveal your story together."
+            ? "Open this screen on a laptop. Choose 1–4 players to join on their phones, then reveal your story together."
             : "Join on your phone. Your ideas stay private until the host reveals them on the shared screen."}
         </p>
         {expired && (
@@ -218,7 +219,9 @@ function Admission({
       </div>
       <form onSubmit={submit} noValidate={entry === "join"}>
         {entryError && (
-          <p className="wbw-error" role="alert">{entryError}</p>
+          <p className="wbw-error" role="alert">
+            {entryError}
+          </p>
         )}
         {entry === "host" ? (
           <label>
@@ -315,6 +318,14 @@ function Party({
   const host = s.role === "host";
   const blocked = pending || s.provider_closing || s.busy || s.closing;
   const phase = s.phase;
+  const waitingPlayers = s.player_count - s.players.length;
+  const assignmentSummary = [
+    "",
+    "One player writes all four contributions.",
+    "Each player writes two contributions.",
+    "The first player writes two contributions; the others write one each.",
+    "Each player writes one contribution.",
+  ][s.player_count];
   return (
     <>
       {(phase === "LOBBY" ? mode : s.mode) === "fixture" && (
@@ -425,7 +436,34 @@ function Party({
           </section>
           <section className="wbw-panel wbw-roster">
             <p className="wbw-eyebrow">THE STORYTELLERS</p>
-            <h3>{s.players.length} / 4 players</h3>
+            <h3>
+              {s.players.length} / {s.player_count}{" "}
+              {s.player_count === 1 ? "player" : "players"}
+            </h3>
+            {host && (
+              <label className="wbw-player-count">
+                Number of players
+                <select
+                  value={s.player_count}
+                  disabled={blocked}
+                  onChange={(event) =>
+                    void act("/room/settings", {
+                      player_count: Number(event.target.value),
+                    })
+                  }
+                >
+                  {[1, 2, 3, 4].map((count) => (
+                    <option
+                      key={count}
+                      value={count}
+                      disabled={count < s.players.length}
+                    >
+                      {count} {count === 1 ? "player" : "players"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <ol>
               {s.players.map((name, i) => (
                 <li key={i}>
@@ -433,23 +471,27 @@ function Party({
                   {name}
                 </li>
               ))}
-              {Array.from({ length: 4 - s.players.length }, (_, i) => (
+              {Array.from({ length: waitingPlayers }, (_, i) => (
                 <li className="wbw-empty" key={`empty${i}`}>
                   <span>+</span>Room for a friend
                 </li>
               ))}
             </ol>
             <p>
-              {s.players.length < 3
-                ? "Waiting for at least 3 players."
+              {waitingPlayers > 0
+                ? `Waiting for ${waitingPlayers} more ${waitingPlayers === 1 ? "player" : "players"}.`
                 : "Your group is ready."}{" "}
-              {s.players.length === 3 &&
-                "The first player gets two contributions."}
+              {assignmentSummary}
             </p>
+            {host && s.players.length > 1 && (
+              <p className="wbw-muted">
+                To choose fewer players than have joined, use Reset party below.
+              </p>
+            )}
             {host && (
               <button
                 className="wbw-primary"
-                disabled={blocked || s.players.length < 3}
+                disabled={blocked || waitingPlayers !== 0}
                 onClick={() => void act("/round/start", { mode })}
               >
                 Start round →

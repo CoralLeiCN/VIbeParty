@@ -11,7 +11,7 @@ export const catalog: {
     id: "word-by-word",
     title: "Word by Word",
     description: "Secret words. One evolving scene. Everyone creates together.",
-    players: "3–4 players",
+    players: "1–4 players",
     host: "Separate laptop host · players join on phones",
     tag: "Create together",
   },

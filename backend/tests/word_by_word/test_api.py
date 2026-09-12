@@ -11,6 +11,57 @@ API = "/api/games/word-by-word"
 ORIGIN = "http://testserver"
 
 
+def test_player_count_settings_permissions_validation_and_lifecycle(tmp_path):
+    settings = Settings(
+        _env_file=None,
+        media_root=tmp_path,
+        host_passcode="test-pass",
+        browser_origin=ORIGIN,
+        public_origin=ORIGIN,
+    )
+    with TestClient(create_app(settings, [integration])) as client:
+        client.headers["Origin"] = ORIGIN
+        state = client.post(API + "/host", json={"passcode": "test-pass"}).json()
+        host_cookie = client.cookies.get(integration.COOKIE)
+        rid = state["round_id"]
+        assert state["player_count"] == 3
+
+        def change(count, round_id=rid):
+            return client.post(
+                API + "/room/settings", json={"round_id": round_id, "player_count": count}
+            )
+
+        for count in [0, 5, True, "2", 1.5, None]:
+            assert change(count).status_code == 422
+        assert change(2, "stale-round").json()["code"] == "stale_round"
+        assert change(2).json()["player_count"] == 2
+        client.cookies.clear()
+        assert change(2).status_code == 401
+        client.post(API + "/join", json={"code": state["code"], "name": "Ada"})
+        assert change(1).status_code == 403
+        client.cookies.clear()
+        client.post(API + "/join", json={"code": state["code"], "name": "Bo"})
+        client.cookies.clear()
+        client.cookies.set(integration.COOKIE, host_cookie)
+        assert change(1).json()["code"] == "players_already_joined"
+        assert change(3).json()["player_count"] == 3
+        assert client.post(API + "/round/start", json={"round_id": rid}).status_code == 409
+        assert change(2).status_code == 200
+        assert client.post(API + "/round/start", json={"round_id": rid}).status_code == 200
+        assert change(3).json()["code"] == "round_started"
+        client.post(API + "/round/end", json={"round_id": rid})
+        assert change(3).status_code == 409
+        state = client.post(API + "/round/new", json={"round_id": rid}).json()
+        assert state["player_count"] == 2 and state["players"] == ["Ada", "Bo"]
+        assert change(3).json()["code"] == "stale_round"
+        integration.game.provider_closing = True
+        assert change(3, state["round_id"]).json()["code"] == "cleanup_pending"
+        integration.game.provider_closing = False
+        state = client.post(API + "/room/reset", json={"round_id": state["round_id"]}).json()
+        assert state["player_count"] == 2 and state["players"] == []
+        assert change(1, state["round_id"]).json()["player_count"] == 1
+
+
 def test_cookie_roles_origin_discovery_and_protected_ranges(tmp_path):
     settings = Settings(
         _env_file=None,

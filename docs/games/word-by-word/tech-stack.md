@@ -34,7 +34,7 @@ Pin working patch releases and the exact Reactor SDK version when implementing. 
 
 ```mermaid
 flowchart LR
-    Phones[3–4 phones: contributions and polling] --> App[One FastAPI process]
+    Phones[1–4 phones: contributions and polling] --> App[One FastAPI process]
     Host[Host laptop: controls and video] --> App
     App --> State[Room in memory]
     App --> Task[One async generation task]

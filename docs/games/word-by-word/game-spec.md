@@ -8,7 +8,7 @@ Build one complete moment: **friends secretly contribute words, phrases, or shor
 
 ## 1. Demo scope
 
-- One room at a time, with three or four players on phones.
+- One room at a time, with one to four players on phones. The host chooses the player count in the lobby; the default is three.
 - One host laptop is the shared screen and controls the reveal. The host role does not occupy a player slot; the presenter may separately join on a phone.
 - Four contributions and four connected video segments, approximately six seconds each.
 - Private collection before generation, followed by a host-controlled reveal and replay.
@@ -29,7 +29,7 @@ Every phone prompt includes: “Write a word, phrase, or short sentence. Keep it
 
 Use the [standard category examples](test-scenarios.md) for future tests. They provide a shared theme plus Character, Action, and Scene change answers. In this four-slot demo, enter the theme as Place and map Scene change to Consequence using the assignments below.
 
-Assign slots round-robin in player join order. With three players, the first gets place and consequence, and the others get one slot each. With four, everyone gets one. Keep the order for rematches. No randomization service, category settings, or extra templates.
+Assign slots round-robin in player join order. One player gets all four slots. With two players, the first gets place and action, and the second gets character and consequence. With three players, the first gets place and consequence, and the others get one slot each. With four, everyone gets one. Keep the order and selected player count for rematches. No randomization service, category settings, or extra templates.
 
 Each contribution is 1–120 Unicode code points after trimming surrounding whitespace. This is the demo's short-text limit; spaces, punctuation, and non-ASCII text are allowed. Preserve wording, capitalization, and punctuation. Do not enforce a word count, sentence count, or an `-ing` ending for actions. Show concrete examples and a character counter before submission; let players correct empty or over-limit input without truncating it. A small versioned input filter checks the full contribution for configured disallowed words; the provider may reject further input during generation. Categories and the one-idea instruction are guidance, without an AI grammar judge.
 
@@ -48,8 +48,8 @@ The cards together form the story. Keep the exact accepted text; do not insert i
 
 ## 3. Play a round
 
-1. **Join:** the presenter runs the app locally on the host laptop and opens the host screen with a configured host passcode. It shows a join URL using the laptop's LAN address and a four-digit room code following the [shared standard](../../shared/room-code-spec.md), including leading zeros. Three or four players on the same Wi-Fi or hotspot join by name on phones. A QR code is optional polish; a working join URL and code are enough.
-2. **Start:** the host presses **Start**. Freeze the roster and assign the four slots. No ready check, settings screen, late joins, or waiting list.
+1. **Join:** the presenter runs the app locally on the host laptop and opens the host screen with a configured host passcode. It shows a join URL using the laptop's LAN address and a four-digit room code following the [shared standard](../../shared/room-code-spec.md), including leading zeros. The host selects one to four players, who join by name on phones over the same Wi-Fi or hotspot. The lobby accepts up to the selected count. The host can change it while waiting, but must reset the party before reducing it below the number already joined. A QR code is optional polish; a working join URL and code are enough.
+2. **Start:** once the selected number of players has joined, the host presses **Start**. Freeze the roster and player count, and assign the four slots. No ready check, late joins, or waiting list.
 3. **Write:** players have 45 seconds to submit their assigned contributions privately. The host sees only the number collected. Begin generation immediately when all four are accepted. If time expires with a missing contribution, show an incomplete-round message and offer another round. No timer extension.
 4. **Generate:** show “Preparing your story” and the number of saved clips. Build and capture all four in order. Each receives only its own contribution and earlier scene facts. Never show future contributions or previews on the host screen.
 5. **Reveal:** once usable clips are saved, the host presses **Play**. Show the first contribution, contributor, and clip. After watching it, the host presses **Next** to reveal the next addition. Phones display the disclosed contributions; everyone watches video on the shared screen. Each contribution produces one segment, regardless of its word count.

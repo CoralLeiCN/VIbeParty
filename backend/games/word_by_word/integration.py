@@ -36,6 +36,10 @@ class StartBody(RoundBody):
     mode: str = "fixture"
 
 
+class PlayerCountBody(RoundBody):
+    player_count: int = Field(strict=True, ge=1, le=4)
+
+
 class ContributionBody(RoundBody):
     slot_index: int = Field(ge=0, le=3)
     text: str = Field(max_length=4096)
@@ -120,6 +124,11 @@ async def state(request: Request):
 @router.post("/round/start")
 async def start(body: StartBody, request: Request):
     return await game.start(token(request), body.round_id, body.mode)
+
+
+@router.post("/room/settings")
+async def room_settings(body: PlayerCountBody, request: Request):
+    return await game.set_player_count(token(request), body.round_id, body.player_count)
 
 
 @router.post("/contribution")

@@ -197,6 +197,9 @@
 .wbw-lobby p {
   max-width: 450px;
 }
+.wbw-player-count {
+  margin-bottom: 20px;
+}
 .wbw-code {
   font-size: 60px;
   letter-spacing: 10px;

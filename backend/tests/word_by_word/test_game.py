@@ -135,6 +135,7 @@ async def test_assignments_ownership_duplicates_and_privacy(setup_game):
 
 async def test_four_players_frozen_roster_and_same_roster_rematch(setup_game):
     game, provider, host, players = setup_game
+    await game.set_player_count(host, game.room.round.id, 4)
     player, _ = await game.join(game.room.code, "Dee", None)
     players.append(player)
     rid = await start_and_submit(game, host, players)
@@ -152,9 +153,62 @@ async def test_four_players_frozen_roster_and_same_roster_rematch(setup_game):
     state = await game.new_round(host, rid)
     assert state["round_id"] != rid
     assert state["players"] == ["Ada", "Bo", "Cy", "Dee"]
+    assert state["player_count"] == 4
     assert list(game.media.iterdir()) == []
     with pytest.raises(AppError):
         await game.contribute(player, rid, 3, FIXTURE_TEXT[3])
+
+
+@pytest.mark.parametrize("player_count", [1, 2, 3, 4])
+async def test_selected_player_count_shares_all_four_contributions(setup_game, player_count):
+    game, provider, host, _ = setup_game
+    state = await game.new_round(host, game.room.round.id, reset=True)
+    rid = state["round_id"]
+    await game.set_player_count(host, rid, player_count)
+    players = []
+    for index in range(player_count):
+        with pytest.raises(AppError) as error:
+            await game.start(host, rid, "fixture")
+        assert error.value.code == "need_players"
+        player, state = await game.join(game.room.code, f"Player {index + 1}", None)
+        assert state["player_count"] == player_count
+        players.append(player)
+    with pytest.raises(AppError) as error:
+        await game.join(game.room.code, "Extra player", None)
+    assert error.value.code == "party_full"
+    assert (await game.join(game.room.code, "Refresh", players[0]))[0] == players[0]
+
+    # WW-CAT-01, mapped to the four-slot demo. The provider is an explicit test fake.
+    texts = (
+        "Enchanted forest",
+        "A fox wearing a crown",
+        "Dances ballet",
+        "Glowing snow begins falling",
+    )
+    game.live_reason = None
+    await game.start(host, rid, "live")
+    expected_owners = [players[index % player_count] for index in range(4)]
+    assert [slot.owner for slot in game.room.round.slots] == expected_owners
+    for index in reversed(range(4)):
+        owner = expected_owners[index]
+        await game.contribute(owner, rid, index, texts[index])
+        assert texts[index] not in json.dumps(game.snapshot(host))
+        for player in players:
+            if player != owner:
+                assert texts[index] not in json.dumps(game.snapshot(player))
+    await game.task
+    await game.cleanup_task
+    assert provider.opens == 1 and len(provider.calls) == 4 and provider.closes == 1
+    for expected in range(-1, 4):
+        state = await game.reveal(host, rid, expected)
+    assert [card["text"] for card in state["cards"]] == list(texts)
+    assert [card["contributor"] for card in state["cards"]] == [
+        f"Player {index % player_count + 1}" for index in range(4)
+    ]
+    state = await game.new_round(host, rid)
+    assert state["player_count"] == player_count and len(state["players"]) == player_count
+    await game.start(host, state["round_id"], "fixture")
+    assert [slot.owner for slot in game.room.round.slots] == expected_owners
 
 
 async def test_input_deadline_rejects_late_final_submission(setup_game):

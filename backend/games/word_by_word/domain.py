@@ -94,6 +94,7 @@ class Round:
 class Room:
     host: str
     code: str
+    player_count: int = 3
     players: list[Player] = field(default_factory=list)
     round: Round = field(default_factory=Round)
     activity: float = field(default_factory=time.time)
@@ -143,6 +144,7 @@ class Room:
             "mode": r.mode,
             "server_time": now,
             "players": [player.name for player in self.players],
+            "player_count": self.player_count,
             "join_url": f"{public_origin}/games/word-by-word/join?code={self.code}",
             "collected": sum(slot.text is not None for slot in r.slots),
             "saved_clips": len(r.clips),
