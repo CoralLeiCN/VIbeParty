@@ -30,6 +30,8 @@ The [backend specification](backend-spec.md) is a broader architecture proposal 
 
 ## 3. App boundaries
 
+The portal and all three games target the host laptop for development and the demo. One local server serves the frontend and API over HTTP; phones join its LAN address on the same Wi-Fi or hotspot. Live generation still uses external providers, and Reverse Prompt scoring runs locally. Remote deployment is deferred. Each game's technical plan and the [local environment guidance](environment-setup.md) define setup and verification.
+
 - Present the portal and games under the VibeParty identity. The portal and game specs define their concrete copy, controls, and screens.
 - A launched game follows its own roles and room lifecycle. Shared components must preserve those rules; one game's defaults must not become requirements for another game.
 - Results belong to their game. There is no combined score or ranking across games.
@@ -37,7 +39,7 @@ The [backend specification](backend-spec.md) is a broader architecture proposal 
 
 ## 4. Delivery scope and completion
 
-The portal's [build order and cut line](portal-spec.md#6-build-order-and-cut-line) defines the current delivery scope. Follow the selected game's technical plan for its implementation sequence and integration gates.
+The confirmed development scope is the portal and all three playable games running locally. The [parallel development plan](parallel-development-plan.md) defines worktree ownership and integration milestones; its foundation milestone extends the portal's earlier Word by Word launch plan to all three games. Follow each game's technical plan for its implementation sequence and integration gates.
 
 Release readiness comes from the [portal acceptance checks](portal-spec.md#7-acceptance-checks) and each enabled game's demo acceptance, linked above. Record live verification in that game's research directory. A second app-level copy of those checklists is unnecessary.
 

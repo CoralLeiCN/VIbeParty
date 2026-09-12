@@ -42,7 +42,7 @@ The core remains: `P0 → V0 → P1 → V1 → P2 → V2 → guesses → reveal`
 | Scoring | Sentence Transformers, MiniLM model, CPU PyTorch in utility worker | Same local model and CPU runtime, loaded once in the FastAPI process | Keep model/dependency footprint; remove separate scoring worker; no scoring API calls |
 | Moderation | External text checks, sampled output frames, reports, audit tables | Local format/length validation, Reactor generation-input filters, presenter stop/reset | No separate name/guess classifier, app preflight moderation, or comprehensive output review |
 | Spending controls | Currency reservations, durable attempt ledger, retry accounting | Persistent nine-attempt allowance, one session at a time, provider duration cap | Manual operator recovery for uncertain termination |
-| Hosting | Docker Compose with app, workers, dispatcher, database, Redis; S3 | One Linux VM, Caddy, one FastAPI worker | Deployment interrupts the game |
+| Runtime | Docker Compose with app, workers, dispatcher, database, Redis; S3 | One FastAPI worker on the host laptop; LAN HTTP | Same-network phone access; remote deployment deferred |
 | VEED | Optional scripted asset preparation through Fabric/fal | Optional manually exported static intro | No dynamic host or runtime VEED integration |
 | Verification | Full backend/frontend/browser/CI suite and migration checks | Focused pytest, Ruff/TypeScript checks, three-browser live rehearsal | Narrow evidence for the exact demo path |
 
@@ -55,7 +55,7 @@ The small persistent quota file is intentional: game state can be disposable, bu
 - **Video:** Reactor Helios via `reactor-sdk`, FFmpeg/ffprobe, private local disk.
 - **Scoring:** Sentence Transformers with `sentence-transformers/all-MiniLM-L6-v2`, CPU PyTorch, and cosine similarity; preload a pinned model for local inference.
 - **Input checks:** Local format/token limits and Reactor's generation-input filters; no app moderation API. HTTPX is needed only if Reactor token minting uses it.
-- **Deployment and checks:** One persistent Linux VM, Caddy HTTPS, uv/npm lockfiles, pytest, Ruff, TypeScript.
+- **Local runtime and checks:** Host laptop, one Uvicorn worker, LAN HTTP, uv/npm lockfiles, pytest, Ruff, TypeScript. Verify SDK/scorer compatibility on the laptop before the demo.
 - **Optional only:** VEED-exported intro MP4. No VEED/fal dependency in the running game.
 
 Provider evidence and the reason for each choice are linked in the [technical specification](tech-stack.md) and [Reactor/VEED research](../../research/reverse-prompt/README.md). Exact package versions and live compatibility remain to be verified during implementation.

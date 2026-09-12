@@ -2,7 +2,7 @@
 
 [All docs](../../README.md) · [Game spec](game-spec.md) · [Simplification](simplification.md) · [Research](../../research/reverse-prompt/README.md)
 
-Version: 2.1 demo scope. Updated: 12 September 2026. Status: selected design, not installed or runtime-verified.
+Version: 2.2 local demo scope. Updated: 12 September 2026. Status: selected design, not installed or runtime-verified.
 
 **The stack is sufficient for the three-player demo.** Use one persistent Python application, in-memory game state, and private local video files. The outstanding feasibility test is turning a fresh Reactor stream into a playable five-second clip within the demo's time budget. Follow the [game specification](game-spec.md); this document replaces the broader [backend requirements](../../backend-spec.md) for Reverse Prompt. See [before and after](simplification.md) and the [archived architecture](archive/tech-stack-v1.md).
 
@@ -14,7 +14,7 @@ Version: 2.1 demo scope. Updated: 12 September 2026. Status: selected design, no
 | --- | --- | --- |
 | Browser UI | React 19, TypeScript, Vite, CSS Modules | One responsive page, phase components, native video playback |
 | Browser communication | Native `fetch`; one-second polling | Submit commands and retrieve an authorized snapshot |
-| Frontend tooling | Node.js 24 LTS, npm lockfile | Build static assets; no JavaScript server in production |
+| Frontend tooling | Node.js 24 LTS, npm lockfile | Build static assets; FastAPI serves them during the local demo |
 | Backend | Python 3.13, FastAPI, Pydantic 2, Uvicorn | Rules, guest cookies, validation, media authorization, provider calls |
 | State and concurrency | Python dataclasses/dictionaries, `asyncio.Lock`, retained asyncio task references | One room and one generation at a time, in one process |
 | Video generation | Reactor Helios, `reactor-sdk` | Fresh text-only video session for each relay step |
@@ -23,7 +23,7 @@ Version: 2.1 demo scope. Updated: 12 September 2026. Status: selected design, no
 | Input handling | Local format/token validation; Reactor's generation-input filters | No separate app content classifier; presenter can stop/reset |
 | API client | `reactor-sdk`; HTTPX if needed for Reactor token minting | Reactor requests with explicit timeouts; no embedding API client |
 | Media and tiny persistent guard | Private local directory; one small JSON quota file | Temporary videos plus a restart-safe session allowance/block |
-| Deployment | One persistent Linux VM, one Uvicorn worker, Caddy HTTPS | Same-origin frontend/API; no queue, database, or object store |
+| Local runtime | Host laptop, one Uvicorn worker, HTTP over the same Wi-Fi or hotspot | Same-origin frontend/API; remote deployment is deferred |
 | Python tooling and checks | uv lockfile, pytest, Ruff; TypeScript compiler | Reproducible dependencies and focused rule/privacy checks |
 | Optional presentation | Manually exported VEED intro MP4 | Static asset only; no `fal-client` or VEED runtime key required |
 
@@ -33,8 +33,7 @@ React documents Vite as a SPA building option. Node 24 and Python 3.13 are suppo
 
 ```mermaid
 flowchart LR
-    Phones[Three phone browsers] -->|HTTPS: commands and polling| Proxy[Caddy]
-    Proxy --> App[One FastAPI process]
+    Phones[Three player browsers] -->|LAN HTTP: commands and polling| App[One FastAPI process on laptop]
     App --> State[In-memory room]
     App --> Reactor[Reactor Helios]
     App --> Scorer[Local Sentence Transformers and CPU PyTorch]
@@ -77,7 +76,7 @@ Return `200` with the submission receipt after local validation and acceptance; 
 
 Poll every second while visible, immediately on focus and after commands, with one request in flight and a short error backoff. Show a connection message after repeated failure. Snapshots carry room/round ID and monotonically increasing revision; ignore older responses. Replace private UI state when its phase permission ends. Input drafts stay component-local and clear on round change.
 
-Use a random opaque `HttpOnly`, `Secure`, `SameSite=Strict` guest cookie, same-origin fetch, JSON-only mutations, and an Origin check. Names and room codes are not identity. Keep the organizer code server-side and apply simple per-IP attempt limits to create/join. Secrets and Reactor tokens never reach the browser. A restart invalidates guest sessions; no recovery account is necessary.
+Use a random opaque `HttpOnly`, `SameSite=Strict` guest cookie, same-origin fetch, JSON-only mutations, and an Origin check against the configured browser origin. Omit `Secure` for the trusted local HTTP demo so phones can send cookies to the laptop's LAN address. Names and room codes are not identity. Keep the organizer code server-side and apply simple per-IP attempt limits to create/join. Secrets and Reactor tokens never reach the browser. A restart invalidates guest sessions; no recovery account is necessary.
 
 Resolve media IDs through the current round's server map, never a client-supplied path. Authorize every GET/HEAD/range request using the game's visibility table and send `Cache-Control: private, no-store`. Do not mount the private media directory as static files. A copied URL does not grant access. Local cleanup does not retract a clip someone already watched or captured.
 
@@ -103,7 +102,7 @@ Keep the unresolved flag set if termination is uncertain or the process crashes.
 
 Keep **Sentence Transformers with `sentence-transformers/all-MiniLM-L6-v2` and CPU PyTorch**, as in the original design. The model produces 384-dimensional embeddings and defaults to truncating inputs beyond 256 word pieces. Validate normalized text with the pinned tokenizer without truncation; reject input beyond the model's actual `max_seq_length`, including special tokens, in addition to the 300-code-point limit. Expose the token limit and corrective error to the UI. [Model card](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2).
 
-Download a pinned model/tokenizer revision during setup and record its immutable commit in the deployment manifest. Keep these files outside disposable round media. Load them from the local model directory once at startup, run a warm-up, and disable Start if loading/self-test fails. No model download, hosted inference, or API key is needed while scoring a round. Exact revision and compatible dependency versions remain to be locked and tested during implementation.
+Download a pinned model/tokenizer revision during local setup and record its immutable commit in the runtime manifest. Keep these files outside disposable round media. Load them from the local model directory once at startup, run a warm-up, and disable Start if loading/self-test fails. No model download, hosted inference, or API key is needed while scoring a round. Exact revision and compatible dependency versions remain to be locked and tested during implementation.
 
 Encode `[P0, guess_B, guess_C]` once in a local batch on CPU with normalized embeddings, evaluation mode, and identical preprocessing. Use `asyncio.to_thread` so inference does not block polling/media requests. Require three complete finite nonzero vectors of the expected size; calculate cosine and rounded scores using the game formula and store the result once. Sentence Transformers documents cosine-based semantic comparison. No vector database, LLM judge, or separate scoring service is required. [Similarity documentation](https://sbert.net/docs/sentence_transformer/usage/semantic_textual_similarity.html).
 
@@ -111,11 +110,13 @@ Keep the 15-second scoring deadline; inference failure or timeout produces an un
 
 There is **no separate app moderation API** in the demo. Local validation checks format and length; render names/guesses as plain text. Reactor screens generation input and may terminate a rejected session after billable time starts. Do not describe these checks as a free preflight or comprehensive output moderation. Use benign prompts and presenter stop/reset; dedicated name/guess classification, output-frame scanning, reports, and audit tables are deferred. [Reactor moderation](https://docs.reactor.inc/resources/content-moderation).
 
-## 6. Deployment and optional VEED
+## 6. Local operation and optional VEED
 
-Use a persistent Linux/glibc VM compatible with the Reactor SDK wheel, Python 3.13, CPU PyTorch/Sentence Transformers, FFmpeg/ffprobe, and a private writable data directory. Begin with 2 vCPU/4 GiB as a sizing hypothesis; measure warm model memory, inference latency, and conversion memory together before the event. No application GPU is required by this CPU-scoring design. Serve the Vite build through FastAPI behind Caddy TLS. Keep the API and frontend on one HTTPS origin. Build tools and the initial model download run at deployment time. Docker Compose is not required. [Reactor SDK distribution](https://pypi.org/project/reactor-sdk/).
+Run on the host laptop with Python 3.13, CPU PyTorch/Sentence Transformers, FFmpeg/ffprobe, and a private writable data directory. Verify the pinned Reactor SDK and scoring dependencies against the actual laptop OS/architecture in the first spike; follow the [local environment guidance](../../environment-setup.md) if a dependency needs a local runtime adjustment. Measure warm model memory, inference latency, and conversion memory together on this machine. The selected scorer uses CPU inference. Native dependency compatibility remains unverified. [Reactor SDK distribution](https://pypi.org/project/reactor-sdk/).
 
-Required configuration: `REACTOR_API_KEY`, `ORGANIZER_CODE`, `PUBLIC_ORIGIN`, `MEDIA_DIR`, `DEMO_QUOTA_PATH`, and `EMBEDDING_MODEL_PATH` pointing to the downloaded, pinned model. The quota and model files must survive service restarts and deployments; keep them outside disposable build/round directories. Round media is ephemeral. On startup delete stale round media, start with an empty lobby, load/warm the local scorer, and preserve any unresolved-session flag. Never log credentials or player content; phase, latency, error category, and remaining attempt count are enough.
+Build the frontend and download the pinned scoring model during local setup. FastAPI serves the Vite build and API directly over HTTP. Run one Uvicorn worker without reload, binding to `0.0.0.0:8000` for phone access. Set `PUBLIC_ORIGIN=http://<laptop-LAN-IP>:8000` and open that address on the host and player phones on the same Wi-Fi or hotspot. Use `http://localhost:8000` only for laptop-only checks. During development, Vite proxies API requests to FastAPI; Origin checks must match the browser-facing address. Verify firewall/network access, keep the laptop awake, and confirm outbound internet access for Reactor. Remote hosting, Caddy, domains, and TLS setup are deferred.
+
+Required configuration: `REACTOR_API_KEY`, `ORGANIZER_CODE`, `PUBLIC_ORIGIN`, `MEDIA_DIR`, `DEMO_QUOTA_PATH`, and `EMBEDDING_MODEL_PATH` pointing to the downloaded, pinned model. The quota and model files must survive process restarts and local rebuilds; keep them outside disposable build/round directories. Round media is ephemeral. On startup delete stale round media, start with an empty lobby, load/warm the local scorer, and preserve any unresolved-session flag. Never log credentials or player content; phase, latency, error category, and remaining attempt count are enough.
 
 VEED is optional polish: create one generic intro manually, export an MP4, and play it as a static asset. No runtime call, queue, TTS integration, or avatar conversation is required. The researched Fabric API animates a supplied image/audio pair; that does not replace Reactor's scene-generation job. If there is no ready VEED export, omit the intro. [VEED/Fabric research](../../research/reverse-prompt/README.md#veed-findings), [Fabric API](https://fal.ai/models/veed/fabric-1.0/api).
 
@@ -123,11 +124,11 @@ VEED is optional polish: create one generic intro manually, export an MP4, and p
 
 | Order | Deliverable | Exit check |
 | --- | --- | --- |
-| 1 | One Python Reactor-to-MP4 spike | Live clip plays on actual phones; session termination and cap verified; record total latency |
+| 1 | One Python Reactor-to-MP4 spike on the demo laptop | Live clip plays on actual phones through the LAN URL; session termination and cap verified; record total latency |
 | 2 | One-room game loop with fixed local clips | Three browsers reach reveal; refresh and private access work |
 | 3 | Live Reactor adapter | Three independent generations complete; duplicate submission and forced failure handled |
 | 4 | Local Sentence Transformers scorer and final result UI | Pinned model preloaded; offline exact/paraphrase/unrelated examples, token limit, ties, and inference failure checked |
-| 5 | Hosted rehearsal | Three people finish live; private files, restart guard, reset, and phone playback checked |
+| 5 | Local laptop and phone rehearsal | Three people finish live over the LAN origin; private files, restart guard, reset, and phone playback checked |
 | 6 | Optional visual polish/VEED intro | Core demo still passes; no added runtime dependency |
 
 Use focused pytest checks for role/phase authorization, duplicate and stale submissions, cosine rules, failed scoring, session quota, and reset during generation. Check TypeScript and Ruff; rehearse the full flow in three browser sessions, including one real phone. A separate browser testing stack, migration tests, multi-room load tests, and a broad CI matrix are deferred. These checks map to [DEMO-01 through DEMO-08](game-spec.md#7-demo-acceptance).

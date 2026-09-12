@@ -4,6 +4,16 @@ VibeParty keeps backend configuration and the Reactor API key in a private root 
 
 This checkout contains planning documents and configuration only. Setup requires Git and Bash (the versions supplied with macOS work). There is no dependency manifest, backend, or `.env` loader yet, so there are no package installation or server startup commands to run.
 
+## Local target for the portal and all games
+
+Build and run the portal, Word by Word, Prompt Royale, and Reverse Prompt on the host laptop. The combined demo uses one FastAPI process with one Uvicorn worker serving the built frontend and API over HTTP. Remote deployment, domains, Caddy, and TLS setup are deferred. The foundation implementation will add dependency installation, frontend build, and local startup commands.
+
+Use `http://localhost:8000` for laptop-only checks. For group play, bind the server to `0.0.0.0:8000`, set `PUBLIC_ORIGIN=http://<laptop-LAN-IP>:8000`, and open that LAN URL on the host and phones connected to the same Wi-Fi or hotspot. A phone's `localhost` points to that phone. Verify the laptop firewall and network permit device connections, and keep the laptop awake. Use the configured browser origin for Origin checks and omit Secure on the local HTTP session cookies; keep HttpOnly and each game's SameSite setting.
+
+Verify the Reactor SDK, FFmpeg, and Reverse Prompt's CPU scoring dependencies on the actual laptop OS/architecture during the initial spikes. Native compatibility has not been established. If a dependency requires Linux, evaluate a local container or VM on the same laptop only when the spike establishes that need; verify port forwarding and phone/provider connectivity in that local runtime. This does not require a hosted server.
+
+Live video needs outbound internet access to Reactor; Prompt Royale's live topic suggestions need its selected LLM. Preload Reverse Prompt's pinned model during setup so scoring is local. Keep its persistent quota/model files outside disposable clip directories. The existing `example.env` currently covers Word by Word; the shared foundation will add the other games' settings. Each parallel worktree uses its own ports and private configuration as described in the [parallel development plan](parallel-development-plan.md#6-worktree-and-runtime-isolation).
+
 ## Prepare the original checkout
 
 Create `.env` in the original repository folder you added to Codex, before creating new worktrees. On this machine that folder is `/Users/coral/repos/VIbeParty`.

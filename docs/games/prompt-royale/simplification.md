@@ -8,7 +8,7 @@ The current [game specification](game-spec.md) and [technology stack](tech-stack
 
 ## Before and after
 
-| Area | Before: version 1.0 | After: demo version 1.4 | Tradeoff |
+| Area | Before: version 1.0 | After: local demo version 1.5 | Tradeoff |
 | --- | --- | --- | --- |
 | Application | API, dispatcher, capture workers, media workers | One FastAPI process | A process restart ends the room. |
 | Room data | PostgreSQL, SQLAlchemy, psycopg, Alembic | In-memory objects and one lock | No durable history, migrations, or restart recovery. |
@@ -26,7 +26,7 @@ The current [game specification](game-spec.md) and [technology stack](tech-stack
 | VEED | Optional library and preparation workflow | Optional intro/celebration prepared once | No new runtime provider dependency; the core game works without it. |
 | Checks | Broad tooling, distributed failure suite, ten-room load target | Focused rule/API checks, one browser flow, live rehearsals | Validates demo behavior rather than production recovery/scaling. |
 | Retention | Automated expiry service with monitoring | Delete on replay/end/startup; operator purge after demo | No monitored deletion guarantee while the server is down. |
-| Deployment | Multi-service Docker Compose deployment | One Linux host, Caddy, one Uvicorn worker | No autoscaling; container packaging optional. |
+| Runtime | Multi-service Docker Compose deployment | One Uvicorn worker on the host laptop; LAN HTTP | Same-network phone access; remote deployment deferred. |
 
 ## What stays
 
@@ -36,7 +36,7 @@ Reactor remains the main live integration risk. The simplification removes infra
 
 ## Stack after the change
 
-React + TypeScript + Vite; CSS Modules; fetch polling; Python + FastAPI/Pydantic/Uvicorn; in-memory state and asyncio; Reactor SDK and HTTPX; a topic LLM called from the backend (provider/model to be selected); model-compatible tokenizer; FFmpeg/ffprobe; local files; Caddy. Node/npm and uv manage dependencies. pytest/Ruff, TypeScript/ESLint, and one Playwright flow provide focused checks. VEED/fal is optional asset preparation only.
+React + TypeScript + Vite; CSS Modules; fetch polling; Python + FastAPI/Pydantic/Uvicorn; in-memory state and asyncio; Reactor SDK and HTTPX; a topic LLM called from the backend (provider/model to be selected); model-compatible tokenizer; FFmpeg/ffprobe; local files; FastAPI serving the frontend/API from the laptop over HTTP. Node/npm and uv manage dependencies. pytest/Ruff, TypeScript/ESLint, and one Playwright flow provide focused checks. VEED/fal is optional asset preparation only.
 
 The [stack usage map](tech-stack.md#how-the-stack-is-used) assigns each technology to its part of the round. The single retry lives in the existing asyncio task and adds no infrastructure or retry dependency. A second failure becomes unavailable; rejected or uncertain sessions are never blindly retried.
 

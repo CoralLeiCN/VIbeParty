@@ -2,7 +2,7 @@
 
 [All docs](../../README.md) · [Game spec](game-spec.md) · [Simplification](simplification.md) · [Research](../../research/prompt-royale/README.md)
 
-Version: 1.4, 12 September 2026. Status: selected simplified design with two topic modes, an arena reveal, 10-second voting, and one bounded retry; dependencies, deployment, and live capture remain unvalidated.
+Version: 1.5, 12 September 2026. Status: selected simplified design with two topic modes, an arena reveal, 10-second voting, and one bounded retry; laptop runtime compatibility and live capture remain unvalidated.
 
 **One room, at most four players, one Python application process.** This replaces the earlier PostgreSQL/Celery/Redis/S3 design for the Prompt Royale demo. The broader [backend specification](../../backend-spec.md) is future context for this game, not a prerequisite. See the [game rules](game-spec.md), [before-and-after comparison](simplification.md), and [provider research](../../research/prompt-royale/README.md).
 
@@ -24,7 +24,7 @@ Version: 1.4, 12 September 2026. Status: selected simplified design with two top
 | Playback | CSS Grid and native HTML video with shared playback controls | A 2×2 arena with up to four silent clips playing together on phones and the projected host screen. |
 | Optional host | VEED Fabric 1.0 through an offline fal-client preparation script | Pre-render generic host clips; runtime has no FAL key requirement. |
 | Checks | pytest, Ruff, TypeScript checking, ESLint, one Playwright round test | Focus on rules, privacy, and the actual group flow. |
-| Deployment | One Linux host, Caddy for HTTPS, one Uvicorn worker | Serve the built frontend and same-origin API. Containers are optional packaging. |
+| Local runtime | Host laptop, one Uvicorn worker, HTTP over the same Wi-Fi or hotspot | FastAPI serves the built frontend and same-origin API; remote deployment is deferred. |
 
 Remove PostgreSQL, SQLAlchemy, psycopg, Alembic, Redis, Celery, boto3/S3, WebSockets, durable outboxes, and separate dispatcher/worker services from the required demo. Defer mypy and a separate Vitest suite; backend typing and frontend type checking remain.
 
@@ -44,9 +44,9 @@ This is the implementation map for the demo, not a claim that these dependencies
 | Prepare and watch clips | ffprobe inspects the recording; FFmpeg produces the MP4. The backend authorizes all eligible clips together when screening opens. React places native HTML videos in a 2×2 CSS Grid and coordinates Play arena, Pause all, and Replay all. |
 | Vote and reveal | FastAPI validates the ballot, Python counts votes, and React renders the result from the next snapshot. No AI scoring service is involved. |
 | Present the host | An offline fal-client script uses VEED Fabric to prepare generic clips once. The browser plays those static assets; gameplay makes no VEED API requests. |
-| Build, check, and run | npm and uv lock/install dependencies; pytest, Ruff, TypeScript/ESLint, and Playwright check the demo. Caddy serves the built frontend and proxies the API over the same HTTPS origin. |
+| Build, check, and run | npm and uv lock/install dependencies; pytest, Ruff, TypeScript/ESLint, and Playwright check the demo. FastAPI serves the built frontend and API from the laptop over one local HTTP origin. |
 
-The retry adds a counter, a short delay, and a second pass through the existing task. It adds no service or retry library. Exact package versions, the tokenizer artifact, and the Linux host remain choices to verify in the first integration build.
+The retry adds a counter, a short delay, and a second pass through the existing task. It adds no service or retry library. Exact package versions, the tokenizer artifact, and compatibility with the demo laptop's OS/architecture remain to be verified in the first integration build.
 
 ## 2. Architecture and its boundary
 
@@ -104,7 +104,7 @@ Commands return a fresh snapshot; errors return a short code/message. Exact repe
 
 Generate topic suggestions before Start through a tracked asynchronous LLM request, outside the room lock. Allow one pending request per room and deduplicate repeated command IDs. Recheck room, lobby, topic mode, and request ID before publishing a response so a stale completion cannot replace a later selection. Return pending suggestions and their confirmation controls to the host; reveal the frozen topic to every player when the round starts. Regeneration, mode changes, and Play again clear selection/confirmation. If the request fails, keep Start blocked until the host retries successfully and confirms, or selects a bundled topic. Keep provider credentials on the server; select and document the LLM model, request timeout, output length limit, and call allowance during integration. The LLM supplies a topic only; the host can recognize topics played before and request another.
 
-Use opaque random session cookies with HttpOnly, Secure, and SameSite settings, one origin, and Origin checks on mutations. Reject untrusted origins. Keep host access code and provider keys in environment variables. Limit join attempts and request sizes in the same process. No accounts/OAuth service is required.
+Use opaque random session cookies with HttpOnly and SameSite=Lax. Omit Secure for the trusted local HTTP demo so phones can send cookies to the laptop's LAN address. Require same-origin JSON mutations and check Origin against the configured browser origin; reject untrusted origins. Keep host access code and provider keys in environment variables. Limit join attempts and request sizes in the same process. No accounts/OAuth service is required.
 
 Build explicit player snapshots: public phase/topic/progress plus only that caller's accepted prompt/ballot. At screening, reveal the complete eligible arena mapping and authorize its clips together; before then, hide all contest media. Keep labels and positions stable through voting and results, with empty/excluded placeholders as needed. Excluded media loses playback authorization. Supply the private own-entry flag only for voting, and keep it off projected screening views. Never serialize the entire room. Authors and prompts appear only at results; other ballots never appear.
 
@@ -169,7 +169,7 @@ Two entry slots mean four first attempts require two waves; retries may add work
 
 ### Simple call allowance
 
-Replace the financial reservation ledger with `MAX_GENERATION_ATTEMPTS_PER_ENTRY=2` (initial attempt plus one retry), at most eight creation attempts for a four-player round, and an initial `MAX_LIVE_SESSION_STARTS=16` per process run. Before Start, require remaining allowance of `2 * roster_size`, covering the initial attempts and possible replacements. Increment before every creation request, including retries; never refund unknown/failed attempts. Retrying an existing download/preparation does not consume a session start. Play again does not reset the counter. Changing the allowance belongs to deployment setup, not a player control.
+Replace the financial reservation ledger with `MAX_GENERATION_ATTEMPTS_PER_ENTRY=2` (initial attempt plus one retry), at most eight creation attempts for a four-player round, and an initial `MAX_LIVE_SESSION_STARTS=16` per process run. Before Start, require remaining allowance of `2 * roster_size`, covering the initial attempts and possible replacements. Increment before every creation request, including retries; never refund unknown/failed attempts. Retrying an existing download/preparation does not consume a session start. Play again does not reset the counter. Changing the allowance belongs to local operator setup, not a player control.
 
 At the researched $0.0017 per billable second and a 60-second provider cap, first-attempt model exposure is $0.306 for three entries or $0.408 for four. Allowing one replacement for every entry raises those bounds to $0.612 and $0.816 respectively. The unchanged 16-start run limit represents $1.632, enough allowance for two four-player rounds if every entry uses a replacement. These are estimates for that observed rate, excluding other infrastructure, not current billing guarantees. Recheck price and balance in the provider dashboard before the demo. [Pricing endpoint](https://api.reactor.inc/pricing), [billing](https://docs.reactor.inc/resources/billing).
 
@@ -194,17 +194,19 @@ Delete round files on Play again/end/expiry, after cancelling their tasks; late 
 
 Log concise phase/job timings, session IDs, status, retry reason/number, termination failures, and attempted-call count. Do not log prompts, raw tokens, or private ballots. Use ordinary logs and `/health`; a metrics stack and ten-room performance target are deferred.
 
-## 7. VEED and deployment
+## 7. Local operation and optional VEED
 
 Prepare one optional reusable intro and one celebration with standard `veed/fabric-1.0` at 480p using an owned mascot image and recorded audio. The endpoint takes image/audio inputs. Download and check the files once, include matching text, and ship them as static generic assets. No runtime speech provider, live avatar, queue webhook, or room-specific rendering is needed. Missing assets fall back to text. [Fabric API](https://fal.ai/models/veed/fabric-1.0/api).
 
-Build the React app, serve its static output through Caddy, and proxy `/api` to the single Uvicorn process on the same host. Install FFmpeg and use a private writable temporary directory with enough disk for four bounded sources. Validate outbound Reactor WebRTC connectivity from that host. A Dockerfile is optional for reproducibility; Docker Compose services are not required. The exact host is an operational choice to settle in the spike.
+Build the React app locally and serve its static output and `/api` through FastAPI on the host laptop. Run one Uvicorn worker without reload, binding to `0.0.0.0:8000` for phone access. Set `PUBLIC_ORIGIN=http://<laptop-LAN-IP>:8000` and use that address on the host and all phones over the same Wi-Fi or hotspot. `http://localhost:8000` is for laptop-only checks. During development, Vite proxies API requests to FastAPI; configure Origin checks for the actual browser-facing address. Verify firewall/network access and keep the laptop awake. Remote hosting, Caddy, domains, and TLS setup are deferred.
+
+Install FFmpeg and pin the SDK/tokenizer on the actual laptop OS/architecture. Use a private writable temporary directory with enough disk for four bounded sources. Verify outbound Reactor connectivity and capture from this machine and network; live topic suggestions also require internet access to the selected LLM. Follow the [local environment guidance](../../environment-setup.md) if native dependency compatibility requires a local runtime adjustment.
 
 Keep code in four small areas: frontend phase screens; backend room/rules/API; generation/capture; media preparation. Add a fixtures adapter behind the same generation function and an offline VEED preparation script. Avoid a general game-plugin, repository, or provider marketplace framework.
 
 ## 8. Build order and validation
 
-1. **Capture spike:** pin a compatible SDK/runtime/tokenizer, generate one live entry, prepare its MP4, play it on a phone, and verify termination and observed charge. This is the main integration risk.
+1. **Capture spike:** pin a compatible SDK/runtime/tokenizer on the demo laptop, generate one live entry, prepare its MP4, play it on a phone through the laptop's LAN URL, and verify termination and observed charge. This is the main integration risk.
 2. **Fixture round:** implement the single room, polling, both topic modes with a mocked LLM response for checks, host confirmation/regeneration, simultaneous arena playback, 10-second voting from arena tiles, prompt rules, anonymous media access, results, and replay. Fixtures are labelled and independent of live credentials; identify mock topic suggestions as fixtures.
 3. **Live round:** select and validate the topic LLM, attach bounded video tasks, the single retry, provider caps, call allowances, timeout/failure outcomes, and cleanup. Rehearse both topic modes with three players, then four, on the actual host and phone browsers.
 4. **Presentation:** add optional VEED clips and polish only after the round is usable.

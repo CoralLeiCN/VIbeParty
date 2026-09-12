@@ -4,6 +4,7 @@ Event: [Worlds — official event page](https://worlds.london/). Track selection
 
 ## Our demo limitations
 
+- **Local target:** build the portal and all three games on the host laptop; phones join its HTTP LAN address on the same Wi-Fi or hotspot. Remote deployment is deferred. The laptop needs internet access for live providers.
 - **Completion first:** prioritize the [portal → game → replay loop](portal-spec.md). Add polish after the complete flow works.
 - **Small groups:** each game targets one supervised room. Player caps reflect our generation capacity and rehearsal scope; they are project decisions, not claimed provider limits.
 - **Limited recovery:** accept losing the room on server restart to keep the build small. Each game's technical plan defines the safeguards for paid generation.

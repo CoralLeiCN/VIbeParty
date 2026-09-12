@@ -16,6 +16,8 @@ The essential experience is seeing how a scene changes through human interpretat
 
 ## 2. Fixed demo settings
 
+Run the app locally on the host laptop. All players open its HTTP LAN address on the same Wi-Fi or hotspot. The host remains author A and counts toward the three players. The laptop needs internet access for Reactor; final guesses are scored locally. Remote deployment is deferred.
+
 | Setting | Decision |
 | --- | --- |
 | Room and roster | One room; exactly three players; no joining during a round |
@@ -34,7 +36,7 @@ These are demo defaults, not provider speed promises. Target a roughly three-to-
 
 ## 3. Complete player flow
 
-1. **Join.** The presenter creates a room using the configured organizer code and a display name. Two guests enter the displayed room code and names at the same URL. The lobby lists A, B, and C. Names are 1–24 characters; duplicate names receive visible suffixes. Start is enabled with three registered players, available generation capacity, and the local scoring model loaded. The presenter confirms everyone is looking at their phone; no player readiness system is needed.
+1. **Join.** The presenter creates a room using the configured organizer code and a display name. Two guests enter the displayed room code and names at the laptop's LAN URL. The lobby lists A, B, and C. Names are 1–24 characters; duplicate names receive visible suffixes. Start is enabled with three registered players, available generation capacity, and the local scoring model loaded. The presenter confirms everyone is looking at their phone; no player readiness system is needed.
 2. **Original.** A writes `P0`, for example “A tiny astronaut pours tea for a giant frog.” B and C see whose turn it is. A successful submission is final. Generate `V0` using only `P0` and the fixed rendering instruction.
 3. **First interpretation.** Only B can retrieve and replay `V0`. B describes what they see as `P1`. Generate `V1` using only `P1` and the same instruction, in a fresh provider session.
 4. **Second interpretation.** Only C can retrieve and replay `V1`. C submits `P2`. Generate `V2` independently from `P2`.

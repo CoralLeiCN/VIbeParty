@@ -8,6 +8,8 @@ Status: broader architecture proposal, 12 September 2026. The [app specification
 
 For the Reverse Prompt hackathon demo, implement the [dedicated technical specification](games/reverse-prompt/tech-stack.md): one FastAPI process, in-memory room state, local media, polling, local Sentence Transformers scoring, and Reactor Helios video generation. No OpenAI service or key is required. It supersedes this document's database, queue, worker, WebSocket, recovery, moderation, and deployment requirements for that game. The architecture below remains broader product direction, not required demo infrastructure. The [before-and-after comparison](games/reverse-prompt/simplification.md) explains the cuts.
 
+**Local demo target for all games:** the portal, Word by Word, Prompt Royale, and Reverse Prompt run on the host laptop, serving the built frontend and API over LAN HTTP with one Uvicorn worker. Remote deployment, Linux cloud hosts, Caddy, and TLS setup below remain future proposals. Follow the dedicated game plans and [local environment setup](environment-setup.md) for the current target.
+
 ## 1. Architecture
 
 Use a modular Python application with a separate worker process built from the same codebase. Keep game rules independent of HTTP, queue infrastructure, and model-provider SDKs. The first release does not need microservices or an extensible game-plugin framework.

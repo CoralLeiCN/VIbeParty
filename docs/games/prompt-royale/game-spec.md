@@ -2,7 +2,7 @@
 
 [All docs](../../README.md) · [Technical stack](tech-stack.md) · [Simplification](simplification.md) · [Research](../../research/prompt-royale/README.md)
 
-Version: 1.4, 12 September 2026. Status: simplified demo design with two topic modes, an arena reveal, 10-second voting, and one bounded retry; no application or live performance has been validated yet.
+Version: 1.5, 12 September 2026. Status: simplified demo design with two topic modes, an arena reveal, 10-second voting, and one bounded retry; no application or live performance has been validated yet.
 
 This is the authoritative scope for the Prompt Royale hackathon demo. The [app specification](../../app-spec.md) defines the wider product boundaries. See the [demo stack](tech-stack.md), [before-and-after decisions](simplification.md), and [partner research](../../research/prompt-royale/README.md).
 
@@ -17,6 +17,8 @@ The creative prompt-and-vote inspiration comes from **Quiplash by Jackbox Games*
 Prompt Royale adapts that idea to generated video. Players write complete scene descriptions; they do not have to fill a literal blank. Everyone judges the same set of clips, and human votes decide the outcome.
 
 ## 2. Demo scope
+
+Run the app locally on the host laptop. Players join its HTTP LAN address on the same Wi-Fi or hotspot; the host still occupies a player slot. The laptop needs internet access for Reactor and live topic suggestions. Remote deployment is deferred.
 
 Build one invite-only room, 3–4 players including one fixed playing host, two topic modes (host choice or LLM generation with host confirmation), prompt submission, video generation, screening, voting, results, and Play again. Use one scene model and one video preset. Optional pre-rendered VEED host clips add presentation after the core round works.
 
@@ -36,7 +38,7 @@ After the hackathon, explore five-to-eight-player groups, simultaneous rooms, pe
 
 | Item | Demo rule |
 | --- | --- |
-| Players | 3–4, including the host; one room per deployment. |
+| Players | 3–4, including the host; one room on the local server. |
 | Name | 1–24 Unicode code points after trimming and NFC normalization; suffix duplicate names. |
 | Topic | Before starting, choose Host chooses or Auto-generated topic. The host selects from a small bundled list or confirms an LLM-generated suggestion, with an option to generate another. |
 | Prompt | 1–500 code points after trimming and NFC normalization; entire rendered model input must also fit the 500-token application limit. |
@@ -55,7 +57,7 @@ Server time decides deadlines. Browser timers are visual estimates. Every screen
 
 ### Join and start
 
-The host creates the single room using the deployment's host access code, enters a name, and receives a short join code and copyable link. Guests join with a name. An opaque browser session identifies each player; a name alone cannot reclaim an identity.
+The host creates the single room using the configured host access code, enters a name, and receives a short join code and copyable link using the laptop's LAN origin. Guests join with a name. An opaque browser session identifies each player; a name alone cannot reclaim an identity.
 
 Show the roster, a concise rule card, two topic modes, and Start. The host checks that everyone is present; there is no separate ready action. Topic selection happens in the lobby before the round timer starts:
 
