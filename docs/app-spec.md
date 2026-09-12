@@ -1,0 +1,256 @@
+# VibeParty: app and game specification
+
+Status: proposed MVP specification, 12 September 2026.
+
+## 1. Product concept
+
+VibeParty turns a group of friends into the creators and audience of AI-generated entertainment. Players join a room on their phones, contribute words or prompts, watch the results, and compete through voting or guessing.
+
+The app is a demo for the [Worlds hackathon](hackathon.md). Its first release supports three games:
+
+| Game | Player activity | Result | Competition |
+| --- | --- | --- | --- |
+| Word by Word | Each player adds one word to each shared sentence. | The sentences become a prompt that generates a world clip. | Cooperative; no winner. |
+| Prompt Royale | Everyone writes a prompt for the same topic. | One short clip per accepted entry, followed by a group screening. | Most votes wins. |
+| Reverse Prompt | Players alternate between watching a video and describing it to generate the next video. | A chain of prompts and videos, followed by guesses of the original prompt. | Closest final guess wins. |
+
+Names are working titles. The game rules below are implementation defaults, not additional requirements supplied by the founder.
+
+### Interpretation and assumptions
+
+- “One world” in the first game is interpreted as **one word** per participant.
+- The first game's initial output is assumed to be a **short video of a generated world**, pending clarification. It uses an existing generative model; training a model is outside the MVP. An interactive world or 3D scene would require an updated output and interaction specification.
+- “Model Python” is interpreted as **modern Python for the backend**. See the [backend specification](backend-spec.md).
+- The initial experience is a browser app for a group playing together. Personal devices carry private inputs; an optional shared display shows only public information.
+- English is the initial language for instructions, word validation, and similarity scoring.
+- One real generation provider will be integrated after access, capabilities, latency, and cost are verified. A partner listing alone does not establish API access or supported outputs.
+
+## 2. MVP scope
+
+### Included
+
+- Private rooms, a join code and QR link, guest names, and reconnectable guest sessions.
+- Three to eight active players per round; the host can also play.
+- A lobby, game selection, configurable rounds, visible timers, and synchronized phase changes.
+- All three games, playable videos, anonymous contest entries, private relay turns, voting, similarity scoring, and end-of-round reveals.
+- Generation progress, bounded retries, timeout handling, and limits on generation spending.
+- An optional display mode paired by the host, plus a clearly labelled fixture mode for development and rehearsals.
+
+### Later
+
+Public matchmaking, accounts, persistent profiles, payments, public galleries, native mobile apps, audience voting, voice input, uploads, custom model training, and interactive world controls are outside the first release.
+
+## 3. Shared party experience
+
+### Room flow
+
+1. A host creates a room, enters a display name, and receives a short join code and QR link.
+2. Guests join with a name. Duplicate names receive a visible suffix; names never determine identity.
+3. The host selects a game and settings. Players see a short rule card and mark themselves ready.
+4. The host starts when all three to eight active players are ready. Starting freezes the player roster, settings, provider preset, and any role order.
+5. The server advances the game through its phases. Every screen shows what to do next and how much time remains.
+6. Players watch the reveal and results. The host can play another round, choose another game, or end the room.
+
+New arrivals during a round wait in the lobby until the next round. Disconnecting does not erase an accepted submission or vote. Rejoining on the same browser restores the existing player; a new session cannot claim a disconnected identity by entering its name.
+
+Removing a player revokes their future actions and viewing access. Keep already accepted words, contest entries, ballots, and guesses unless the round is aborted; pending relay turns for a removed player are skipped. Removal is not a way to erase an opponent's score.
+
+After the host has been disconnected for 30 seconds, control passes to the longest-present connected player. A returning former host remains a player. If nobody remains connected, the room becomes inactive; persisted deadlines and recovery rules resolve unfinished work without creating new generations indefinitely.
+
+The host can start valid rounds, extend an input timer once, remove a player, transfer hosting, or abort a round. Hosting does not grant access to other players' private prompts, ballots, guesses, or relay videos before their scheduled reveal. Administrative changes appear in the room activity feed.
+
+### Default settings
+
+| Setting | MVP default |
+| --- | --- |
+| Active players | 3–8 |
+| Rounds | One round per game launch; replay from results |
+| Word by Word | Two sentences; 10 seconds per word |
+| Prompt Royale | 60 seconds to submit a prompt; 30 seconds to vote |
+| Reverse Prompt | Everyone takes one generation turn; 45 seconds per prompt; 45 seconds for final guesses |
+| Individually written prompt / guess length | 1–500 characters after trimming, subject to provider and scoring token limits |
+| Video preset | Target 5 seconds, landscape, muted by default; use one supported preset selected before the round |
+| Generation deadline | 180 seconds per generation phase, including queue time; a configurable product limit, not a latency claim |
+| Input extension | Host may add 30 seconds once per phase; 10 seconds for a word turn |
+
+For the contest, the generation phase covers all entries in parallel. For the relay, each step has its own generation phase. The UI explains that larger relay groups require more sequential generations. Use a three-player room for a short demo; time estimates must come from measured provider performance.
+
+Settings are selected from server-validated presets. For Word by Word, validate that the maximum assembled sentence length plus rendering instructions fits the provider's input limit before accepting a preset; lower word/sentence limits if needed. Never truncate accepted contributions. The 500-character limit applies to individually written prompts and guesses, not the multi-player assembled prompt.
+
+### Screens and interaction
+
+| Screen | Required content |
+| --- | --- |
+| Home | Create room, join room, name entry. |
+| Lobby | Join code / QR, roster, connection status, game rules, settings, ready controls. |
+| Player view | Current phase, timer, one clear primary action, input or video when authorized. |
+| Generation waiting view | Queued / generating / preparing video, ready count where public, elapsed time, recovery message. |
+| Screening | Large player, explicit play / replay controls, labelled clip number, playback-error feedback. |
+| Results | Winning entry or guess, applicable scores, reveal content, replay and game-selection controls. |
+| Shared display | Public roster and phase information, public screening, and results; no private input or relay content. |
+
+Phone browsers may require a tap to start video or sound. Provide keyboard access, labelled inputs, visible focus, readable contrast, non-color status cues, and reduced-motion support. Generated speech is not required to understand or win the MVP games. During private relay turns, the shared display shows progress only. A host-controlled screening cue coordinates playback; frame-accurate synchronization is unnecessary.
+
+## 4. Game 1: Word by Word
+
+### Objective
+
+Create surprising scenes together. Every active player contributes one word to a sentence; multiple sentences become the exact creative content of the generation prompt.
+
+### Rules and sequence
+
+1. The server freezes a random player order and shows empty word slots for the first sentence.
+2. Players take turns. The active player sees the sentence so far and submits exactly one word.
+3. Accept letters or numbers with internal apostrophes or hyphens, up to 32 characters. Reject whitespace-separated phrases, empty input, and markup. Words are rendered as plain text.
+4. The server immediately locks and reveals each accepted word. No other player or host can rewrite it.
+5. Once everyone has contributed, the server joins the words with spaces and adds a full stop. The next sentence rotates the starting player by one position.
+6. After two sentences by default, show the assembled prompt and queue one generation. No additional confirmation is needed.
+7. Reveal the video and replay the word-by-word construction with contributor names. The group can replay the video or start again.
+
+Example with six players:
+
+```text
+An / astronaut / dances / beside / a / volcano
+Tiny / robots / cheer / beneath / purple / lightning
+
+An astronaut dances beside a volcano. Tiny robots cheer beneath purple lightning.
+```
+
+Store both the original contributions and the assembled prompt. The provider adapter may add a fixed, versioned rendering instruction, such as requesting a short scene, but must preserve the players' words and order. Grammatical oddities are part of the game. Do not silently paraphrase the result with another model.
+
+### Missed turns and scoring
+
+- On timeout, pause the word sequence for up to 60 seconds. The host can grant the one extension or remove the absent player from the remainder of the round; the app never invents their word. If the host takes no action within that pause, end the round unscored.
+- Removing a player preserves words already accepted and skips their future slots. Every remaining player must still contribute once to each sentence. Abort if fewer than three active players remain.
+- A blocked prompt or failed generation produces a clear no-result state with a replay option. It does not remove the group's visible sentence history.
+- This game is cooperative. There are no points, winners, or ranking requirements.
+
+## 5. Game 2: Prompt Royale
+
+### Objective
+
+Everyone receives the same topic and tries to create the group's favorite clip.
+
+### Rules and sequence
+
+1. The host selects a topic from a small curated list or enters one before the round starts. Example: “The worst possible first day at a new job.”
+2. All players see the topic and write privately for 60 seconds. One final submission is allowed per player; local drafts are editable until submission.
+3. Submissions remain hidden. Start generation when every player has submitted or the deadline expires. A missed submission creates no entry and no generation request.
+4. Generate one clip per accepted prompt with the same frozen model, duration, resolution, aspect ratio, and rendering template. Use bounded concurrency. Do not offer paid rerolls during a contest.
+5. After every job finishes or the phase deadline expires, freeze the set of playable, approved clips. Label entries with neutral identifiers and use one server-shuffled screening order for the room.
+6. Screen every eligible clip before voting. A host can mark an unplayable entry unavailable before the ballot opens; the exclusion is public. Hide author names, submitted prompts, and vote totals until results.
+7. Each player on the frozen roster may vote once for another player's eligible clip or abstain. Players whose own generation failed may still vote. Ballots lock on submission.
+8. Close voting when everyone has voted or abstained, or after 30 seconds. Count votes on the server, reveal the winning clip, and then reveal authors, prompts, and vote totals.
+
+The topic remains visible during voting so players can judge both entertainment and relevance. There is no automatic topic-relevance score in the MVP.
+
+### Scoring and exceptions
+
+```text
+round_score(entry) = number of valid ballots targeting that entry
+winners = all entries with the highest positive round_score
+```
+
+- No self-votes, duplicate votes, votes for excluded clips, or votes after the deadline.
+- Equal top scores produce joint winners. Do not break ties by submission time or an AI judge.
+- If no votes are cast, display “No winner — no votes cast.”
+- If fewer than two clips are eligible, allow a showcase and mark the round unscored.
+- Freeze the ballot set at voting start. If a later playback failure makes the ballot materially unusable, abort scoring for the round rather than changing the candidates after votes arrive.
+- A failure or disqualification of one entry does not block the rest. Only safe infrastructure retries of the same request are allowed, subject to the shared generation policy.
+- MVP rankings are per round. Do not combine raw votes with Reverse Prompt similarity scores into an overall leaderboard.
+
+## 6. Game 3: Reverse Prompt
+
+### Objective
+
+Turn a prompt into a video, interpret that video as a new prompt, and repeat. At the end, guess the original prompt and reveal how the idea changed.
+
+### Rules and sequence
+
+1. Freeze a randomly selected author and a relay order containing each remaining player once. On replay, rotate the author where possible.
+2. The author privately submits the original prompt, `P0`. Generate `V0` from `P0`.
+3. Only the next player receives `V0`. They can replay it, but cannot retrieve `P0` or another player's private history.
+4. That player describes the video in a new prompt, `P1`. Generate `V1` from `P1` alone, using the same rendering template. Do not condition generation on the original prompt or previous video in the MVP.
+5. Repeat for the remaining players: player `i` watches only `V(i-1)`, writes `Pi`, and generates `Vi`.
+6. Show the final successful video to the entire group. Every player except the original author submits a private final guess of `P0`; relay prompts and final guesses are separate records. The last player may reuse their own relay prompt as their final guess.
+7. Lock all guesses at submission or the 45-second deadline, calculate similarity, and reveal the original prompt, all successful prompt/video steps, skipped steps, guesses, and scores.
+
+```mermaid
+flowchart LR
+    P0[Original private prompt] --> V0[Video 0]
+    V0 --> P1[Next player's interpretation]
+    P1 --> V1[Video 1]
+    V1 --> Relay[Continue through the group]
+    Relay --> Final[Final video]
+    Final --> Guesses[Private final guesses]
+    Guesses --> Reveal[Scores and full chain reveal]
+```
+
+The author is not eligible to guess or score because they know the answer. The host has the same information restrictions as other players. Previous relay participants remember different videos, so this is a casual party contest with unequal clues; scores are not intended as a ranked measure of prompting skill.
+
+### Similarity scoring
+
+Use semantic similarity between each final guess and the **original player-written prompt**, never the last relay prompt or a provider-enhanced prompt. Do not award points for exact word overlap alone.
+
+For the MVP, use one frozen sentence-embedding model through Sentence Transformers. Encode the original prompt and each guess with identical preprocessing and normalized vectors. Sentence Transformers supports embedding comparison using cosine similarity. [Technical reference](https://www.sbert.net/docs/sentence_transformer/usage/semantic_textual_similarity.html).
+
+```text
+a = normalized_embedding(original_prompt)
+b = normalized_embedding(final_guess)
+similarity = dot(a, b)
+points = floor(100 * clamp(similarity, 0, 1) + 0.5)
+```
+
+This 0–100 scale is a proposed game rule. Display “Similarity: 82 / 100,” not “82% accurate.” A cosine similarity of 0.824 produces 82 points. Semantic similarity can miss negation or important details; the reveal should make that limitation understandable without implying that scores are objective judgments.
+
+- Trim outer whitespace, normalize Unicode, and preserve meaning-bearing words. Apply the same versioned processing to every compared prompt.
+- Pin the model identifier, immutable model revision, tokenizer, and scoring code version for the round. The initial model is chosen after checking its license, runtime compatibility, and sample paraphrases.
+- Enforce the model's token limit at submission; do not silently truncate text. The frontend displays the effective character/token limit supplied by the server.
+- Cache results so refreshes and retries do not rescore a guess. Use the same model version for the entire round.
+- Missing guesses score zero; the original author is shown as “Author — unscored.” Highest points wins; equal points produce joint winners. If nobody submits a valid guess, there is no winner.
+- A scoring service failure leaves scores pending, not zero. Retry up to the configured 60-second scoring deadline, then reveal an unscored round if recovery fails. Results stay final after that reveal.
+- For entertainment, the reveal can also show each intermediate prompt's similarity to `P0`. These drift scores do not affect the winner; this visualization is optional after the core flow works.
+
+### Missed turns and generation failures
+
+- If the author fails to submit or `V0` cannot be produced, end the round unscored and offer a restart.
+- If a later player misses their prompt deadline or their generation fails, record the skipped step and pass the last successful video to the next player.
+- Require at least one successful interpretation-generated video after `V0` before opening a scored guessing phase. Otherwise show the available chain as an unscored reveal.
+- A skip never inserts an AI-authored prompt or exposes an earlier private prompt. Reconnection restores only the player's currently authorized content.
+
+## 7. Generation, limits, and failure experience
+
+Generation is shared infrastructure across all games. The app must remain responsive while a provider is working. Show truthful phase labels and elapsed time; show percentages or ETA only when backed by provider data or measurements.
+
+The initial setup must configure a room budget, provider concurrency, request deadlines, and a maximum number of attempts. Reserve enough budget for the planned round before starting it. At `n` players, base demand is one output for Word by Word, `n` outputs for Prompt Royale, and `n` sequential outputs for Reverse Prompt. Retries can add cost; account for them explicitly.
+
+If admission fails, tell the host before the round begins. If an unexpected limit is reached during play, stop admitting new generation requests and apply that game's failure rules. Do not automatically switch a live room to fixture clips or another model. Rehearsal mode uses clearly labelled prerecorded outputs and mock scores throughout the room.
+
+Moderate player names, topics, and prompts before public display or generation, and check outputs before playback where moderation support is available. Rejected input can be corrected within its original deadline; it must not consume a paid generation. For the collaborative assembled prompt, rejection ends generation for that round without silently replacing contributed words. Players can report or hide a clip, and the host can abort a round containing an unsuitable result.
+
+Rooms and media are private by default. Players are told that submitted generation prompts go to the configured provider. Local room data and media expire 24 hours after the room ends or expires; any distinct provider retention policy must be disclosed in setup. An inactive room expires after two hours without a connected participant. Public sharing is outside the MVP.
+
+## 8. MVP acceptance criteria
+
+| Area | Observable completion condition |
+| --- | --- |
+| Join and reconnect | Three separate browsers join one room; refreshing retains identity and restores the current phase without duplicate entries. |
+| Word by Word | Every active player contributes one word per sentence; the generated prompt preserves all accepted words and their order; one output is revealed. |
+| Prompt Royale | All players receive one topic; clips and authors are anonymous until results; self-votes and duplicate votes are rejected; ties produce joint winners. |
+| Reverse Prompt | A three-player chain produces three videos; only the next player can retrieve its input video; eligible guesses are compared with `P0`; the author is unscored. |
+| Privacy | Direct API calls, WebSocket events, snapshots, and media URLs cannot expose other players' hidden content before the proper phase. |
+| Scoring | Frozen-model paraphrase examples generally outrank unrelated examples; identical valid prompts score 100; empty guesses cannot be submitted; the numeric formula has deterministic boundary tests. |
+| Failure recovery | A timeout, disconnected player, duplicate generation notification, and worker restart each resolve without duplicate scores or a permanently stuck round. |
+| Spending | Concurrent requests cannot exceed the room's configured reservation limit; an uncertain provider submission is reconciled before any potentially duplicate paid request. |
+| Accessibility | Joining, submitting, playing/replaying clips, voting, and reading results work with keyboard controls and on a phone viewport. |
+| Demo | Complete one real-provider round of every game with three players; record provider latency and cost. Fixture-only success does not satisfy live generation acceptance. |
+
+## 9. Delivery order and remaining decisions
+
+1. Build room/session management and all game state transitions against the fixture provider.
+2. Implement Word by Word end to end, including a real generation and playback.
+3. Add parallel contest generation, anonymous screening, and voting.
+4. Add private relay turns, final guesses, and the fixed scoring implementation.
+5. Exercise reconnects, privacy boundaries, budget limits, and failure recovery; rehearse all three games with the live provider.
+
+Before live integration, confirm the first game's output type, obtain provider access, select a supported common video preset, benchmark generation latency, set a budget, and pin the scoring model. These are integration decisions; they do not prevent implementing the room and game rules against fixtures.
