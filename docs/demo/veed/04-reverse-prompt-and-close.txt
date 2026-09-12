@@ -1,0 +1,11 @@
+Finally, Reverse Prompt: a game of video telephone.
+
+One player writes a scene. The next watches its video and describes it. That description becomes the next video, passed to another player.
+
+At the end, guess the original idea and reveal the whole chain.
+
+The current demo includes labelled sample rounds for trying these flows.
+
+Three games. One shared screen. A room full of ideas.
+
+That's Vibe Party. Pick a game, and roll with it.

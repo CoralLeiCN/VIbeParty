@@ -7,6 +7,7 @@ VibeParty is a multiplayer party-game app being developed for the Worlds hackath
 - [Portal specification](portal-spec.md): home page, host/join entry, return/replay loop, and build order.
 - [Room code standard](shared/room-code-spec.md): four-digit entry codes, validation, generation, and lifecycle shared by every game.
 - [Game testing and video evidence plan](development/testing-and-video-plan.md): Codex browser walkthroughs, automated checks, per-game acceptance, screenshot-to-MP4 exports, and implementation gaps.
+- [Two-minute VEED demo inputs](demo/veed/veed-guide.md): presenter image, full transcript, four narration sections, and generation instructions.
 - [Game specifications](#game-specifications): rules, technical stack, scope decisions, and research for each game.
 - [Hackathon scope](hackathon.md): official event link, our demo limitations, and future exploration.
 - [Parallel development plan](parallel-development-plan.md): four-worktree implementation of the portal and all three games on the host laptop, with explicit portal milestones, shared contracts, ownership, and integration checkpoints. The foundation adopts all three games in the portal scope.

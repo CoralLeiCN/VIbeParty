@@ -1,0 +1,33 @@
+Your friends have wild ideas. Vibe Party turns them into a movie night.
+
+Three games bring everyone into a shared video experience: building a story together, competing for votes, and seeing how an idea changes as it passes between people.
+
+Pick a game on your laptop. Friends join from their phones using a room code, on the same Wi-Fi. Then let the fun begin.
+
+First up: Word by Word.
+
+Everyone contributes a secret piece of a shared story: a place, a character, an action, or a consequence.
+
+Imagine a moonlit forest. Add a fox in a tiny hat. Suddenly, it starts breakdancing. Then confetti rains from the sky.
+
+The host reveals each addition in order. You discover everyone's contributions, and watch the scene grow into something only your group could have imagined.
+
+Next is Prompt Royale.
+
+Everyone gets the same topic and writes their own scene. The clips appear together in an anonymous arena, and the group votes for a favourite.
+
+Once voting ends, the authors and results are revealed. Who had the funniest idea? Who took the topic somewhere completely unexpected?
+
+Different imaginations tackle the same challenge, then the room chooses its winner.
+
+Finally, Reverse Prompt: a game of video telephone.
+
+One player writes a scene. The next watches its video and describes it. That description becomes the next video, passed to another player.
+
+At the end, guess the original idea and reveal the whole chain.
+
+The current demo includes labelled sample rounds for trying these flows.
+
+Three games. One shared screen. A room full of ideas.
+
+That's Vibe Party. Pick a game, and roll with it.
