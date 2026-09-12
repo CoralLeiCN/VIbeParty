@@ -219,3 +219,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Frontend and local development outputs
+node_modules/
+*.tsbuildinfo
+/playwright-report/
+/test-results/
+/.local/
+playwright-report/
+test-results/

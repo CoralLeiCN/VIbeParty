@@ -1,0 +1,56 @@
+export type Tile = {
+  id?: string;
+  position: number;
+  label: string;
+  status: "empty" | "excluded" | "ready";
+  url?: string;
+  reason?: string;
+  own?: boolean;
+  author?: string;
+  prompt?: string;
+  votes?: number;
+  winner?: boolean;
+};
+export type Snapshot = {
+  boot_id: string;
+  revision: number;
+  version: number;
+  server_time: number;
+  room_id: string;
+  code: string;
+  join_url: string;
+  mode: "fixture" | "live";
+  topic_source: "fixture" | "live";
+  phase: string;
+  closing: boolean;
+  cleanup_pending: boolean;
+  players: { id: string; name: string; host: boolean; present: boolean }[];
+  me: {
+    id: string;
+    name: string;
+    host: boolean;
+    prompt?: string;
+    voted?: boolean;
+    vote?: string | null;
+  };
+  round_id: string | null;
+  seconds_left: number;
+  topic?: string;
+  lobby?: {
+    mode: "bundled" | "llm";
+    topic?: string;
+    suggestion_id?: string;
+    confirmed: boolean;
+    pending: boolean;
+    error?: string;
+    topics: string[];
+    video_starts_remaining: number;
+    topic_calls_remaining: number;
+  };
+  submitted?: number;
+  progress?: Record<string, number>;
+  arena?: Tile[];
+  scored?: boolean;
+  reason?: string;
+  winners?: string[];
+};

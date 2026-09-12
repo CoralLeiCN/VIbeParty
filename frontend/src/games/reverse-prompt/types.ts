@@ -1,0 +1,34 @@
+export type Media = { id: string; step: number; url: string };
+export type Snapshot = {
+  room_id: string;
+  round_id: string;
+  revision: number;
+  code: string;
+  mode: "rehearsal" | "live";
+  phase: string;
+  step: number;
+  role: string;
+  players: { role: string; name: string }[];
+  own: { prompt?: string; guess?: string };
+  media: Media[];
+  guess_count: number;
+  token_limit: number;
+  can_start: boolean;
+  start_blocked?: string;
+  closing: boolean;
+  error?: string;
+  unscored: boolean;
+  join_url: string;
+  generation_elapsed?: number;
+  remaining_attempts?: number;
+  cleanup_pending: boolean;
+  scripted_text?: string;
+  chain?: { prompt: string; player: string; role: string; media: Media }[];
+  results?: {
+    role: string;
+    player: string;
+    guess: string;
+    points: number | null;
+    winner: boolean;
+  }[];
+};

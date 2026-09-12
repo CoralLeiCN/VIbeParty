@@ -2,17 +2,28 @@
 
 VibeParty keeps backend configuration and the Reactor API key in a private root `.env`. Git ignores that file. The tracked `example.env` contains the settings and placeholder for the key.
 
-This checkout contains planning documents and configuration only. Setup requires Git and Bash (the versions supplied with macOS work). There is no dependency manifest, backend, or `.env` loader yet, so there are no package installation or server startup commands to run.
+Install Git, Bash, Node.js 22+ (24 works), uv and Python 3.13. `uv sync` can provision Python. Install FFmpeg and ffprobe (macOS: `brew install ffmpeg`) before video spikes. From the repository root:
+
+```sh
+bash scripts/setup.sh
+bash scripts/dev.sh       # API 8000 + Vite 5173; open http://localhost:5173
+bash scripts/check.sh     # Python checks + frontend lint/build
+bash scripts/demo.sh      # one worker, no reload; frontend + API on :8000
+```
+
+The demo builds the frontend before starting. Stop development before using the same API port. Override `BACKEND_PORT`, `FRONTEND_PORT`, `BROWSER_ORIGIN`, `PUBLIC_ORIGIN` in the process environment or root `.env`; use `API_PROXY_TARGET` only for an explicit proxy override. For B/C/D development use ports 8011/5174, 8012/5175, 8013/5176 respectively. The dev command defaults its browser origin to the frontend port. Export BROWSER_ORIGIN for a different development hostname. For the demo set both origins to `http://<laptop-LAN-IP>:8000`. No secret uses a VITE_ variable.
+
+Relative private media paths resolve against this worktree: `<MEDIA_ROOT>/<game-id>/clips`. Persistent Reverse Prompt quota and model paths are outside media, allocated deliberately and preserved across cleanup/restarts. A new worktree does not replenish the shared account allowance. Dependency lockfiles are shared-owner files; request updates through the handoff.
 
 ## Local target for the portal and all games
 
-Build and run the portal, Word by Word, Prompt Royale, and Reverse Prompt on the host laptop. The combined demo uses one FastAPI process with one Uvicorn worker serving the built frontend and API over HTTP. Remote deployment, domains, Caddy, and TLS setup are deferred. The foundation implementation will add dependency installation, frontend build, and local startup commands.
+Build and run the portal, Word by Word, Prompt Royale, and Reverse Prompt on the host laptop. The combined demo uses one FastAPI process with one Uvicorn worker serving the built frontend and API over HTTP. Remote deployment, domains, Caddy, and TLS setup are deferred. The commands above install the locked dependencies, build the frontend, and start the local server.
 
 Use `http://localhost:8000` for laptop-only checks. For group play, bind the server to `0.0.0.0:8000`, set `PUBLIC_ORIGIN=http://<laptop-LAN-IP>:8000`, and open that LAN URL on the host and phones connected to the same Wi-Fi or hotspot. A phone's `localhost` points to that phone. Verify the laptop firewall and network permit device connections, and keep the laptop awake. Use the configured browser origin for Origin checks and omit Secure on the local HTTP session cookies; keep HttpOnly and each game's SameSite setting.
 
-Verify the Reactor SDK, FFmpeg, and Reverse Prompt's CPU scoring dependencies on the actual laptop OS/architecture during the initial spikes. Native compatibility has not been established. If a dependency requires Linux, evaluate a local container or VM on the same laptop only when the spike establishes that need; verify port forwarding and phone/provider connectivity in that local runtime. This does not require a hosted server.
+Verify the Reactor SDK, FFmpeg, and Reverse Prompt's CPU scoring dependencies on the actual laptop OS/architecture during the initial spikes. The pinned native versions below have been verified on this Mac; repeat this check on a different laptop. If a dependency requires Linux, evaluate a local container or VM on the same laptop only when the spike establishes that need; verify port forwarding and phone/provider connectivity in that local runtime. This does not require a hosted server.
 
-Live video needs outbound internet access to Reactor; Prompt Royale's live topic suggestions need its selected LLM. Preload Reverse Prompt's pinned model during setup so scoring is local. Keep its persistent quota/model files outside disposable clip directories. The existing `example.env` currently covers Word by Word; the shared foundation will add the other games' settings. Each parallel worktree uses its own ports and private configuration as described in the [parallel development plan](parallel-development-plan.md#6-worktree-and-runtime-isolation).
+Live video needs outbound internet access to Reactor; Prompt Royale's live topic suggestions need its selected LLM. Preload Reverse Prompt's pinned model during setup so scoring is local. Keep its persistent quota/model files outside disposable clip directories. The root `example.env` covers common settings; each game’s handoff documents its provider-specific settings and setup commands. Each parallel worktree uses its own ports and private configuration as described in the [parallel development plan](parallel-development-plan.md#6-worktree-and-runtime-isolation).
 
 ## Prepare the original checkout
 
@@ -75,3 +86,9 @@ VIBEPARTY_ENV_SOURCE="/absolute/path/to/private.env" bash scripts/setup-worktree
 ```
 
 An explicitly configured source must exist. An existing destination `.env` is still preserved. Keep the real key out of the setup script, environment TOML, and `example.env`.
+
+## Verified native dependencies
+
+FFmpeg/ffprobe 7.1.1 are installed on the demo laptop. The shared `live` extra pins reactor-sdk 1.5.1 and tokenizers 0.23.2; `scoring` pins the native versions verified by Reverse Prompt (sentence-transformers 6.0.1, torch 2.14.0, transformers 5.17.0, huggingface-hub 1.31.0, numpy 2.5.3). Setup/start/check commands install both extras. To install only the lightweight shell use `uv sync --frozen`. Model downloads and persistent quota initialization use the game-owned setup command and are never done on startup. Live slots still require operator readiness and confirmed provider closure.
+
+`bash scripts/setup.sh` also runs explicit game-asset setup: it verifies/downloads Prompt Royale’s pinned tokenizer when integrated, downloads a missing pinned MiniLM model, and runs the scorer with sockets blocked. An existing checksum manifest is verified by the offline check; existing model files are not rewritten. These public asset downloads happen during setup only. Quota initialization and paid provider trials are separate operator actions.

@@ -2,7 +2,7 @@
 
 [All docs](README.md) · [Portal specification](portal-spec.md)
 
-Status: product scope and document ownership, 12 September 2026. The repository contains plans; implementation has not started.
+Status: product scope and document ownership, 12 September 2026. The shared foundation, portal and all three fixture games are integrated. Live and physical-device milestones follow their own acceptance gates.
 
 ## 1. Product purpose
 
@@ -41,8 +41,12 @@ The portal and all three games target the host laptop for development and the de
 
 ## 4. Delivery scope and completion
 
-The confirmed development scope is the portal and all three playable games running locally. The [parallel development plan](parallel-development-plan.md) defines worktree ownership and integration milestones; its foundation milestone extends the portal's earlier Word by Word launch plan to all three games. Follow each game's technical plan for its implementation sequence and integration gates.
+The confirmed development scope is the portal and all three playable games running locally. The [parallel development plan](parallel-development-plan.md) defines worktree ownership and integration milestones; the foundation adopts all three games in the portal scope. Follow each game's technical plan for its implementation sequence and integration gates.
 
 Release readiness comes from the [portal acceptance checks](portal-spec.md#7-acceptance-checks) and each enabled game's demo acceptance, linked above. Record live verification in that game's research directory. A second app-level copy of those checklists is unnecessary.
 
 Future features and archived designs become implementation requirements only when explicitly adopted in the relevant current specification.
+
+## Shared integration boundary
+
+One active party belongs to one game. Back to games preserves sessions and deadlines; Continue party requires authorized session discovery. Switching explicitly closes the current game, clears its roster/replay, and awaits confirmed cleanup before another game can reserve admission. Shared routing, lifecycle, cookie names, origins and polling signatures are frozen in [shared contracts](development/contracts/shared.md). Game state, roles, generation policies and scoring remain game owned.

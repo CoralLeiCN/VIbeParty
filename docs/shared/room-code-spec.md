@@ -2,7 +2,7 @@
 
 [All docs](../README.md) · [App specification](../app-spec.md)
 
-Status: accepted design, 12 September 2026. Applies to the portal, Word by Word, Prompt Royale, and Reverse Prompt. Implementation has not started.
+Status: accepted design, 12 September 2026. Applies to the portal, Word by Word, Prompt Royale, and Reverse Prompt. Implemented across all three games and the portal; leading-zero and lifecycle acceptance is recorded in the [portal handoff](../development/handoffs/portal.md).
 
 This document owns room code format, entry, generation, and lifecycle across all games. Each game's specifications own its admission rules, player roles, session authorization, expiry timing, and cleanup requirements.
 

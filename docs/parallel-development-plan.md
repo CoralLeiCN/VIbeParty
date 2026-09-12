@@ -1,6 +1,6 @@
 # Parallel development plan
 
-Status: proposed execution plan, 12 September 2026. Scope confirmed: build the portal and **all three playable games locally on the host laptop**, with phones joining over the same Wi-Fi or hotspot. Remote deployment is deferred. Implementation has not started. This plan proposes the shared integration boundaries below; the coordinator records the remaining corresponding specification amendments before implementation branches begin.
+Status: execution plan adopted, 12 September 2026. Scope confirmed: build the portal and **all three playable games locally on the host laptop**, with phones joining over the same Wi-Fi or hotspot. Remote deployment is deferred. The runnable foundation is published at `eb831d80310ae548374143f236c90caf73a90c00`; shared scope/routing/lifecycle amendments are adopted. Portal milestone `0f3fe9f41323c273ba0c341364d0a5bd5b17060d` has passed its contract browser checks. All three fixture games are now integrated and the combined portal walkthrough passes. Live-provider acceptance and physical-phone rehearsal remain open; see the portal handoff for evidence.
 
 Use **four sessions, each with its own worktree**: one portal owner also coordinates the shared application and integration, and three game owners each deliver a complete game from browser to provider. The four product deliverables are **the portal, Word by Word, Prompt Royale, and Reverse Prompt**. Begin with a short shared foundation, then run all four sessions concurrently. Each game owner can build, exercise, and fix their entire flow without waiting for a separate frontend or backend owner.
 
@@ -8,7 +8,7 @@ Use **four sessions, each with its own worktree**: one portal owner also coordin
 
 Read [AGENTS.md](../AGENTS.md), the [app specification](app-spec.md), the [portal specification](portal-spec.md), and the relevant game's current game and technical specifications. Current game specifications take precedence over the broader [backend proposal](backend-spec.md) and archived designs.
 
-The current portal intentionally enables only Word by Word. Supporting all three requires these explicit amendments in the foundation milestone:
+The foundation adopts the following amendments to the earlier Word by Word-only portal:
 
 | Area | Proposed decision |
 | --- | --- |
@@ -23,7 +23,7 @@ Local operation and the shared [four-digit room code standard](shared/room-code-
 
 ## 2. Worktree ownership
 
-The paths below are the proposed implementation layout. They do not exist yet. Python package names use underscores; browser and URL game IDs use hyphens.
+The paths below are the implemented foundation layout and ownership boundaries. Python package names use underscores; browser and URL game IDs use hyphens.
 
 | Session / branch | Owned files | Deliverable |
 | --- | --- | --- |
@@ -140,7 +140,7 @@ Provider defaults, model compatibility, timing, and cost are verification tasks,
 
 ## 6. Worktree and runtime isolation
 
-Use one named branch per worktree. A begins `codex/app-integration` from the agreed repository baseline; B/C/D branch from A's published foundation SHA. All worktree creation and implementation are future execution steps, not actions performed by this planning change.
+Use one named branch per worktree. A begins `codex/app-integration` from the agreed repository baseline; B/C/D branch from A's published foundation SHA. All four named worktrees now use the published foundation.
 
 Run the existing [environment setup](environment-setup.md) in each worktree. Its script preserves existing `.env` files, so copied settings must be checked explicitly. The `.env` file is private; never print or commit it.
 

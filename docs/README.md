@@ -8,15 +8,15 @@ VibeParty is a multiplayer party-game app being developed for the Worlds hackath
 - [Room code standard](shared/room-code-spec.md): four-digit entry codes, validation, generation, and lifecycle shared by every game.
 - [Game specifications](#game-specifications): rules, technical stack, scope decisions, and research for each game.
 - [Hackathon scope](hackathon.md): official event link, our demo limitations, and future exploration.
-- [Parallel development plan](parallel-development-plan.md): proposed four-worktree implementation of the portal and all three games on the host laptop, with explicit portal milestones, shared contracts, ownership, and integration checkpoints. This expands the current portal scope once its foundation amendments are adopted.
+- [Parallel development plan](parallel-development-plan.md): four-worktree implementation of the portal and all three games on the host laptop, with explicit portal milestones, shared contracts, ownership, and integration checkpoints. The foundation adopts all three games in the portal scope.
 
-The repository contains planning documents; the app has not been implemented. The app spec defines product purpose and document ownership, the portal spec defines entry and navigation, and each game's dedicated specifications define its demo.
+The repository contains a runnable React/FastAPI foundation. Run `bash scripts/setup.sh`, then `bash scripts/dev.sh`, or `bash scripts/demo.sh` for the combined server. Game availability follows integrated playable milestones. The app spec defines product purpose and document ownership, the portal spec defines entry and navigation, and each game's dedicated specifications define its demo.
 
 ## Local configuration
 
 See [Local environment setup](environment-setup.md) for initial configuration and automatic `.env` copying into Codex worktrees.
 
-The root [example.env](../example.env) contains the planned settings for the local Word by Word demo. From the repository root, create a private copy without overwriting an existing configuration:
+The root [example.env](../example.env) contains shared local runtime settings and game configuration. From the repository root, create a private copy without overwriting an existing configuration:
 
 ```sh
 cp -n example.env .env
@@ -27,7 +27,7 @@ cp -n example.env .env
 3. The demo host passcode is `WMHACK`, already set in `example.env`. For phone play, set `PUBLIC_ORIGIN` to `http://<laptop-LAN-IP>:8000` and connect every device to the same Wi-Fi or hotspot.
 4. Keep `GENERATION_MODE=fixture` while preparing the app. Before using `live`, confirm model access and available credits in Reactor's dashboard. [Billing guide](https://docs.reactor.inc/resources/billing).
 
-The backend and `.env` loader have not been implemented yet, so saving these values prepares configuration only. Once implemented, the backend will load the root `.env` and pass `REACTOR_API_KEY` to the Python SDK; the SDK handles its authentication token exchange. Restart the backend after configuration changes, between demo rounds.
+The backend loads the root `.env`; each game validates its own provider configuration before live use. Provider credentials remain on the backend. Restart the backend after configuration changes, between demo rounds.
 
 ## What we're building
 
