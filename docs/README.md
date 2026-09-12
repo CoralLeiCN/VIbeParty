@@ -18,6 +18,21 @@ The planned first release includes:
 
 For the current demo, we're focusing on four players per room across all three games. Support for other group sizes is outside the demo scope.
 
+## Reactor resources
+
+Use the [Reactor Model API reference](https://docs.reactor.inc/model-api-reference/overview) for each model's commands, parameters, and events. Useful starting points from the Reactor resource slide:
+
+- [Documentation](https://docs.reactor.inc): guides and references for building with Reactor.
+- [Model catalog](https://reactor.inc/models): browse the available models.
+- [API keys](https://reactor.inc/account/api-keys): create an API key.
+- [Cookbook examples](https://github.com/reactor-team/reactor-cookbook/tree/main/examples): example apps to read and fork.
+
+The slide also lists this command to scaffold a working app:
+
+```sh
+npx create-reactor-app
+```
+
 ## Documentation
 
 - [Hackathon overview](hackathon.md): event context and partners.
