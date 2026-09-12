@@ -24,6 +24,7 @@ export type Snapshot = {
   phase: string;
   closing: boolean;
   cleanup_pending: boolean;
+  player_count: number;
   players: { id: string; name: string; host: boolean; present: boolean }[];
   me: {
     id: string;

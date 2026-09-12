@@ -20,15 +20,15 @@ Prompt Royale adapts that idea to generated video. Players write complete scene 
 
 Run the app locally on the host laptop. Players join its HTTP LAN address on the same Wi-Fi or hotspot; the host still occupies a player slot. The laptop needs internet access for Reactor and live topic suggestions. Remote deployment is deferred.
 
-Build one invite-only room, 3–4 players including one fixed playing host, two topic modes (host choice or LLM generation with host confirmation), prompt submission, video generation, screening, voting, results, and Play again. Use one scene model and one video preset. Optional pre-rendered VEED host clips add presentation after the core round works.
+Build one invite-only room, 1–4 players including one fixed playing host, two topic modes (host choice or LLM generation with host confirmation), prompt submission, video generation, screening, voting, results, and Play again. Use one scene model and one video preset. Optional pre-rendered VEED host clips add presentation after the core round works.
 
 No accounts, matchmaking, tournaments, game-switching UI, audience role, paired display, ready checks, QR generator, host transfer, player removal, timer extensions, or player-requested video rerolls are required. One automatic retry for a confirmed transient failure is included. The other VibeParty games remain separate designs, not dependencies of this demo.
 
 ### Hackathon limitations and future exploration
 
-**Four active players is a hard maximum in both live and fixture modes, including the playing host.** Start requires at least three. A fifth player gets “Room full — Prompt Royale supports up to 4 players for the hackathon.” Joining during an active round is closed; there is no waiting-list implementation.
+**The host selects 1–4 players, including themselves, at creation or in the lobby.** The default is three. Start requires exactly the selected number. The host can adjust the count between rounds, but cannot lower it below the number already joined. Joins beyond the selected count are rejected as room full. Solo rounds use the unscored showcase flow after screening. Joining during an active round is closed; there is no waiting-list implementation.
 
-The limit reflects current generation capacity and validation time; it is not a claim that Reactor imposes a four-player limit. First rehearse with three players, then four. Only enable the live sizes that have passed rehearsal. [Capacity research](../../research/prompt-royale/README.md#cost-capacity-and-waiting-time).
+The limit reflects current generation capacity and validation time; it is not a claim that Reactor imposes a four-player limit. Rehearse the intended player count before enabling live play. Only enable the live sizes that have passed rehearsal. [Capacity research](../../research/prompt-royale/README.md#cost-capacity-and-waiting-time).
 
 One server process holds room state in memory. Refreshing a browser recovers its state while that process is alive. A server restart ends the room and loses its results. A host absent for 30 seconds ends an active round unscored; there is no automatic replacement host.
 
@@ -38,7 +38,7 @@ After the hackathon, explore five-to-eight-player groups, simultaneous rooms, pe
 
 | Item | Demo rule |
 | --- | --- |
-| Players | 3–4, including the host; one room on the local server. |
+| Players | Selectable 1–4, including the host; one room on the local server. |
 | Name | 1–24 Unicode code points after trimming and NFC normalization; suffix duplicate names. |
 | Topic | Before starting, choose Host chooses or Auto-generated topic. The host selects from a small bundled list or confirms an LLM-generated suggestion, with an option to generate another. |
 | Prompt | 1–500 code points after trimming and NFC normalization; entire rendered model input must also fit the 500-token application limit. |
@@ -66,7 +66,7 @@ Show the roster, a concise rule card, two topic modes, and Start. The host check
 
 These topic modes are separate from Live/Fixture video mode. If topic generation fails, show an error and let the host try again or choose from the bundled list. Host review handles topics remembered from earlier games; automatic detection of previously played topics is not required.
 
-Start checks the selected topic and, for an LLM suggestion, confirmation of that exact suggestion, as well as the 3–4-player limit, presence within the last 30 seconds, Live/Fixture mode, configured live capacity, and remaining video generation allowance before freezing the roster, topic mode, and topic. Only demonstrate a live size after rehearsing it. Reject a second room and over-capacity joins/starts on the server, including simultaneous requests. To replace departed players or change host, end the room and create a new one.
+Start checks the selected topic and, for an LLM suggestion, confirmation of that exact suggestion, as well as the selected 1–4-player count, presence within the last 30 seconds, Live/Fixture mode, configured live capacity, and remaining video generation allowance before freezing the roster, topic mode, and topic. Only demonstrate a live size after rehearsing it. Reject a second room and over-capacity joins/starts on the server, including simultaneous requests. To replace departed players or change host, end the room and create a new one.
 
 Initial topics for Host chooses:
 

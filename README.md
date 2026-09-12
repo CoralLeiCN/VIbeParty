@@ -1,6 +1,6 @@
 # VibeParty
 
-Three video party games, one laptop, and your friends’ phones. React 19/TypeScript/Vite frontend and Python 3.13/FastAPI backend. The portal preserves each game’s roles: Word by Word has a separate display host and 3–4 players; Prompt Royale has 3–4 players including its host; Reverse Prompt has exactly 3 including its host.
+Three video party games, one laptop, and your friends’ phones. React 19/TypeScript/Vite frontend and Python 3.13/FastAPI backend. The portal preserves each game’s roles: Word by Word has a separate display host and 3–4 players; Prompt Royale has a selectable 1–4 players including its host; Reverse Prompt has exactly 3 including its host.
 
 ## Run locally
 

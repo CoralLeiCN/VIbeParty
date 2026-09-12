@@ -52,7 +52,7 @@ The retry adds a counter, a short delay, and a second pass through the existing 
 
 ```mermaid
 flowchart LR
-    Phones[3–4 player browsers] -->|HTTP commands and polling| App[One FastAPI process]
+    Phones[1–4 player browsers] -->|HTTP commands and polling| App[One FastAPI process]
     App --> State[In-memory room and round]
     App -->|Topic suggestion before Start| LLM[Topic LLM]
     App --> Tasks[Bounded asyncio tasks]
@@ -93,7 +93,7 @@ Use one lock for room admission and short state changes. Validate role, membersh
 | POST /api/room/topic | Host changes topic mode or selects a bundled topic in the lobby; clear any previous selection/confirmation when changing mode. |
 | POST /api/room/topic/generate | Host requests one LLM suggestion in the lobby, including Generate another; clear the previous selection/confirmation and track the new request. |
 | POST /api/room/topic/confirm | Host confirms the current completed LLM suggestion by ID in the lobby; reject stale IDs. |
-| POST /api/room/start | Require a selected bundled topic or the host's confirmation of the current LLM suggestion. Freeze 3–4 present players, topic mode, and topic; create the round once. |
+| POST /api/room/start | Require a selected bundled topic or the host's confirmation of the current LLM suggestion. Freeze the selected 1–4 present players, topic mode, and topic; create the round once. |
 | POST /api/round/submission | Accept one immutable prompt per player. |
 | POST /api/round/exclude | Host excludes the supplied entry ID during screening, with a public reason; retain its position as a placeholder. |
 | POST /api/round/open-voting | Host confirms the group has watched every remaining arena clip; freeze at least two eligible candidates and open the 10-second vote once. |

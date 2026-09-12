@@ -15,7 +15,7 @@ class Clock:
 
 
 @pytest.fixture
-async def game(tmp_path):
+async def game(tmp_path, request):
     clock = Clock()
     context = GameContext(
         Settings(
@@ -28,9 +28,10 @@ async def game(tmp_path):
     )
     engine = Engine(context, RoyaleSettings(_env_file=None), clock=clock)
     await engine.startup()
-    host, _ = await engine.create(None, "Host", "test-code", "host")
+    player_count = getattr(request, "param", 3)
+    host, _ = await engine.create(None, "Host", "test-code", "host", player_count)
     tokens = [host]
-    for index in range(2):
+    for index in range(player_count - 1):
         token, _ = await engine.join(None, f"Player {index}", engine.room.code, str(index))
         tokens.append(token)
     yield engine, tokens, clock

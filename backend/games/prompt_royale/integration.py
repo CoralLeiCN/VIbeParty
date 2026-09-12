@@ -19,6 +19,7 @@ class Input(BaseModel):
 class Create(Input):
     name: str = Field(max_length=100)
     passcode: str = Field(max_length=200)
+    player_count: int = Field(default=3, ge=1, le=4, strict=True)
 
 
 class Join(Input):
@@ -36,6 +37,10 @@ class HostCommand(Input):
 class Topic(HostCommand):
     mode: str
     topic: str | None = None
+
+
+class PlayerCount(HostCommand):
+    player_count: int = Field(ge=1, le=4, strict=True)
 
 
 class Confirm(HostCommand):
@@ -107,7 +112,11 @@ async def close_party(request: Request) -> CloseResult:
 @router.post("/room")
 async def create_room(data: Create, request: Request, response: Response):
     value, state = await engine.create(
-        token(request), data.name, data.passcode, request.client.host if request.client else "local"
+        token(request),
+        data.name,
+        data.passcode,
+        request.client.host if request.client else "local",
+        data.player_count,
     )
     session_cookie(response, value)
     return state
@@ -135,6 +144,11 @@ async def delete_room(request: Request):
 @router.post("/room/topic")
 async def topic(data: Topic, request: Request):
     return await engine.mutate(token(request), "topic", data.model_dump())
+
+
+@router.post("/room/player-count")
+async def player_count(data: PlayerCount, request: Request):
+    return await engine.mutate(token(request), "player-count", data.model_dump())
 
 
 @router.post("/room/topic/generate")

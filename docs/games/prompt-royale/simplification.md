@@ -17,7 +17,7 @@ The current [game specification](game-spec.md) and [technology stack](tech-stack
 | Media storage | S3-compatible bucket, boto3, signed URLs | Private local files through authorized API routes | One host, no storage service or independent media scaling. |
 | Provider retries | Durable retry handling, up to two billed attempts per entry | One retry in the existing async task; at most two creation attempts, reusing captured media when possible | No queue/recovery service; retry must fit the original deadline and call allowance. |
 | Spending | Transactional reservations and price reconciliation | Per-round/per-run attempt limits and dashboard checks | Operator tracks remaining allowance across restarts. |
-| Roster | Ready checks, late-player lobby, removal, host transfer | 3–4 players, fixed host, join only between rounds | Host return or room reset replaces membership recovery. |
+| Roster | Ready checks, late-player lobby, removal, host transfer | Selectable 1–4 players, fixed host, join only between rounds | Host return or room reset replaces membership recovery. |
 | Timers | Prompt/vote extensions and per-clip watchdogs | 60-second prompting, 10-second voting, and one 180-second screening deadline | Fewer settings and transition cases. |
 | Topics | Curated or custom | Host chooses from a bundled list, or an LLM suggests a topic for host confirmation or regeneration | Adds a topic LLM integration; the host checks for topics the group has played before. |
 | Reveal | Host advances through individual clips | All clips play together in a 2×2 arena; fixed anonymous positions, shared playback controls, host opens voting | Four simultaneous video decoders need phone rehearsal; looping lets players compare clips. |
@@ -30,7 +30,7 @@ The current [game specification](game-spec.md) and [technology stack](tech-stack
 
 ## What stays
 
-Keep the four-player hard cap, three-player minimum, one round at a time, private prompts, identical clip settings, five-second videos, anonymous screening, one server-counted vote, no self-voting, shared winners for ties, bounded provider lifetime, and clearly labelled fixture mode. Keep Quiplash / Jackbox Games credited in the rationale and credits UI.
+Keep the selectable one-to-four-player count, four-player hard cap, one round at a time, private prompts, identical clip settings, five-second videos, anonymous screening, one server-counted vote, no self-voting, shared winners for ties, bounded provider lifetime, and clearly labelled fixture mode. Keep Quiplash / Jackbox Games credited in the rationale and credits UI.
 
 Reactor remains the main live integration risk. The simplification removes infrastructure work; it does not establish capture reliability or guarantee that four clips finish within 180 seconds. Keep FFmpeg and the live rehearsal.
 

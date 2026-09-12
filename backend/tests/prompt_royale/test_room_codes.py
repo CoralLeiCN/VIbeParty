@@ -110,3 +110,38 @@ def test_direct_join_rate_limit_applies_before_lookup(client, attempt):
         ).status_code
         == 429
     )
+
+
+@pytest.mark.parametrize("player_count", [0, 5, -1, 1.5, True, "2", None])
+def test_invalid_player_count_does_not_create_a_party(client, player_count):
+    response = client.post(
+        API + "/room",
+        json={"name": "Host", "passcode": "test-code", "player_count": player_count},
+        headers=ORIGIN,
+    )
+    assert response.status_code == 422
+    assert integration.engine.room is None
+
+
+def test_player_count_create_and_update_api(client):
+    response = client.post(
+        API + "/room",
+        json={"name": "Host", "passcode": "test-code", "player_count": 1},
+        headers=ORIGIN,
+    )
+    assert response.status_code == 200 and response.json()["player_count"] == 1
+    state = response.json()
+    command = {
+        "command_id": "change-player-count",
+        "expected_version": state["version"],
+        "player_count": 2,
+    }
+    response = client.post(API + "/room/player-count", json=command, headers=ORIGIN)
+    assert response.status_code == 200 and response.json()["player_count"] == 2
+    repeated = client.post(API + "/room/player-count", json=command, headers=ORIGIN)
+    assert repeated.status_code == 200 and repeated.json()["version"] == response.json()["version"]
+    invalid = client.post(
+        API + "/room/player-count", json={**command, "player_count": 5}, headers=ORIGIN
+    )
+    assert invalid.status_code == 422
+    assert client.get(API + "/room").json()["player_count"] == 2

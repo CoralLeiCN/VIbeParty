@@ -40,6 +40,7 @@ test("three and four directors: both topics, refresh, coordinated arena, vote, r
     try {
       await host.goto(baseURL + "/games/prompt-royale/host");
       await host.getByLabel("Your name", { exact: true }).fill("Director 1");
+      await host.getByLabel("Number of players").selectOption(String(size));
       await host
         .getByLabel("Host access code")
         .fill(env.HOST_PASSCODE || "WMHACK");
@@ -95,7 +96,9 @@ test("three and four directors: both topics, refresh, coordinated arena, vote, r
           .getByRole("button", { name: "Join party", exact: true })
           .click();
       }
-      await expect(host.getByText(`${size}/4`, { exact: true })).toBeVisible();
+      await expect(
+        host.getByText(`${size}/${size}`, { exact: true }),
+      ).toBeVisible();
       if (size === 3) {
         await host.getByLabel("Choose a topic").selectOption({ index: 1 });
       } else {
@@ -377,7 +380,7 @@ test("room code correction and code-only links preserve leading zeros", async ({
     await linked
       .getByRole("button", { name: "Join party", exact: true })
       .click();
-    await expect(linked.getByText("3/4", { exact: true })).toBeVisible();
+    await expect(linked.getByText("3/3", { exact: true })).toBeVisible();
   } finally {
     await host.request
       .delete(baseURL + "/api/games/prompt-royale/room", {

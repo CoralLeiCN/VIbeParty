@@ -20,7 +20,7 @@ export const catalog: {
     title: "Prompt Royale",
     description:
       "One topic. Your wildest prompts. Watch the clips and vote for your favorite.",
-    players: "3–4 players, including the host",
+    players: "1–4 players, including the host",
     host: "The host plays too",
     tag: "Compete & vote",
   },

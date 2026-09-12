@@ -3,7 +3,7 @@
 Base `/api/games/prompt-royale`; foundation shared.md defines HTTP origin, JSON, error,
 party admission and HttpOnly cookie contracts. Cookie `vp_prompt_royale`, Path=/, SameSite=Lax.
 
-Create: `POST /room` with `{name,passcode}`. Join: `POST /room/join` with `{name,code}`.
+Create: `POST /room` with `{name,passcode,player_count}`; `player_count` is an integer from 1–4, defaults to 3, and includes the host. Join: `POST /room/join` with `{name,code}`.
 Both return an authorized snapshot and opaque cookie. Snapshot: `GET /room`.
 Names and room codes never authorize private state or media. Host is also a player.
 Room codes follow the shared standard: exactly four ASCII digits as strings, including `0042`.
@@ -11,7 +11,7 @@ Creation consumes atomic `reservation.code` and calls `activate()` without an ov
 Join throttling runs before `normalize_room_code`, so invalid/non-string attempts also count;
 format errors return 422 with the shared message. The shared numeric-keyboard text input
 preserves editable raw input, then normalization trims surrounding whitespace before POST.
-Refresh, continuation and Play again retain code and roster. End room/expiry retire lookup
+Refresh, continuation and Play again retain code, roster, and selected player count. Joins are capped at the selected count. Solo rounds finish as unscored showcases after screening. End room/expiry retire lookup
 and sessions after cleanup. This game has no separate roster-clearing reset; a new party
 receives a new allocation, and retirement permits code reuse without restoring membership.
 
@@ -22,10 +22,11 @@ All host commands require the playing host's cookie.
 
 | Suffix | Additional fields | Allowed phase |
 | --- | --- | --- |
+| `/room/player-count` | player_count: integer 1–4, at least the joined roster size | lobby |
 | `/room/topic` | mode: bundled or llm; optional bundled topic | lobby |
 | `/room/topic/generate` | none | lobby |
 | `/room/topic/confirm` | suggestion_id | lobby |
-| `/room/start` | none | lobby, confirmed topic and 3–4 present players |
+| `/room/start` | none | lobby, confirmed topic and exactly the selected 1–4 present players |
 | `/round/exclude` | entry_id, public reason | screening |
 | `/round/open-voting` | watched: true | screening |
 | `/round/abort` | none | active round |
@@ -41,7 +42,7 @@ closure verification, private file/session cleanup, then shared admission releas
 `{status:closed|closing,message}`. The same operation is available through shared party close.
 
 Snapshots expose `boot_id,revision,version,server_time,room_id,code,join_url,mode,topic_source,
-phase,players,me,round_id,seconds_left,topic,closing,cleanup_pending`. Lobby topic state is
+phase,player_count,players,me,round_id,seconds_left,topic,closing,cleanup_pending`. Lobby topic state is
 host-only. `me.prompt` and `me.vote` contain only the caller's accepted input. Generation
 progress is aggregate status counts; there are no author-to-entry or clip mappings yet.
 
@@ -62,7 +63,7 @@ Operational settings (private .env and process environment):
 - `OPENAI_API_KEY`: backend only. Topic model gpt-5.6-luna, reasoning effort none, total timeout 10s,
   max_output_tokens 64, accepted topic 160 code points; `PROMPT_ROYALE_TOPIC_CALLS` at most 16.
 - Live requires `GENERATION_MODE=live`, `PROMPT_ROYALE_LIVE_ENABLED=true`, a current
-  `PROMPT_ROYALE_LIVE_SLOT`, Reactor key and rehearsed capacity 3 or 4. Default capacity is 0.
+  `PROMPT_ROYALE_LIVE_SLOT`, Reactor key and rehearsed capacity from 1–4. Default capacity is 0.
 - `PROMPT_ROYALE_LIVE_SESSION_STARTS` at most 16 per process. Start reserves admission only
   if remaining allowance covers 2 × player count. Two entry slots, starts at least 6s apart,
   at most two creation attempts/entry. No counter reset on replay or room close.

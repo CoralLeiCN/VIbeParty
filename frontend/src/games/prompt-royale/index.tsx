@@ -14,6 +14,7 @@ import type { Snapshot } from "./types";
 import styles from "./Royale.module.css";
 
 const API = "/api/games/prompt-royale";
+const playerCounts = [1, 2, 3, 4];
 const phases: Record<string, string> = {
   lobby: "Gather the directors",
   prompting: "Your scene. Your secret.",
@@ -32,6 +33,7 @@ export function GameRoute({ entry }: GameEntryProps) {
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
   const [passcode, setPasscode] = useState("");
+  const [playerCount, setPlayerCount] = useState(3);
   const [code, setCode] = useState(params.get("code") || "");
   const [draft, setDraft] = useState("");
   const [seconds, setSeconds] = useState(0);
@@ -126,7 +128,7 @@ export function GameRoute({ entry }: GameEntryProps) {
         await apiPost<Snapshot>(
           API + (entry === "host" ? "/room" : "/room/join"),
           entry === "host"
-            ? { name, passcode }
+            ? { name, passcode, player_count: playerCount }
             : { name, code: normalizedCode },
         ),
       );
@@ -179,7 +181,7 @@ export function GameRoute({ entry }: GameEntryProps) {
             ? state.mode === "fixture"
               ? "FIXTURE MODE"
               : "LIVE · REACTOR"
-            : "3–4 PLAYERS · HOST PLAYS TOO"}
+            : "1–4 PLAYERS · HOST PLAYS TOO"}
         </span>
       </div>
       {state?.mode === "fixture" && (
@@ -255,6 +257,23 @@ export function GameRoute({ entry }: GameEntryProps) {
                   onChange={(e) => setPasscode(e.target.value)}
                   required
                 />
+                <label htmlFor="royale-player-count">Number of players</label>
+                <select
+                  id="royale-player-count"
+                  value={playerCount}
+                  disabled={busy}
+                  onChange={(e) => setPlayerCount(Number(e.target.value))}
+                  aria-describedby="royale-player-count-hint"
+                >
+                  {playerCounts.map((count) => (
+                    <option key={count} value={count}>
+                      {count === 1 ? "1 player · Solo" : `${count} players`}
+                    </option>
+                  ))}
+                </select>
+                <p id="royale-player-count-hint" className={styles.hint}>
+                  Includes you as host. Solo rounds are unscored showcases.
+                </p>
               </>
             ) : (
               <>
@@ -308,7 +327,10 @@ export function GameRoute({ entry }: GameEntryProps) {
             <div className={styles.lobby}>
               <section className={styles.card}>
                 <h3>
-                  The directors <span>{state.players.length}/4</span>
+                  The directors{" "}
+                  <span>
+                    {state.players.length}/{state.player_count}
+                  </span>
                 </h3>
                 <ul className={styles.roster}>
                   {state.players.map((p) => (
@@ -358,6 +380,36 @@ export function GameRoute({ entry }: GameEntryProps) {
                 <h3>Set the scene</h3>
                 {state.me.host && lobby ? (
                   <>
+                    <label htmlFor="royale-lobby-player-count">
+                      Number of players
+                    </label>
+                    <select
+                      id="royale-lobby-player-count"
+                      value={state.player_count}
+                      disabled={busy || state.closing || state.cleanup_pending}
+                      aria-describedby="royale-lobby-player-count-hint"
+                      onChange={(e) =>
+                        void act("/room/player-count", {
+                          player_count: Number(e.target.value),
+                        })
+                      }
+                    >
+                      {playerCounts.map((count) => (
+                        <option
+                          key={count}
+                          value={count}
+                          disabled={count < state.players.length}
+                        >
+                          {count === 1 ? "1 player · Solo" : `${count} players`}
+                        </option>
+                      ))}
+                    </select>
+                    <p
+                      id="royale-lobby-player-count-hint"
+                      className={styles.hint}
+                    >
+                      Includes you as host. Solo rounds are unscored showcases.
+                    </p>
                     <div className={styles.tabs}>
                       <button
                         aria-pressed={lobby.mode === "bundled"}
@@ -453,7 +505,7 @@ export function GameRoute({ entry }: GameEntryProps) {
                         busy ||
                         state.closing ||
                         state.cleanup_pending ||
-                        state.players.length < 3 ||
+                        state.players.length !== state.player_count ||
                         !lobby.topic ||
                         (lobby.mode === "llm" && !lobby.confirmed)
                       }
@@ -462,9 +514,11 @@ export function GameRoute({ entry }: GameEntryProps) {
                       Start round ↗
                     </button>
                     <p className={styles.hint}>
-                      {state.players.length < 3
-                        ? "Waiting for at least 3 players, including you."
-                        : "Check that everyone is present before starting."}
+                      {state.players.length < state.player_count
+                        ? `Waiting for ${state.player_count} players, including you.`
+                        : state.player_count === 1
+                          ? "Ready for your solo showcase."
+                          : "Check that everyone is present before starting."}
                     </p>
                   </>
                 ) : (

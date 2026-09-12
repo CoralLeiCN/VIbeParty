@@ -84,6 +84,7 @@ async def test_full_round_privacy_stable_arena_refresh_replay(game):
 
 async def test_cap_identity_normalization_and_concurrent_join(game):
     e, tokens, _ = game
+    await host_action(e, tokens, "player-count", player_count=4)
     responses = await asyncio.gather(
         e.join(None, "Host", e.room.code, "new1"),
         e.join(None, "Other", e.room.code, "new2"),
@@ -222,6 +223,7 @@ async def test_exclusion_vote_race_self_vote_and_frozen_deadline(game):
 
 async def test_tie_abstention_changed_ballot_and_zero_votes(game):
     e, tokens, _ = game
+    await host_action(e, tokens, "player-count", player_count=4)
     fourth, _ = await e.join(None, "Fourth", e.room.code, "fourth")
     tokens.append(fourth)
     r = await screen(e, tokens)
@@ -285,6 +287,51 @@ async def test_cleanup_blocks_switch_and_counters_survive_close(game):
         await e.state(tokens[1])
 
 
+@pytest.mark.parametrize("game", [1, 2, 3, 4], indirect=True)
+async def test_selected_player_count_round_and_replay(game):
+    e, tokens, _ = game
+    size = len(tokens)
+    assert (await e.state(tokens[0]))["player_count"] == size
+    with pytest.raises(AppError) as error:
+        await e.join(None, "Extra", e.room.code, "extra")
+    assert error.value.code == "room_full"
+
+    r = await screen(e, tokens)
+    assert len(r.arena) == size
+    with pytest.raises(AppError) as error:
+        await host_action(e, tokens, "player-count", player_count=size)
+    assert error.value.code == "wrong_phase"
+    await host_action(e, tokens, "open-voting", watched=True)
+    if size == 1:
+        assert r.phase == "results" and not r.scored and not r.winners
+    else:
+        assert r.phase == "voting"
+        for token in tokens:
+            state = await e.state(token)
+            target = next(tile["id"] for tile in state["arena"] if tile.get("own") is False)
+            await e.mutate(token, "vote", {"round_id": r.id, "entry_id": target})
+        assert r.phase == "results" and r.scored and sum(r.scores.values()) == size
+    await e.again(tokens[0], {"round_id": r.id, "expected_version": e.room.version})
+    assert e.room.player_count == size and len(e.room.players) == size
+
+
+async def test_player_count_changes_require_host_and_enough_players(game):
+    e, tokens, _ = game
+    with pytest.raises(AppError) as error:
+        await host_action(e, tokens[1:], "player-count", player_count=4)
+    assert error.value.status == 403
+    with pytest.raises(AppError) as error:
+        await host_action(e, tokens, "player-count", player_count=2)
+    assert error.value.code == "player_count" and e.room.player_count == 3
+    await host_action(e, tokens, "player-count", player_count=4)
+    assert (await e.state(tokens[1]))["player_count"] == 4
+    with pytest.raises(AppError) as error:
+        await start(e, tokens)
+    assert error.value.code == "player_count" and e.room.round is None
+    await host_action(e, tokens, "player-count", player_count=3)
+    await start(e, tokens)
+
+
 def test_pinned_tokenizer_full_template_and_missing_asset(tmp_path):
     validator = PromptValidator(RoyaleSettings(_env_file=None).prompt_royale_tokenizer)
     assert validator.tokenizer is not None, "Run scripts/games/prompt-royale/prepare_tokenizer.py"
@@ -297,21 +344,24 @@ def test_pinned_tokenizer_full_template_and_missing_asset(tmp_path):
     assert error.value.code == "tokenizer_missing"
 
 
+@pytest.mark.parametrize("game", [1, 2, 3], indirect=True)
 async def test_live_start_requires_capacity_and_reserved_attempts(game):
     e, tokens, _ = game
+    size = len(tokens)
     e.room.mode = "live"
     e.video.live = True  # No provider calls; this test stops at Start admission.
     e.settings.prompt_royale_live_enabled = True
     e.settings.prompt_royale_live_slot = "unit-test-no-calls"
     e.settings.reactor_api_key = "fake"
-    e.settings.prompt_royale_rehearsed_capacity = 3
-    e.settings.prompt_royale_live_session_starts = 5
+    e.settings.prompt_royale_rehearsed_capacity = size
+    e.settings.prompt_royale_live_session_starts = 2 * size - 1
     await host_action(e, tokens, "topic", mode="bundled", topic=TOPICS[0])
     with pytest.raises(AppError) as error:
         await host_action(e, tokens, "start")
     assert error.value.code == "allowance"
     e.settings.prompt_royale_live_session_starts = 16
-    await e.join(None, "Fourth", e.room.code, "fourth")
+    await host_action(e, tokens, "player-count", player_count=size + 1)
+    await e.join(None, "Extra", e.room.code, "extra")
     with pytest.raises(AppError) as error:
         await host_action(e, tokens, "start")
     assert error.value.code == "live_capacity"

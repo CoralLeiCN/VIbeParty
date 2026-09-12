@@ -316,6 +316,9 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
     await host.getByLabel("Your name", { exact: true }).fill("Alex");
     await host.getByLabel("Host access code").fill(hostCode);
     await host
+      .getByLabel("Number of players")
+      .selectOption(String(phones.length + 1));
+    await host
       .getByRole("button", { name: "Create party", exact: true })
       .click();
     const royaleJoin = await host

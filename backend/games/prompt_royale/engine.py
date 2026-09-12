@@ -76,6 +76,7 @@ class Room:
     seen: float
     players: dict[str, Player]
     sessions: dict[str, str]
+    player_count: int = 3
     version: int = 1
     revision: int = 1
     closing: bool = False
@@ -212,7 +213,13 @@ class Engine:
             index += 1
         return result
 
-    async def create(self, token, name, passcode, ip):
+    @staticmethod
+    def _player_count(value):
+        if type(value) is not int or not 1 <= value <= 4:
+            raise AppError(422, "player_count", "Choose 1–4 players, including the host.")
+        return value
+
+    async def create(self, token, name, passcode, ip, player_count=3):
         async with self.lock:
             self._limit(ip)
             if self.summary(token) == "host":
@@ -233,6 +240,7 @@ class Engine:
             if not matches:
                 raise AppError(403, "passcode", "Incorrect host access code.", "passcode")
             name = normalized(name, 24, "name")
+            player_count = self._player_count(player_count)
         async with self.context.parties.reserve(GAME_ID) as reservation:
             async with self.lock:
                 now = self.clock()
@@ -257,6 +265,7 @@ class Engine:
                     now,
                     {player.id: player},
                     {token: player.id},
+                    player_count=player_count,
                 )
                 self.room = room
             try:
@@ -273,7 +282,7 @@ class Engine:
         return (
             s.prompt_royale_live_enabled
             and s.prompt_royale_live_slot
-            and s.prompt_royale_rehearsed_capacity >= 3
+            and s.prompt_royale_rehearsed_capacity >= 1
             and s.reactor_api_key
             and self.video.live
             and not self.blocked
@@ -301,11 +310,11 @@ class Engine:
                 raise AppError(
                     409, "round_active", "A round is in progress. Join when the lobby returns."
                 )
-            if len(room.players) >= 4:
+            if len(room.players) >= room.player_count:
                 raise AppError(
                     409,
                     "room_full",
-                    "Room full — Prompt Royale supports up to 4 players for the hackathon.",
+                    "Room full. The host can increase the player count in the lobby, up to 4.",
                 )
             player = Player(uid(), self._name(name), self.clock())
             token = uid()
@@ -322,7 +331,7 @@ class Engine:
 
     def _lobby(self):
         if self.room.round:
-            raise AppError(409, "wrong_phase", "Return to the lobby to choose a topic.")
+            raise AppError(409, "wrong_phase", "Return to the lobby to change party settings.")
 
     def _round(self, data, phases):
         r = self.room.round
@@ -357,7 +366,18 @@ class Engine:
                     raise AppError(
                         409, "state_changed", "The screen changed. Check it and try again."
                     )
-            if action == "topic":
+            if action == "player-count":
+                self._lobby()
+                player_count = self._player_count(data.get("player_count"))
+                if player_count < len(room.players):
+                    raise AppError(
+                        409,
+                        "player_count",
+                        "The player count cannot be below the number already joined.",
+                    )
+                room.player_count = player_count
+                self._changed(True)
+            elif action == "topic":
                 self._lobby()
                 mode = data["mode"]
                 if mode not in {"bundled", "llm"}:
@@ -393,9 +413,11 @@ class Engine:
                 self._changed(True)
             elif action == "start":
                 self._lobby()
-                if not 3 <= len(room.players) <= 4:
+                if len(room.players) != room.player_count:
                     raise AppError(
-                        409, "player_count", "Start requires 3–4 players, including the host."
+                        409,
+                        "player_count",
+                        f"Waiting for {room.player_count} players, including the host.",
                     )
                 if any(self.clock() - p.seen >= 30 for p in room.players.values()):
                     raise AppError(
@@ -844,6 +866,7 @@ class Engine:
             "topic_source": self.settings.prompt_royale_topic_mode,
             "phase": r.phase if r else "lobby",
             "closing": room.closing,
+            "player_count": room.player_count,
             "players": [
                 {
                     "id": p.id,

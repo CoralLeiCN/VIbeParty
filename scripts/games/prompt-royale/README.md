@@ -69,7 +69,7 @@ Generation sends only the generic topic instruction, with store:false and no too
 
 Live gameplay stays disabled by default. Explicit launch setup needs the current slot,
 PROMPT_ROYALE_LIVE_ENABLED=true, GENERATION_MODE=live, verified tokenizer/provider access,
-PROMPT_ROYALE_REHEARSED_CAPACITY matching a passed 3- or 4-player rehearsal, and an allocated
+PROMPT_ROYALE_REHEARSED_CAPACITY matching a passed rehearsal for the selected 1–4 player count, and an allocated
 PROMPT_ROYALE_LIVE_SESSION_STARTS (maximum 16). Remaining starts must cover two per player.
 Rehearse three players then four, including physical Safari/Chrome and projected playback,
 within the 180-second generation deadline. Record actual time, failures, closure and charges.
