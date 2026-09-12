@@ -6,6 +6,8 @@ Status: proposed implementation, 12 September 2026. Product behavior is defined 
 
 **Prompt Royale demo override:** use the dedicated [technology choices and stack](games/prompt-royale/tech-stack.md) and [game specification](games/prompt-royale/game-spec.md). Its hackathon implementation is one FastAPI process, in-memory state, asyncio tasks, HTTP polling, and private local video files. PostgreSQL, Redis, Celery, WebSockets, S3, durable job recovery, and the broader engineering checks below are not prerequisites for that demo. The remaining sections describe the broader three-game baseline and possible future expansion. See the [before-and-after decision](games/prompt-royale/simplification.md).
 
+For the Reverse Prompt hackathon demo, implement the [dedicated technical specification](games/reverse-prompt/tech-stack.md): one FastAPI process, in-memory room state, local media, polling, local Sentence Transformers scoring, and Reactor Helios video generation. No OpenAI service or key is required. It supersedes this document's database, queue, worker, WebSocket, recovery, moderation, and deployment requirements for that game. The architecture below remains broader product direction, not required demo infrastructure. The [before-and-after comparison](games/reverse-prompt/simplification.md) explains the cuts.
+
 ## 1. Architecture
 
 Use a modular Python application with a separate worker process built from the same codebase. Keep game rules independent of HTTP, queue infrastructure, and model-provider SDKs. The first release does not need microservices or an extensible game-plugin framework.

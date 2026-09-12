@@ -6,11 +6,13 @@ Status: proposed MVP specification, 12 September 2026.
 
 **Prompt Royale demo scope:** its dedicated [game specification](games/prompt-royale/game-spec.md) and [technology stack](games/prompt-royale/tech-stack.md) take precedence over shared defaults and acceptance criteria here. Build one room for 3–4 players with a fixed host, curated topics, fixed timers, one initial generation attempt plus one bounded retry per entry, and browser polling. Ready checks, host failover, paired display, durable recovery, and the other games are not prerequisites for this demo. See the [before-and-after simplification](games/prompt-royale/simplification.md); the broader designs for the other games remain unchanged.
 
+For the Reverse Prompt hackathon demo, the [dedicated game specification](games/reverse-prompt/game-spec.md) and [tech stack](games/reverse-prompt/tech-stack.md) override the broader shared defaults below. Build one room for three players without turn timers or production recovery infrastructure. See the [before-and-after comparison](games/reverse-prompt/simplification.md).
+
 ## 1. Product concept
 
 VibeParty turns a group of friends into the creators and audience of AI-generated entertainment. Players join a room on their phones, contribute words or prompts, watch the results, and compete through voting or guessing.
 
-The app is a demo for the [Worlds hackathon](hackathon.md). Its first release supports three games:
+The app is being designed for the [Worlds hackathon](hackathon.md). The broader product design covers three games; each dedicated specification defines its reduced demo scope:
 
 | Game | Player activity | Result | Competition |
 | --- | --- | --- | --- |
@@ -34,7 +36,7 @@ Names are working titles. Except for explicitly confirmed design directions, the
 ### Included
 
 - Private rooms, a join code and QR link, guest names, and reconnectable guest sessions.
-- Game-specific player limits: **Prompt Royale supports three to four for the hackathon, including the playing host**; Word by Word supports three to four plus its separate host screen. See the dedicated demo specifications; the broader Reverse Prompt plan remains separate.
+- Game-specific player limits: **Prompt Royale supports three to four for the hackathon, including the playing host**; Word by Word supports three to four plus its separate host screen. Reverse Prompt supports exactly three, including the playing host. See each dedicated demo specification.
 - A lobby, game selection, configurable rounds, visible timers, and synchronized phase changes.
 - All three games, playable videos, anonymous contest entries, private relay turns, voting, similarity scoring, and end-of-round reveals.
 - Generation progress, bounded retries, timeout handling, and limits on generation spending.
@@ -51,7 +53,7 @@ Public matchmaking, accounts, persistent profiles, payments, public galleries, n
 1. A host creates a room, enters a display name, and receives a short join code and QR link.
 2. Guests join with a name. Duplicate names receive a visible suffix; names never determine identity.
 3. The host selects a game and settings. Players see a short rule card; ready checks apply only where the selected game requires them.
-4. The host starts when the roster meets the selected game's player limits and any readiness requirements. Word by Word and Prompt Royale follow their dedicated demo start rules. Starting freezes the player roster, settings, provider preset, and any role order.
+4. The host starts when the roster meets the selected game's player limits and any readiness requirements. All three games follow their dedicated demo start rules. Starting freezes the player roster, settings, provider preset, and any role order.
 5. The server advances the game through its phases. Every screen shows what to do next and how much time remains.
 6. Players watch the reveal and results. The host can play another round, choose another game, or end the room.
 
@@ -67,15 +69,15 @@ The host can start valid rounds, extend an input timer once, remove a player, tr
 
 | Setting | MVP default |
 | --- | --- |
-| Active players | Prompt Royale demo: 3–4 including the playing host. Word by Word demo: 3–4 plus a separate host screen. Reverse Prompt broader plan: 3–8. |
+| Active players | Prompt Royale demo: 3–4 including the playing host. Word by Word demo: 3–4 plus a separate host screen. Reverse Prompt demo: exactly 3 including the playing host. |
 | Rounds | One round per game launch; replay from results |
 | Word by Word | Four fixed slots, one word per slot, 45-second private collection, then host-controlled connected video segments; see the [demo specification](word-by-word-spec.md) |
 | Prompt Royale | 60 seconds to submit a prompt; 30 seconds to vote |
-| Reverse Prompt | Everyone takes one generation turn; 45 seconds per prompt; 45 seconds for final guesses |
-| Individually written prompt / guess length | 1–500 characters after trimming, subject to provider and scoring token limits |
+| Reverse Prompt | Demo: exactly three players, one generation turn each, no input countdowns; see dedicated spec |
+| Individually written prompt / guess length | Reverse Prompt: 1–300 Unicode code points and within the local model's token limit. Other games follow their dedicated demo limits. |
 | Video preset | Target 5 seconds for Prompt Royale / Reverse Prompt; Word by Word requests approximately 6 seconds per segment. Landscape and muted by default. |
-| Generation deadline | 180 seconds per Prompt Royale / Reverse Prompt generation phase; Word by Word has a 120-second total build limit, with provider cleanup separate from saved playback. These are product limits, not latency claims. |
-| Input extension | Reverse Prompt: host may add 30 seconds once per input phase. Word by Word and Prompt Royale demos: no extension. |
+| Generation deadline | Prompt Royale: 180 seconds per generation phase. Reverse Prompt: 90 seconds per clip, one attempt. Word by Word: 120-second total build limit, with provider cleanup separate from saved playback. These are product limits, not latency claims. |
+| Input extension | No input extensions in the dedicated demos; Reverse Prompt has no input countdowns. |
 
 For the contest, the generation phase covers all entries in parallel. For the relay, each step has its own generation phase. The UI explains that larger relay groups require more sequential generations. Use a three-player room for a short demo; time estimates must come from measured provider performance.
 
@@ -163,62 +165,37 @@ winners = all entries with the highest positive round_score
 
 ## 6. Game 3: Reverse Prompt
 
-### Objective
-
-Turn a prompt into a video, interpret that video as a new prompt, and repeat. At the end, guess the original prompt and reveal how the idea changed.
+The [dedicated game specification](games/reverse-prompt/game-spec.md) is the complete source of truth for the simplified hackathon demo. The [technical specification](games/reverse-prompt/tech-stack.md) defines its single-process stack. Shared room settings, timers, retry policies, and infrastructure elsewhere in this document do not expand that scope.
 
 ### Rules and sequence
 
-1. Freeze a randomly selected author and a relay order containing each remaining player once. On replay, rotate the author where possible.
-2. The author privately submits the original prompt, `P0`. Generate `V0` from `P0`.
-3. Only the next player receives `V0`. They can replay it, but cannot retrieve `P0` or another player's private history.
-4. That player describes the video in a new prompt, `P1`. Generate `V1` from `P1` alone, using the same rendering template. Do not condition generation on the original prompt or previous video in the MVP.
-5. Repeat for the remaining players: player `i` watches only `V(i-1)`, writes `Pi`, and generates `Vi`.
-6. Show the final successful video to the entire group. Every player except the original author submits a private final guess of `P0`; relay prompts and final guesses are separate records. The last player may reuse their own relay prompt as their final guess.
-7. Lock all guesses at submission or the 45-second deadline, calculate similarity, and reveal the original prompt, all successful prompt/video steps, skipped steps, guesses, and scores.
+1. Exactly three people join one room. The host is author A; guests B and C interpret in join order.
+2. A privately submits original prompt `P0`. Reactor generates `V0`.
+3. Only B receives `V0`. B describes it as `P1`; a fresh Reactor session generates `V1` from `P1` alone and the fixed rendering instruction.
+4. Only C receives `V1`. C submits `P2`; another fresh session generates `V2`. No earlier prompt, media, or model state conditions the next clip.
+5. Everyone watches `V2`. B and C submit separate private final guesses of `P0`; A is unscored. There are no input countdowns.
+6. After both guesses are accepted, score them and reveal all three prompt/video pairs, guesses, scores, and winner/tie. Host Reset returns the same roster to the lobby.
 
 ```mermaid
 flowchart LR
-    P0[Original private prompt] --> V0[Video 0]
-    V0 --> P1[Next player's interpretation]
-    P1 --> V1[Video 1]
-    V1 --> Relay[Continue through the group]
-    Relay --> Final[Final video]
-    Final --> Guesses[Private final guesses]
-    Guesses --> Reveal[Scores and full chain reveal]
+    P0[Original prompt] --> V0[Video for B]
+    V0 --> P1[B interpretation]
+    P1 --> V1[Video for C]
+    V1 --> P2[C interpretation]
+    P2 --> V2[Final video for everyone]
+    V2 --> Guesses[B and C guess P0]
+    Guesses --> Reveal[Scores and full chain]
 ```
 
-The author is not eligible to guess or score because they know the answer. The host has the same information restrictions as other players. Previous relay participants remember different videos, so this is a casual party contest with unequal clues; scores are not intended as a ranked measure of prompting skill.
+The host has no special access to hidden clues. Players remember different clues, so the contest is casual entertainment. Server authorization protects private prompts, guesses, and media.
 
-### Similarity scoring
+### Scoring and failures
 
-Use semantic similarity between each final guess and the **original player-written prompt**, never the last relay prompt or a provider-enhanced prompt. Do not award points for exact word overlap alone.
+Use local Sentence Transformers with `sentence-transformers/all-MiniLM-L6-v2` and CPU PyTorch for the original and both guesses, then calculate cosine similarity and `floor(100 * clamp(similarity, 0, 1) + 0.5)`. Highest integer score wins; equal scores tie. Display similarity out of 100, not percentage accuracy. The [scoring decision](games/reverse-prompt/tech-stack.md#5-scoring-and-text-moderation) defines model preloading, token limits, and local inference. No OpenAI service or API key is required.
 
-For the MVP, use one frozen sentence-embedding model through Sentence Transformers. Encode the original prompt and each guess with identical preprocessing and normalized vectors. Sentence Transformers supports embedding comparison using cosine similarity. [Technical reference](https://www.sbert.net/docs/sentence_transformer/usage/semantic_textual_similarity.html).
+A failed or timed-out local inference produces an unscored reveal after the 15-second deadline. Any failed video ends the round on an error screen: there are no skipped steps or automatic paid retries. Each generation has a 90-second application deadline and a provider session cap. Refresh works while the process lives; server restart loses the round. The session quota and unresolved-session guard survive restart.
 
-```text
-a = normalized_embedding(original_prompt)
-b = normalized_embedding(final_guess)
-similarity = dot(a, b)
-points = floor(100 * clamp(similarity, 0, 1) + 0.5)
-```
-
-This 0–100 scale is a proposed game rule. Display “Similarity: 82 / 100,” not “82% accurate.” A cosine similarity of 0.824 produces 82 points. Semantic similarity can miss negation or important details; the reveal should make that limitation understandable without implying that scores are objective judgments.
-
-- Trim outer whitespace, normalize Unicode, and preserve meaning-bearing words. Apply the same versioned processing to every compared prompt.
-- Pin the model identifier, immutable model revision, tokenizer, and scoring code version for the round. The initial model is chosen after checking its license, runtime compatibility, and sample paraphrases.
-- Enforce the model's token limit at submission; do not silently truncate text. The frontend displays the effective character/token limit supplied by the server.
-- Cache results so refreshes and retries do not rescore a guess. Use the same model version for the entire round.
-- Missing guesses score zero; the original author is shown as “Author — unscored.” Highest points wins; equal points produce joint winners. If nobody submits a valid guess, there is no winner.
-- A scoring service failure leaves scores pending, not zero. Retry up to the configured 60-second scoring deadline, then reveal an unscored round if recovery fails. Results stay final after that reveal.
-- For entertainment, the reveal can also show each intermediate prompt's similarity to `P0`. These drift scores do not affect the winner; this visualization is optional after the core flow works.
-
-### Missed turns and generation failures
-
-- If the author fails to submit or `V0` cannot be produced, end the round unscored and offer a restart.
-- If a later player misses their prompt deadline or their generation fails, record the skipped step and pass the last successful video to the next player.
-- Require at least one successful interpretation-generated video after `V0` before opening a scored guessing phase. Otherwise show the available chain as an unscored reveal.
-- A skip never inserts an AI-authored prompt or exposes an earlier private prompt. Reconnection restores only the player's currently authorized content.
+The demo validates text format and token limits locally and relies on Reactor's checks for generation input. It has no separate app moderation API for names, guesses, or videos; provider rejection can happen after billing starts. These demo choices override the broader moderation requirements below.
 
 ## 7. Generation, limits, and failure experience
 
