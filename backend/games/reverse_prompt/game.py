@@ -42,6 +42,7 @@ class Round:
     unscored: bool = False
     error: str | None = None
     generation_started: float | None = None
+    relay_deadline: float | None = None
 
 
 @dataclass
@@ -72,9 +73,13 @@ class Game:
         self.work: asyncio.Task | None = None
         self.inference: asyncio.Task | None = None
         self.cleanup: asyncio.Task | None = None
+        self.relay_watch: asyncio.Task | None = None
+        self.round_watch: asyncio.Task | None = None
         self.retired: Round | None = None
         self.generation_timeout = 90
         self.scoring_timeout = 15
+        self.relay_seconds = 30
+        self.round_session_seconds = 345
 
     async def startup(self):
         # Only our disposable media tree is removed. Never traverse model/quota paths.
@@ -256,6 +261,8 @@ class Game:
                 return receipt
             if body.phase != round.phase or body.step != round.step:
                 raise AppError(409, "wrong_step", "Your turn changed. Refresh before submitting.")
+            if round.relay_deadline is not None and time.monotonic() >= round.relay_deadline:
+                raise AppError(409, "relay_expired", "The 30-second relay turn has ended.")
             if round.phase in {"author_input", "relay_input"}:
                 if player.role != "ABC"[round.step] or round.prompts[round.step] is not None:
                     raise AppError(
@@ -294,8 +301,13 @@ class Game:
                     self.work = asyncio.create_task(self.score(round, self.room.mode))
             else:
                 round.prompts[round.step] = text
+                round.relay_deadline = None
+                if self.relay_watch:
+                    self.relay_watch.cancel()
                 round.phase = "generating"
                 round.generation_started = time.monotonic()
+                if round.step == 0 and self.room.mode == "live":
+                    self.round_watch = asyncio.create_task(self.watch_round(round))
                 self.work = asyncio.create_task(self.generate(round, self.room.mode))
             self.room.revision += 1
             return receipt
@@ -319,6 +331,10 @@ class Game:
                 await asyncio.gather(worker, return_exceptions=True)
                 return
             path = worker.result()
+            if mode == "live" and step == 2:
+                await self.live_provider.close()
+                if self.round_watch:
+                    self.round_watch.cancel()
             async with self.lock:
                 if self.room and self.room.round is round and round.phase == "generating":
                     round.media.append(
@@ -329,6 +345,8 @@ class Game:
                     else:
                         round.step += 1
                         round.phase = "relay_input"
+                        round.relay_deadline = time.monotonic() + self.relay_seconds
+                        self.relay_watch = asyncio.create_task(self.watch_relay(round, mode))
                     self.room.revision += 1
         except asyncio.CancelledError:
             worker.cancel()
@@ -345,7 +363,78 @@ class Game:
                     )
                     self.room.revision += 1
         finally:
+            if mode == "live" and (
+                not self.room or self.room.round is not round or round.phase == "error"
+            ):
+                try:
+                    await self.live_provider.close()
+                except Exception:
+                    pass
             await self.refresh_guard()
+
+    async def watch_relay(self, round, mode):
+        step = round.step
+        reason = "Time is up for this relay clue. The round is unscored."
+        try:
+            remaining = max(0, round.relay_deadline - time.monotonic())
+            if mode == "live":
+                try:
+                    await asyncio.wait_for(self.live_provider.wait_failure(), remaining)
+                except TimeoutError:
+                    pass
+                except Exception:
+                    reason = "The video session stopped. The round is unscored."
+            else:
+                await asyncio.sleep(remaining)
+            async with self.lock:
+                if (
+                    not self.room
+                    or self.room.round is not round
+                    or (round.phase != "relay_input" or round.step != step)
+                ):
+                    return
+                round.phase, round.error, round.unscored = "error", reason, True
+                round.relay_deadline = None
+                self.room.revision += 1
+            if mode == "live":
+                try:
+                    await self.live_provider.close()
+                except Exception:
+                    pass
+                if self.round_watch:
+                    self.round_watch.cancel()
+            await self.refresh_guard()
+        except asyncio.CancelledError:
+            return
+
+    async def watch_round(self, round):
+        try:
+            await asyncio.sleep(self.round_session_seconds)
+            async with self.lock:
+                if (
+                    not self.room
+                    or self.room.round is not round
+                    or round.phase in {"guessing", "scoring", "reveal", "error", "cleanup"}
+                ):
+                    return
+                round.phase = "error"
+                round.error = "The video session reached its time limit. The round is unscored."
+                round.unscored = True
+                round.relay_deadline = None
+                self.room.revision += 1
+            if self.relay_watch:
+                self.relay_watch.cancel()
+                await asyncio.gather(self.relay_watch, return_exceptions=True)
+            if self.work and not self.work.done():
+                self.work.cancel()
+                await asyncio.gather(self.work, return_exceptions=True)
+            try:
+                await self.live_provider.close()
+            except Exception:
+                pass
+            await self.refresh_guard()
+        except asyncio.CancelledError:
+            return
 
     async def score(self, round, mode):
         scores = None
@@ -438,6 +527,9 @@ class Game:
                 "generation_elapsed": int(time.monotonic() - round.generation_started)
                 if round.phase == "generating"
                 else None,
+                "relay_remaining_ms": max(0, int((round.relay_deadline - time.monotonic()) * 1000))
+                if round.phase == "relay_input" and round.relay_deadline is not None
+                else None,
                 "remaining_attempts": self.guard["remaining"] if self.guard else None,
                 "cleanup_pending": bool(self.guard and self.guard["unresolved"]),
             }
@@ -490,11 +582,16 @@ class Game:
         return {"status": "closing" if close else "resetting"}
 
     async def finish_cleanup(self):
+        await self.stop_timers()
         if self.work and not self.work.done():
             self.work.cancel()
             await asyncio.gather(self.work, return_exceptions=True)
         if self.inference and not self.inference.done():
             await asyncio.gather(asyncio.shield(self.inference), return_exceptions=True)
+        try:
+            await self.live_provider.close()
+        except Exception:
+            pass
         if await self.refresh_guard():
             return
         retired = self.retired
@@ -514,6 +611,7 @@ class Game:
             await self.context.parties.finish_close(GAME)
 
     async def shutdown(self):
+        await self.stop_timers()
         if self.work and not self.work.done():
             self.work.cancel()
             await asyncio.gather(self.work, return_exceptions=True)
@@ -521,5 +619,15 @@ class Game:
             await asyncio.gather(self.cleanup, return_exceptions=True)
         if self.inference and not self.inference.done():
             await asyncio.gather(self.inference, return_exceptions=True)
+        try:
+            await self.live_provider.close()
+        except Exception:
+            pass
         self.room = None
         await asyncio.to_thread(shutil.rmtree, self.media_root, True)
+
+    async def stop_timers(self):
+        timers = [task for task in (self.relay_watch, self.round_watch) if task]
+        for task in timers:
+            task.cancel()
+        await asyncio.gather(*timers, return_exceptions=True)

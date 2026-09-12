@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from backend.games.reverse_prompt.quota import Quota
+from backend.games.reverse_prompt.quota import GuardError, Quota
 from backend.games.reverse_prompt.reactor_video import FastH3Provider, GenerationError
 
 
@@ -77,7 +77,12 @@ def decoded_provider(tmp_path, monkeypatch):
             self.commands.append((command, data))
             if command == "enqueue":
                 enqueued.set()
-                self.clip = {"clip_id": self.session_id + "-clip", "frames": 124, **data}
+                if hasattr(self, "clip"):
+                    # Delayed events from the previous clip must not poison the new capture.
+                    for event in ("clip_started", "clip_finished", "clip_failed"):
+                        self.emit(event, clip=self.clip)
+                count = sum(name == "enqueue" for name, _ in self.commands)
+                self.clip = {"clip_id": f"{self.session_id}-clip-{count}", "frames": 124, **data}
                 if self.behavior == "ambiguous_enqueue":
                     return None
                 if self.behavior == "rejected":
@@ -122,6 +127,12 @@ def decoded_provider(tmp_path, monkeypatch):
                 self.emit("clip_started", clip=clip)  # Harmless duplicate boundary.
                 if self.behavior not in {"silent_playback", "wrong_started"}:
                     self.feeder = asyncio.create_task(self.feed())
+                return None
+            if command == "stop":
+                if self.feeder:
+                    self.feeder.cancel()
+                    await asyncio.gather(self.feeder, return_exceptions=True)
+                self.emit("clip_stopped", clip=self.clip)
                 return None
             acknowledgments = {
                 "set_autoplay": "autoplay_accepted",
@@ -181,7 +192,7 @@ def decoded_provider(tmp_path, monkeypatch):
     return FastH3Provider("fake-key", quota), SDK, sessions, token_bodies, enqueued, played
 
 
-async def test_three_independent_fasth3_clips_capture_only_matching_playback(
+async def test_three_independent_clips_reuse_one_session_and_exclude_stale_playback(
     decoded_provider, tmp_path
 ):
     from backend.games.reverse_prompt.media import command
@@ -199,17 +210,15 @@ async def test_three_independent_fasth3_clips_capture_only_matching_playback(
         assert evidence["frame_metadata_source"] == ("generated", "enqueue", "queue")[step]
         assert evidence["duration"] == 5
         assert (evidence["width"], evidence["height"]) == (1344, 768)
-        assert evidence["closed"] and evidence["playback_started"]
-        expected_commands = [
-            "set_autoplay",
-            "set_canvas",
-            "set_flush_on_clip_end",
-            "enqueue",
-        ]
-        if step == 2:
-            expected_commands.append("get_queue")
-        assert [name for name, _ in sessions[step].commands] == expected_commands + ["play"]
-        request = sessions[step].commands[3][1]
+        assert not evidence["closed"] and evidence["playback_started"]
+        assert not sessions[0].closed and provider.quota.read()["unresolved"]
+        assert provider.quota.read()["remaining"] == 8 - step
+        assert evidence["session_reused"] is (step > 0)
+        saved_evidence = provider.quota.read()["attempts"][-1]["evidence"]
+        assert saved_evidence["outcome"] == saved_evidence["phase"] == "saved"
+        assert saved_evidence["encoded_frames"] == 120
+        assert "attempt" not in saved_evidence
+        request = [data for name, data in sessions[0].commands if name == "enqueue"][-1]
         assert set(request) == {"prompt", "seconds", "metadata"}
         assert request["prompt"].startswith(prompt + "\n\n")
         assert request["seconds"] == 5.167
@@ -232,13 +241,39 @@ async def test_three_independent_fasth3_clips_capture_only_matching_playback(
             "pipe:1",
         )
         assert color[0] > 240 and color[1] < 15 and color[2] < 15
-    assert len(sessions) == len(tokens) == 3
+    assert len(sessions) == len(tokens) == 1
+    assert [name for name, _ in sessions[0].commands] == [
+        "set_autoplay",
+        "set_canvas",
+        "set_flush_on_clip_end",
+        "enqueue",
+        "play",
+        "stop",
+        "enqueue",
+        "play",
+        "stop",
+        "enqueue",
+        "get_queue",
+        "play",
+        "stop",
+    ]
+    await provider.close()
+    await provider.close()  # Duplicate cleanup must not reopen or rebill.
     assert provider.quota.read()["remaining"] == 6
     assert not provider.quota.read()["unresolved"]
+    assert all(a["closed"] and a["evidence"]["closed"] for a in provider.quota.read()["attempts"])
+    ledger_text = json.dumps(provider.quota.read())
+    assert not any(text in ledger_text for text in (*prompts, "fake-key", "fake-token"))
     for token in tokens:
         detail = token["authorization_details"][0]
         assert detail["resources"]["models"]["match"] == ["reactor/fast-h3"]
-        assert detail["constraints"] == {"max_sessions": 1, "max_session_duration_seconds": 90}
+        assert detail["constraints"] == {"max_sessions": 1, "max_session_duration_seconds": 360}
+    sdk.behavior = "rejected"
+    with pytest.raises(GenerationError):
+        await provider.generate("A new round.", tmp_path / "next-round", 0)
+    assert len(sessions) == len(tokens) == 2
+    assert provider.quota.read()["remaining"] == 5
+    assert not provider.quota.read()["unresolved"]
 
 
 @pytest.mark.parametrize(
@@ -265,6 +300,7 @@ async def test_provider_failures_never_publish_or_retry(decoded_provider, tmp_pa
     assert sum(name == "enqueue" for name, _ in sessions[0].commands) <= 1
     assert provider.quota.read()["remaining"] == 8
     assert not provider.quota.read()["unresolved"]
+    assert provider.quota.read()["attempts"][-1]["evidence"]["outcome"] == "failed"
 
 
 @pytest.mark.parametrize("behavior", ["silent_generation", "silent_playback", "wrong_generated"])
@@ -284,20 +320,88 @@ async def test_cancelled_wait_closes_without_refunding(decoded_provider, tmp_pat
     assert provider.quota.read()["remaining"] == 8
     assert not provider.quota.read()["unresolved"]
     assert provider.last_evidence["encoded_frames"] == 0
+    assert provider.quota.read()["attempts"][-1]["evidence"]["outcome"] == "cancelled"
     assert not (tmp_path / "cancel" / "video.mp4").exists()
 
 
-async def test_unconfirmed_closure_discards_encoded_clip_and_blocks_restart(
-    decoded_provider, tmp_path
-):
-    from backend.games.reverse_prompt.quota import GuardError
-
+async def test_unconfirmed_round_closure_preserves_the_persistent_block(decoded_provider, tmp_path):
     provider, sdk, _, _, _, _ = decoded_provider
     sdk.behavior = "unresolved"
+    await provider.generate("A red balloon.", tmp_path / "uncertain", 0)
     with pytest.raises(GenerationError, match="closure"):
-        await provider.generate("A red balloon.", tmp_path / "uncertain", 0)
-    assert not (tmp_path / "uncertain" / "video.mp4").exists()
+        await provider.close()
     restarted = Quota(provider.quota.path)
     assert restarted.read()["unresolved"] and restarted.read()["remaining"] == 8
+    evidence = restarted.read()["attempts"][-1]["evidence"]
+    assert evidence["outcome"] == "saved"
+    assert not evidence["closed"]
     with pytest.raises(GuardError, match="closure"):
         restarted.consume()
+
+
+async def test_diagnostics_exclude_sdk_exception_text(decoded_provider, tmp_path, monkeypatch):
+    provider, sdk, _, _, _, _ = decoded_provider
+
+    async def failed_command(self, command, data):
+        raise RuntimeError("private player prompt and fake-token")
+
+    monkeypatch.setattr(sdk, "send_command", failed_command)
+    with pytest.raises(RuntimeError):
+        await provider.generate("private player prompt", tmp_path / "failed", 0)
+    ledger = Quota(provider.quota.path).read()
+    evidence = ledger["attempts"][-1]["evidence"]
+    assert evidence["failure_category"] == "RuntimeError"
+    assert evidence["phase"] == "set_autoplay" and evidence["closed"]
+    assert "private player prompt" not in json.dumps(ledger)
+    assert "fake-token" not in json.dumps(ledger)
+
+
+async def test_diagnostic_storage_failure_preserves_generation_error(
+    decoded_provider, tmp_path, monkeypatch
+):
+    provider, sdk, sessions, _, _, _ = decoded_provider
+    sdk.behavior = "rejected"
+
+    def unavailable(*_args):
+        raise GuardError("Diagnostic storage unavailable")
+
+    monkeypatch.setattr(provider.quota, "record_outcome", unavailable)
+    with pytest.raises(GenerationError, match="Provider rejected generation"):
+        await provider.generate("A red balloon.", tmp_path / "failed", 0)
+    assert sessions[0].closed and not provider.quota.read()["unresolved"]
+    assert provider.quota.read()["remaining"] == 8
+    assert provider.last_evidence["diagnostics_unavailable"]
+    assert not (tmp_path / "failed" / "video.mp4").exists()
+
+
+async def test_second_clip_failure_closes_the_shared_session_without_a_third_attempt(
+    decoded_provider, tmp_path
+):
+    provider, sdk, sessions, tokens, _, _ = decoded_provider
+    await provider.generate("A red balloon.", tmp_path / "first", 0)
+    sdk.behavior = "rejected"
+    with pytest.raises(GenerationError):
+        await provider.generate("A blue tower.", tmp_path / "second", 1)
+    ledger = Quota(provider.quota.path).read()
+    assert len(sessions) == len(tokens) == 1 and sessions[0].closed
+    assert ledger["remaining"] == 7 and not ledger["unresolved"]
+    assert all(a["closed"] for a in ledger["attempts"])
+    assert [a["evidence"]["outcome"] for a in ledger["attempts"]] == ["saved", "failed"]
+    assert not (tmp_path / "second" / "video.mp4").exists()
+
+
+async def test_session_identity_storage_failure_still_terminates_provider(
+    decoded_provider, tmp_path, monkeypatch
+):
+    provider, _, sessions, _, _, _ = decoded_provider
+
+    def storage_failure(*_args):
+        raise GuardError("Session identity storage unavailable")
+
+    monkeypatch.setattr(provider.quota, "session", storage_failure)
+    with pytest.raises(GuardError):
+        await provider.generate("A red balloon.", tmp_path / "failed", 0)
+    assert sessions[0].closed
+    assert provider.quota.read()["remaining"] == 8
+    assert not provider.quota.read()["unresolved"]
+    assert not (tmp_path / "failed" / "video.mp4").exists()

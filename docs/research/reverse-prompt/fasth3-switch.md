@@ -1,5 +1,8 @@
 # MiniMax FastH3 switch — 12 September 2026
 
+**Latest change:** the user's subsequent request retains one FastH3 session through30-second B/C relay turns. The [session-reuse implementation and evidence](session-reuse.md) supersedes the fresh-session and token-cap behavior described in the historical switch checkpoints below.
+
+
 The user selected MiniMax FastH3 through Reactor for Reverse Prompt. This supersedes the Helios selection in the historical research. The first real independent capture passed in allocated slot `2026-09-12-reverse-001`; full live-game and physical-phone acceptance are still pending. Synthetic checks and the real capture are identified separately below.
 
 ## Provider contract and rationale
@@ -51,3 +54,11 @@ Allocated slot `2026-09-12-reverse-001` completed one real FastH3 attempt succes
 The prompt was “A red balloon floats past a blue tower.” Source124 frames, captured/encoded120,5.0s,24fps,1344×768, silent H.264/yuv420p,1,953,399 bytes. Startup7.051s, generated-ready10.460s and total16.490s. Frame metadata came from the generated event on this run. IDs/timestamps were absent; a zero timestamp span is not evidence of instantaneous delivery. Five sampled frames show the red balloon rising past a blue tower and no black opening. The complete file passed ffprobe and FFmpeg decode. This demonstrates an actual generated video, not synthetic fixtures or screenshots.
 
 [Sanitized trial evidence](evidence/2026-09-12-reverse-001.json) excludes attempt/session IDs, credentials and raw SDK logs. The private source log is `.local/reverse-live/2026-09-12-reverse-001.log`; preserved output is `.local/reverse-live/2026-09-12-reverse-001/video.mp4`, outside the startup-cleaned game media tree. Physical-phone playback, the three-video live game and a deliberately failed generation remain pending a separate coordinated allocation/device rehearsal.
+
+## Full relay attempt and stop
+
+The separate three-attempt slot `2026-09-12-reverse-002` failed on its first video. Exactly one attempt was consumed; the game stopped unscored before the B relay. The exact provider/capture failure is unknown because the running adapter retained diagnostics only in memory and the private SDK log contains startup information. No further call was made. Terminal provider GET closed the owned session; the canonical campaign has7 remaining,2 closed attempts and no unresolved session.
+
+Browser reset preserved the three-player room, then portal closure retired guest access. The live-enabled process was stopped and normal live-disabled8013 service restored. A released the slot and cancelled the two unused allocations. The user stopped further live-trial coordination. [Reverse002 evidence](evidence/2026-09-12-reverse-002.json) is a real unscored failure/cleanup result, not a completed live relay or forced-timeout result.
+
+The subsequent diagnostic change persists sanitized per-attempt outcomes in the existing quota ledger, including the last phase and available capture counts. Local tests verify persistence across a new `Quota` instance, rejection/cancellation/unknown-closure results, exclusion of private SDK exception text, and preservation of the original failure if diagnostic storage is unavailable. This makes a future authorized failure diagnosable without exposing player inputs in public errors. It neither identifies002's missing cause nor retries that attempt. No new live test was run.

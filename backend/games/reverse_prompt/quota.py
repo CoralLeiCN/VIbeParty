@@ -61,9 +61,31 @@ class Quota:
                     raise ValueError()
             if len({attempt["id"] for attempt in attempts}) != len(attempts):
                 raise ValueError()
-            if any(not attempt["closed"] for attempt in attempts[:-1]):
+            groups = {}
+            previous_group = None
+            for attempt in attempts:
+                group = attempt.get("session_attempt", attempt["id"])
+                if group not in groups:
+                    if group != attempt["id"]:
+                        raise ValueError()
+                    groups[group] = []
+                elif group != previous_group:
+                    raise ValueError()
+                groups[group].append(attempt)
+                previous_group = group
+            for group in groups.values():
+                if len(group) > 3 or any(
+                    item["session_id"] != group[0]["session_id"]
+                    or item["closed"] != group[0]["closed"]
+                    for item in group
+                ):
+                    raise ValueError()
+                if len(group) > 1 and not group[0]["session_id"]:
+                    raise ValueError()
+            open_groups = [group for group in groups.values() if not group[0]["closed"]]
+            if len(open_groups) > 1 or (open_groups and open_groups[0][-1] is not attempts[-1]):
                 raise ValueError()
-            if value["unresolved"] != bool(attempts and not attempts[-1]["closed"]):
+            if value["unresolved"] != bool(open_groups):
                 raise ValueError()
             return value
         except (OSError, ValueError, KeyError, TypeError) as exc:
@@ -101,33 +123,76 @@ class Quota:
                 {"version": 1, "limit": 9, "remaining": 9, "unresolved": False, "attempts": []}
             )
 
-    def consume(self) -> str:
+    def consume(self, session_attempt: str | None = None) -> str:
         with self.locked():
             value = self._read()
-            if value["unresolved"]:
+            group = None
+            if session_attempt is not None:
+                group = self._active_group(value, session_attempt)
+                if not group[0]["session_id"] or len(group) >= 3:
+                    raise GuardError("The current session cannot accept another clip.")
+            elif value["unresolved"]:
                 raise GuardError("Previous provider session needs operator closure verification.")
             if value["remaining"] <= 0:
                 raise GuardError("The live campaign has no attempts remaining.")
             attempt = secrets.token_hex(16)
             value["remaining"] -= 1
             value["unresolved"] = True
-            value["attempts"].append({"id": attempt, "session_id": None, "closed": False})
+            value["attempts"].append(
+                {
+                    "id": attempt,
+                    "session_attempt": group[0]["id"] if group else attempt,
+                    "session_id": group[0]["session_id"] if group else None,
+                    "closed": False,
+                }
+            )
             self._write(value)
             return attempt
 
     def session(self, attempt: str, session_id: str):
         with self.locked():
             value = self._read()
-            if not value["unresolved"] or value["attempts"][-1]["id"] != attempt:
-                raise GuardError("Attempt changed")
-            value["attempts"][-1]["session_id"] = session_id
+            group = self._active_group(value, attempt)
+            if not session_id or any(
+                item["session_id"] not in {None, session_id} for item in group
+            ):
+                raise GuardError("Provider session identity changed")
+            for item in group:
+                item["session_id"] = session_id
             self._write(value)
 
     def confirm_closed(self, attempt: str, evidence: str):
         with self.locked():
             value = self._read()
-            if value["attempts"][-1]["id"] != attempt or not evidence:
+            if not evidence:
                 raise GuardError("Attempt changed or closure evidence missing")
-            value["attempts"][-1].update(closed=True, closure=evidence)
+            group = self._active_group(value, attempt)
+            for item in group:
+                item.update(closed=True, closure=evidence)
+                if "evidence" in item:
+                    item["evidence"]["closed"] = True
             value["unresolved"] = False
             self._write(value)
+
+    def record_outcome(self, attempt: str, evidence: dict):
+        """Persist sanitized diagnostics without changing allowance or closure state."""
+        with self.locked():
+            value = self._read()
+            item = next((item for item in value["attempts"] if item["id"] == attempt), None)
+            if item is None:
+                raise GuardError("Attempt changed")
+            item["evidence"] = {**evidence, "closed": item["closed"]}
+            self._write(value)
+
+    @staticmethod
+    def _active_group(value, attempt):
+        if not value["unresolved"] or not value["attempts"]:
+            raise GuardError("No active provider session")
+        latest = value["attempts"][-1]
+        root = latest.get("session_attempt", latest["id"])
+        group = [
+            item for item in value["attempts"] if item.get("session_attempt", item["id"]) == root
+        ]
+        if attempt not in {item["id"] for item in group}:
+            raise GuardError("Attempt changed")
+        return group

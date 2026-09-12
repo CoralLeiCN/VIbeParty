@@ -1,0 +1,30 @@
+{
+  "slot": "2026-09-12-reverse-002",
+  "model": "reactor/fast-h3",
+  "purpose": "three-player live relay",
+  "outcome": "first generation failed; round unscored",
+  "paid_attempts_in_slot": 1,
+  "unused_allocations_cancelled": 2,
+  "campaign_attempts": 2,
+  "campaign_closed_attempts": 2,
+  "remaining": 7,
+  "unresolved": false,
+  "closure_proof": "terminal provider GET",
+  "session_identity_recorded_privately": true,
+  "exact_failure_cause": "unknown; diagnostic details were not persisted",
+  "valid_video_saved": false,
+  "full_relay_passed": false,
+  "forced_failure_trial": false,
+  "browser_checks": [
+    "Exactly three players admitted on localhost, LAN and 127.0.0.1 HTTP origins",
+    "Host submitted the original prompt once",
+    "All three players saw the generic unscored generation failure",
+    "No B or C clue, final guess, score or reveal was reached",
+    "Confirmed reset returned to the same room and three-player roster",
+    "Host closed the party through the portal; guest saw party-ended recovery"
+  ],
+  "live_generation_disabled_after_cleanup": true,
+  "further_live_trial_coordination": "stopped at user request",
+  "synthetic": false,
+  "actual_spend": "unmeasured"
+}

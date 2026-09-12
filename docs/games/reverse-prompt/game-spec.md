@@ -2,7 +2,7 @@
 
 [All docs](../../README.md) · [Technical stack](tech-stack.md) · [Simplification](simplification.md) · [Research](../../research/reverse-prompt/README.md)
 
-Version: 2.1 demo scope. Updated: 12 September 2026. Status: proposed, not implemented.
+Version: 2.2 demo scope. Updated: 12 September 2026. Status: implemented with one FastH3 session per round and 30-second relay turns; full live relay and physical-phone acceptance remain open.
 
 Build one complete, presenter-led game for **exactly three people in one private room**. This is the current source of truth for Reverse Prompt. The [app specification](../../app-spec.md) defines the wider product boundaries. See the [tech stack](tech-stack.md), [before and after](simplification.md), and [archived original spec](archive/game-spec-v1.md).
 
@@ -25,8 +25,8 @@ Run the app locally on the host laptop. All players open its HTTP LAN address on
 | Round | `P0 → V0 → P1 → V1 → P2 → V2 → final guesses → reveal` |
 | Clip | Five seconds, landscape, silent, tap-to-play and replay |
 | Input | 1–300 Unicode code points and within the local model's token limit; English; plain text |
-| Input timing | No countdowns; submit at your own pace; presenter nudges or resets |
-| Generation | One attempt per video; 90-second application deadline; no automatic retry |
+| Input timing | B and C each have 30 seconds to watch and describe their private clue; author input and final guesses are untimed |
+| Generation | Three independent clips in one retained FastH3 session; one attempt per video, 90 seconds per generation, 345-second round watchdog and 360-second provider cap; no automatic retry |
 | Scoring | One local Sentence Transformers batch after both guesses; 15-second deadline |
 | Replay | Host resets to lobby; same players and roles; new round ID |
 | Recovery | Browser refresh restores identity while the server is running; server restart loses the round |
@@ -38,8 +38,8 @@ These are demo defaults, not provider speed promises. Target a roughly three-to-
 
 1. **Join.** The presenter creates a room using the configured organizer code and a display name. Two guests enter the displayed four-digit room code following the [shared standard](../../shared/room-code-spec.md), including leading zeros, and names at the laptop's LAN URL. The lobby lists A, B, and C. Names are 1–24 characters; duplicate names receive visible suffixes. Start is enabled with three registered players, available generation capacity, and the local scoring model loaded. The presenter confirms everyone is looking at their phone; no player readiness system is needed.
 2. **Original.** A writes `P0`, for example “A tiny astronaut pours tea for a giant frog.” B and C see whose turn it is. A successful submission is final. Generate `V0` using only `P0` and the fixed rendering instruction.
-3. **First interpretation.** Only B can retrieve and replay `V0`. B describes what they see as `P1`. Generate `V1` using only `P1` and the same instruction, in a fresh provider session.
-4. **Second interpretation.** Only C can retrieve and replay `V1`. C submits `P2`. Generate `V2` independently from `P2`.
+3. **First interpretation.** Only B can retrieve and replay `V0`. B has 30 seconds from publication of the clue to watch and submit `P1`. Generate `V1` using only `P1` and the same instruction in the retained provider session, omitting continuation and starting-frame inputs.
+4. **Second interpretation.** Only C can retrieve and replay `V1`. C has a new 30-second turn to watch and submit `P2`. Generate `V2` independently from `P2` in the same session. Close and independently verify the session before publishing `V2` for guessing.
 5. **Guess.** All three see `V2`. B and C each submit a separate final guess of `P0`. C may copy their own interpretation into the guess field, but must explicitly submit it. A sees “Author — unscored.” Guesses stay private until both are accepted.
 6. **Score and reveal.** Compare both guesses with the exact accepted original prompt. Display the original, three ordered prompt/video cards with player names, both final guesses, scores, and the winner or tie. Reveal cards can be replayed individually; no exported recap video is required.
 7. **Reset.** Host returns to the lobby after results or stops an incomplete round. Reset clears round content and files after active work stops. It keeps the roster and roles, and never replenishes the session quota. A server restart creates a fresh lobby and requires everyone to join again.
@@ -53,7 +53,7 @@ Use one responsive page that renders the current phase. Large buttons, labelled 
 | Lobby | Names, join code, short rules; host Start | Same lobby without host controls |
 | Author input | A: original prompt editor | “Waiting for A to write the first scene” |
 | Generating | Accepted status, whose clip is being made, elapsed time | Public progress only |
-| Relay input | B or C: assigned clip and description editor | “Waiting for B/C to describe their video” |
+| Relay input | B or C: assigned clip, description editor and remaining seconds | “Waiting for B/C to describe their video” |
 | Guessing | B/C: final clip and guess editor; A: final clip | Submission counts, never another guess |
 | Scoring | Final clip and “Comparing guesses” | Same |
 | Reveal | Entire ordered chain, guesses, scores | Same |
@@ -82,6 +82,7 @@ If local inference fails, times out, or returns invalid vectors, reveal the comp
 
 ## 6. Failure and demo operation
 
+- A relay turn starts when the server publishes its private clue. Refresh preserves the deadline; late submissions are rejected even before the timer callback runs. Expiry stops the round unscored and closes the retained session. Never submit a draft automatically.
 - Any generation failure, timeout, provider rejection, or unusable video ends the round unscored on the error screen. No skipped relay steps, paid retries, or automatic fixture substitution. The host can reset once session cleanup permits it.
 - A browser refresh fetches current authorized state. A lost cookie, closed device, or absent host is handled by the presenter restarting the demo; no account recovery or host migration.
 - Host Reset stops the round without exposing unfinished private content. If provider termination cannot be confirmed, block further generation until the operator resolves it. A new room or server restart cannot bypass the quota or this block.
@@ -94,12 +95,12 @@ If local inference fails, times out, or returns invalid vectors, reveal the comp
 | ID | Pass condition |
 | --- | --- |
 | DEMO-01 | Three browser sessions join one room; a fourth is rejected; only the host can start/reset. |
-| DEMO-02 | One round creates exactly three independent Reactor videos from the three accepted prompts. |
+| DEMO-02 | One round creates exactly three independent Reactor videos in one session from the three accepted prompts, without continuation or starting-frame inputs. |
 | DEMO-03 | B alone can fetch `V0` on their turn, C alone can fetch `V1` on theirs; unauthorized snapshots and media/range requests reveal nothing private. |
 | DEMO-04 | Both guesses compare locally with `P0` using the preloaded Sentence Transformers model, without scoring-network access; token-limit rejection, ties, exact matches, and score failures work; A cannot guess. |
 | DEMO-05 | Duplicate clicks create one submission/session; a late callback or command after reset cannot alter the next round. |
-| DEMO-06 | Refresh restores the right phase; a backend restart loses the round but preserves the generation quota and unresolved-session block. |
+| DEMO-06 | Refresh restores the right phase and remaining relay time; a backend restart loses the round but preserves the generation quota and unresolved-session block. |
 | DEMO-07 | Videos play/replay on the actual demo phones; reveal presents all three prompt/video pairs in order. |
-| DEMO-08 | A generation timeout stops the round and initiates termination; provider cap and quota are verified before the event. |
+| DEMO-08 | A generation timeout, relay expiry or whole-round deadline stops unscored and initiates termination; provider cap and quota are verified before the event. |
 
 Ship after a complete live three-player rehearsal and one deliberately failed generation. VEED, animations, and any post-hackathon feature are optional after these pass.

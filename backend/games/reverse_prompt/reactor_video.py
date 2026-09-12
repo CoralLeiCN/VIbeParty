@@ -1,4 +1,4 @@
-"""One fresh MiniMax FastH3 session per prompt, with independently proven closure."""
+"""Independent MiniMax FastH3 clips in one bounded round session."""
 
 import asyncio
 import time
@@ -9,7 +9,7 @@ import httpx
 
 from .frame_capture import FrameCapture
 from .media import validate
-from .quota import Quota
+from .quota import GuardError, Quota
 
 API = "https://api.reactor.inc"
 MODEL = "reactor/fast-h3"
@@ -159,144 +159,281 @@ async def terminal(client, jwt: str, session_id: str) -> bool:
 
 
 class FastH3Provider:
+    """One creator session for up to three independent clips in one round."""
+
+    SESSION_SECONDS = 360
+
     def __init__(self, key: str, quota: Quota):
         self.key = key
         self.quota = quota
         self.last_evidence: dict = {}
+        self.lock = asyncio.Lock()
+        self.reactor = None
+        self.jwt = None
+        self.sid = None
+        self.session_attempt = None
+        self.sid_tasks = []
+        self.playback = None
+        self.retired_ids = set()
+        self.next_step = 0
+        self.failure = None
 
-    async def generate(self, prompt: str, directory: Path, step: int) -> Path:
+    def _fail(self):
+        self.last_evidence["session_error"] = "Provider session failed"
+        if self.failure is not None and not self.failure.done():
+            self.failure.set_result(None)
+        if self.playback is not None:
+            self.playback.fail("Provider session failed")
+
+    def _message(self, message):
+        # Finished clips can send late boundary events while the next one is queued.
+        if isinstance(message, dict) and message.get("type") in {
+            "clip_generated",
+            "clip_started",
+            "clip_finished",
+            "clip_stopped",
+            "clip_failed",
+        }:
+            try:
+                if clip_info(message)["clip_id"] in self.retired_ids:
+                    return
+            except GenerationError:
+                self._fail()
+                return
+        if self.playback is not None:
+            self.playback.message(message)
+        elif isinstance(message, dict) and message.get("type") in {
+            "error",
+            "command_error",
+            "clip_failed",
+            "clip_started",
+        }:
+            self._fail()
+
+    def _frame(self, *args):
+        playback = self.playback
+        if playback is not None:
+            playback.capture.on_frame(*args)
+
+    def _session(self, value):
+        if value:
+            if self.sid and value != self.sid:
+                self._fail()
+                return
+            self.sid = value
+            self.sid_tasks.append(
+                asyncio.create_task(
+                    asyncio.to_thread(self.quota.session, self.session_attempt, value)
+                )
+            )
+
+    async def wait_failure(self):
+        if self.failure is None:
+            raise GenerationError("Provider session is not active")
+        await asyncio.shield(self.failure)
+        raise GenerationError("Provider session failed")
+
+    async def _connect(self, client, playback):
         from reactor_sdk import Reactor
 
+        self.last_evidence["phase"] = "token"
+        response = await client.post(
+            API + "/tokens",
+            headers={"Reactor-API-Key": self.key},
+            json={
+                "authorization_details": [
+                    {
+                        "type": "session",
+                        "resources": {"models": {"match": [MODEL]}},
+                        "constraints": {
+                            "max_sessions": 1,
+                            "max_session_duration_seconds": self.SESSION_SECONDS,
+                        },
+                    }
+                ]
+            },
+        )
+        response.raise_for_status()
+        self.jwt = response.json()["jwt"]
+        if not isinstance(self.jwt, str) or not self.jwt:
+            raise GenerationError("Missing provider token")
+        self.reactor = Reactor(model_name=MODEL, jwt=self.jwt)
+        self.reactor.on("session_id_changed", self._session)
+        self.reactor.on("message", self._message)
+        self.reactor.on("error", lambda _error: self._fail())
+        self.reactor.track("main_video").on_raw_frame(self._frame)
+        self.last_evidence["phase"] = "connect"
+        await self.reactor.connect()
+        self.last_evidence["connected"] = True
+        self.sid = self.sid or self.reactor.session_id
+        if not self.sid:
+            raise GenerationError("No provider session identity")
+        await asyncio.to_thread(self.quota.session, self.session_attempt, self.sid)
+        if self.sid_tasks:
+            await asyncio.gather(*self.sid_tasks)
+        for name, data, ack in (
+            ("set_autoplay", {"enabled": False}, "autoplay_accepted"),
+            ("set_canvas", {"aspect": "16:9"}, "canvas_accepted"),
+            ("set_flush_on_clip_end", {"enabled": True}, "flush_accepted"),
+        ):
+            self.last_evidence["phase"] = name
+            await playback.command(self.reactor, name, data, ack)
+
+    async def generate(self, prompt: str, directory: Path, step: int) -> Path:
+        async with self.lock:
+            return await self._generate(prompt, directory, step)
+
+    async def _generate(self, prompt: str, directory: Path, step: int) -> Path:
+        if step != self.next_step or step not in {0, 1, 2}:
+            raise GenerationError("Unexpected relay step")
+        if step and (self.reactor is None or self.failure.done()):
+            raise GenerationError("Provider session is not available")
         directory.mkdir(parents=True, exist_ok=True)
         output = directory / "video.mp4"
         started = time.monotonic()
-        attempt = await asyncio.to_thread(self.quota.consume)
-        self.last_evidence = {"attempt": attempt, "closed": False, "model": MODEL}
-        reactor = None
-        jwt = None
-        sid = None
-        connected = False
-        published = False
-        sid_tasks = []
+        attempt = await asyncio.to_thread(self.quota.consume, self.session_attempt)
+        if step == 0:
+            self.session_attempt = attempt
+            self.failure = asyncio.get_running_loop().create_future()
+        self.last_evidence = {
+            "attempt": attempt,
+            "closed": False,
+            "model": MODEL,
+            "step": step,
+            "session_reused": step > 0,
+            "connected": step > 0,
+        }
         capture = FrameCapture(expected_dimensions=(1344, 768))
         playback = ClipPlayback(capture)
+        self.playback = playback
         capture_task = None
-
-        def on_session(value):
-            nonlocal sid
-            if value:
-                sid = value
-                sid_tasks.append(
-                    asyncio.create_task(asyncio.to_thread(self.quota.session, attempt, value))
+        published = False
+        try:
+            async with asyncio.timeout(90):
+                if step == 0:
+                    async with httpx.AsyncClient(timeout=10, follow_redirects=False) as client:
+                        await self._connect(client, playback)
+                self.last_evidence["startup_seconds"] = round(time.monotonic() - started, 3)
+                self.last_evidence["phase"] = "enqueue"
+                # Every clip uses only its own text. Continuation and image inputs are omitted.
+                reply = await playback.command(
+                    self.reactor,
+                    "enqueue",
+                    {
+                        "prompt": prompt + "\n\n" + INSTRUCTION,
+                        "seconds": SOURCE_SECONDS,
+                        "metadata": attempt,
+                    },
+                    "clip_queued",
                 )
-
-        async with httpx.AsyncClient(timeout=10, follow_redirects=False) as client:
-            try:
-                async with asyncio.timeout(90):
-                    response = await client.post(
-                        API + "/tokens",
-                        headers={"Reactor-API-Key": self.key},
-                        json={
-                            "authorization_details": [
-                                {
-                                    "type": "session",
-                                    "resources": {"models": {"match": [MODEL]}},
-                                    "constraints": {
-                                        "max_sessions": 1,
-                                        "max_session_duration_seconds": 90,
-                                    },
-                                }
-                            ]
-                        },
-                    )
-                    response.raise_for_status()
-                    jwt = response.json()["jwt"]
-                    if not isinstance(jwt, str) or not jwt:
-                        raise GenerationError("Missing provider token")
-                    reactor = Reactor(model_name=MODEL, jwt=jwt)
-                    reactor.on("session_id_changed", on_session)
-                    reactor.on("message", playback.message)
-                    reactor.on("error", lambda _error: playback.fail("Provider session failed"))
-                    reactor.track("main_video").on_raw_frame(capture.on_frame)
-                    await reactor.connect()
-                    connected = True
-                    sid = sid or reactor.session_id
-                    if not sid:
-                        raise GenerationError("No provider session identity")
-                    await asyncio.to_thread(self.quota.session, attempt, sid)
-                    if sid_tasks:
-                        await asyncio.gather(*sid_tasks)
-                    for name, data, ack in (
-                        ("set_autoplay", {"enabled": False}, "autoplay_accepted"),
-                        ("set_canvas", {"aspect": "16:9"}, "canvas_accepted"),
-                        ("set_flush_on_clip_end", {"enabled": True}, "flush_accepted"),
-                    ):
-                        await playback.command(reactor, name, data, ack)
-                    self.last_evidence["startup_seconds"] = round(time.monotonic() - started, 3)
-                    # A fresh session and text-only request give each relay its own scene.
-                    reply = await playback.command(
-                        reactor,
-                        "enqueue",
-                        {
-                            "prompt": prompt + "\n\n" + INSTRUCTION,
-                            "seconds": SOURCE_SECONDS,
-                            "metadata": attempt,
-                        },
-                        "clip_queued",
-                    )
-                    queued = clip_info(reply)
-                    if queued.get("metadata", attempt) != attempt:
-                        raise GenerationError("Provider acknowledged a different clip")
-                    source_frames(queued)
-                    metadata_source = await playback.ready(reactor, queued)
-                    self.last_evidence.update(
-                        frame_metadata_source=metadata_source,
-                        source_frames=SOURCE_FRAMES,
-                        source_seconds=SOURCE_FRAMES / 24,
-                        generated_seconds=round(time.monotonic() - started, 3),
-                    )
-                    capture_task = asyncio.create_task(capture.record(output))
-                    playback.play_requested = True
-                    # Capture starts only on this clip's matching clip_started event.
-                    await playback.command(reactor, "play", {"clip_id": queued["clip_id"]})
-                    await playback.wait(capture_task)
-                    # End GPU use as soon as 120 frames of the ready clip are saved.
-                    await self._close(reactor, client, jwt, sid, attempt)
-                    reactor.close()
-                    reactor = None
-                    metadata = await validate(output)
-                    self.last_evidence.update(metadata, **capture.evidence())
-                    published = True
-                    return output
-            finally:
-                capture.stop()
-                if capture_task is not None:
-                    if not capture_task.done():
-                        capture_task.cancel()
-                    await asyncio.gather(capture_task, return_exceptions=True)
-                if reactor is not None:
-                    try:
-                        await self._close(reactor, client, jwt, sid, attempt)
-                    except (Exception, asyncio.CancelledError):
-                        pass  # Uncertain closure deliberately retains the persistent guard.
-                    reactor.close()
-                if sid_tasks:
-                    await asyncio.gather(*sid_tasks, return_exceptions=True)
-                if not published:
-                    output.unlink(missing_ok=True)
+                queued = clip_info(reply)
+                if (
+                    queued["clip_id"] in self.retired_ids
+                    or queued.get("metadata", attempt) != attempt
+                ):
+                    raise GenerationError("Provider acknowledged a different clip")
+                source_frames(queued)
+                self.last_evidence["phase"] = "wait_generated"
+                metadata_source = await playback.ready(self.reactor, queued)
                 self.last_evidence.update(
-                    connected=connected,
-                    playback_started=playback.started,
-                    total_seconds=round(time.monotonic() - started, 3),
-                    **capture.evidence(),
+                    frame_metadata_source=metadata_source,
+                    source_frames=SOURCE_FRAMES,
+                    source_seconds=SOURCE_FRAMES / 24,
+                    generated_seconds=round(time.monotonic() - started, 3),
                 )
+                capture_task = asyncio.create_task(capture.record(output))
+                playback.play_requested = True
+                self.last_evidence["phase"] = "play"
+                await playback.command(self.reactor, "play", {"clip_id": queued["clip_id"]})
+                self.last_evidence["phase"] = "capture"
+                await playback.wait(capture_task)
+                # Stop the remaining source frames before another player's input begins.
+                self.last_evidence["phase"] = "stop_playback"
+                await playback.command(self.reactor, "stop", {})
+                self.last_evidence["phase"] = "validate"
+                metadata = await validate(output)
+                self.last_evidence.update(metadata, **capture.evidence())
+                self.next_step += 1
+                published = True
+                self.last_evidence.update(phase="saved", outcome="saved")
+                return output
+        except asyncio.CancelledError:
+            self.last_evidence["outcome"] = "cancelled"
+            raise
+        except Exception as error:
+            self.last_evidence.update(outcome="failed", failure_category=type(error).__name__)
+            if isinstance(error, GenerationError):
+                self.last_evidence["failure_reason"] = str(error)
+            raise
+        finally:
+            capture.stop()
+            self.playback = None
+            if playback.clip_id:
+                self.retired_ids.add(playback.clip_id)
+            if capture_task is not None:
+                if not capture_task.done():
+                    capture_task.cancel()
+                await asyncio.gather(capture_task, return_exceptions=True)
+            if not published:
+                try:
+                    await self._close_owned()
+                except (Exception, asyncio.CancelledError):
+                    pass  # Uncertain closure retains the persistent guard.
+                output.unlink(missing_ok=True)
+            self.last_evidence.update(
+                playback_started=playback.started,
+                total_seconds=round(time.monotonic() - started, 3),
+                **capture.evidence(),
+            )
+            if capture.error is not None:
+                self.last_evidence["capture_error"] = str(capture.error)
+            await self._record_evidence(attempt)
+
+    async def _record_evidence(self, attempt):
+        try:
+            await asyncio.to_thread(
+                self.quota.record_outcome,
+                attempt,
+                {key: value for key, value in self.last_evidence.items() if key != "attempt"},
+            )
+        except GuardError:
+            self.last_evidence["diagnostics_unavailable"] = True
+
+    async def close(self):
+        async with self.lock:
+            try:
+                await self._close_owned()
+            finally:
+                if "attempt" in self.last_evidence:
+                    await self._record_evidence(self.last_evidence["attempt"])
+
+    async def _close_owned(self):
+        if self.session_attempt is None:
+            return
+        try:
+            if self.sid_tasks:
+                # A failed ledger write must not prevent terminating the actual session.
+                await asyncio.gather(*self.sid_tasks, return_exceptions=True)
+            async with httpx.AsyncClient(timeout=10, follow_redirects=False) as client:
+                await self._close(self.reactor, client, self.jwt, self.sid, self.session_attempt)
+            self.last_evidence["closed"] = True
+            self.session_attempt = None
+            self.next_step = 0
+            self.retired_ids.clear()
+            self.sid_tasks.clear()
+            self.sid = self.jwt = None
+        finally:
+            if self.reactor is not None:
+                self.reactor.close()
+                self.reactor = None
 
     async def _close(self, reactor, client, jwt, sid, attempt):
         async with asyncio.timeout(12):
-            try:
-                await asyncio.wait_for(reactor.disconnect(), timeout=5)
-            except Exception:
-                pass
+            if reactor is not None:
+                try:
+                    await asyncio.wait_for(reactor.disconnect(), timeout=5)
+                except Exception:
+                    pass
             if not sid or not jwt:
                 raise GenerationError("Session closure needs operator verification")
             if not await terminal(client, jwt, sid):

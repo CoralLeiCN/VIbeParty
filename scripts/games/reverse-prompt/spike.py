@@ -32,6 +32,10 @@ async def run():
     except Exception as error:
         print(json.dumps({"result": "failed", "category": type(error).__name__}))
     finally:
+        try:
+            await provider.close()
+        except Exception as error:
+            print(json.dumps({"cleanup": "unresolved", "category": type(error).__name__}))
         print(
             json.dumps(
                 {

@@ -1,6 +1,9 @@
 # Laptop verification — 12 September 2026
 
-This record separates working local behavior from unverified live acceptance. The first allocated real FastH3 capture passed in slot `2026-09-12-reverse-001`: one attempt,5s1344×768 MP4,16.49s total and independently confirmed terminal closure. A initialized the one shared nine-attempt campaign;8 remain. See the [current switch evidence](fasth3-switch.md#first-real-capture). Historical no-trial statements below describe prior checkpoints.
+**Latest local verification:** the [retained-session change](session-reuse.md) adds30-second B/C timers and one session per round. Timed fixture browser completion, refresh, expiry and cleanup pass; these checks are separate from the earlier real separate-session trials below. The original quota file is currently unavailable after integration-worktree removal; its previous seven-attempt balance is historical evidence.
+
+
+This record separates working local behavior from unverified live acceptance. The first allocated real FastH3 capture passed in slot `2026-09-12-reverse-001`: one attempt,5s1344×768 MP4,16.49s total and independently confirmed terminal closure. A initialized the one shared nine-attempt campaign. The subsequent full relay failed on its first generation in002, leaving7 attempts; both consumed sessions are independently closed and unresolved=false. The user stopped further live-trial coordination. The full relay remains unverified. See the [current switch evidence](fasth3-switch.md#first-real-capture). Historical no-trial statements below describe prior checkpoints.
 
 ## Current provider: MiniMax FastH3
 
@@ -66,3 +69,9 @@ Organizer-admission follow-up `74e1150`: 30 Reverse Prompt/shared tests pass (23
 | DEMO-06 | Browser refresh and real backend restart; persistent quota and startup blocker tests | Operator crash reconciliation on actual live campaign |
 | DEMO-07 | Browser five-second H.264 decode/play/replay; three cards in order | Actual demo phone playback |
 | DEMO-08 | Forced provider-fake timeout initiates cleanup and ends unscored; native disconnect failure test | Real forced generation failure, account cap/quota verification |
+
+## Full live relay attempt stopped unscored
+
+Slot `2026-09-12-reverse-002` consumed one of its three allocated attempts. A submitted once in a three-player HTTP room; the first video failed and all players saw the unscored failure. No relay clue, final guess, score or reveal was reached. The exact failure cause is unknown; the old adapter did not persist its in-memory diagnostics. Independent terminal provider GET cleared the canonical guard;7 remain,2 attempts closed, no unresolved session. The unused two allocations were cancelled.
+
+Browser cleanup verified host-confirmed reset to the same three-player room, portal Close party and guest party-ended recovery. Live generation is disabled again. This adds real failure/cleanup evidence, but does not pass the full relay or deliberate timeout/provider-cap gate. Further live-trial coordination stopped at the user's request. [Sanitized002 evidence](evidence/2026-09-12-reverse-002.json).

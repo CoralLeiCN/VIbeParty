@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { apiPost, ApiError } from "../../shared/api";
@@ -49,7 +49,37 @@ function Clip({ media, label }: { media: Media; label: string }) {
     </figure>
   );
 }
-function Input({ state, refresh }: { state: Snapshot; refresh: () => void }) {
+function useRelaySeconds(remaining: number | null) {
+  const [clock, setClock] = useState({
+    remaining,
+    seconds: Math.ceil((remaining ?? 0) / 1000),
+  });
+  useEffect(() => {
+    if (remaining === null) return;
+    const deadline = performance.now() + remaining;
+    const timer = window.setInterval(() => {
+      setClock({
+        remaining,
+        seconds: Math.max(0, Math.ceil((deadline - performance.now()) / 1000)),
+      });
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [remaining]);
+  return remaining === null
+    ? null
+    : clock.remaining === remaining
+      ? clock.seconds
+      : Math.ceil(remaining / 1000);
+}
+function Input({
+  state,
+  refresh,
+  expired,
+}: {
+  state: Snapshot;
+  refresh: () => void;
+  expired: boolean;
+}) {
   const [text, setText] = useState(state.scripted_text ?? "");
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
@@ -59,7 +89,7 @@ function Input({ state, refresh }: { state: Snapshot; refresh: () => void }) {
   const count = [...text].length;
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (status === "submitting" || accepted) return;
+    if (status === "submitting" || accepted || expired) return;
     const normalized = text.normalize("NFC").trim();
     if (!pending.current || pending.current.text !== normalized)
       pending.current = { text: normalized, id: uuid() };
@@ -106,7 +136,9 @@ function Input({ state, refresh }: { state: Snapshot; refresh: () => void }) {
       <p>
         {guessing
           ? "Both interpreters submit a separate guess. Take your time."
-          : "One clear English scene. Your accepted words are final. Take your time."}
+          : state.phase === "relay_input"
+            ? "Watch your private clue and send your description before the 30-second turn ends."
+            : "One clear English scene. Your accepted words are final. Take your time."}
       </p>
       <textarea
         id="scene-text"
@@ -114,7 +146,7 @@ function Input({ state, refresh }: { state: Snapshot; refresh: () => void }) {
         onChange={(e) => setText(e.target.value)}
         rows={4}
         readOnly={state.mode === "rehearsal"}
-        disabled={status === "submitting"}
+        disabled={status === "submitting" || expired}
         aria-describedby="text-count"
         placeholder="A tiny astronaut pours tea for a giant frog…"
       />
@@ -144,7 +176,11 @@ function Input({ state, refresh }: { state: Snapshot; refresh: () => void }) {
           {error}
         </p>
       )}
-      <button disabled={status === "submitting" || !text.trim() || count > 300}>
+      <button
+        disabled={
+          status === "submitting" || expired || !text.trim() || count > 300
+        }
+      >
         {status === "submitting"
           ? "Submitting…"
           : guessing
@@ -232,8 +268,9 @@ function Entry({ entry, refresh }: GameEntryProps & { refresh: () => void }) {
               </option>
             </select>
             <p className={s.note}>
-              MiniMax FastH3 generates your videos through Reactor. Final guesses are compared locally.
-              Live play requires the operator’s allocated trial slot.
+              MiniMax FastH3 generates your videos through Reactor. Final
+              guesses are compared locally. Live play requires the operator’s
+              allocated trial slot.
             </p>
           </>
         ) : (
@@ -274,6 +311,7 @@ function RoundView({
   const [error, setError] = useState("");
   const [confirm, setConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
+  const relaySeconds = useRelaySeconds(state.relay_remaining_ms);
   const active = "ABC"[state.step];
   const who = state.players.find((p) => p.role === active)?.name;
   const input =
@@ -338,7 +376,10 @@ function RoundView({
               A writes the original. B and C each see one private clue. Everyone
               watches the final video, then B and C guess the original.
             </p>
-            <p>No countdowns. Your presenter will guide the room.</p>
+            <p>
+              B and C each have 30 seconds to watch and describe their private
+              clue. The original scene and final guesses have no countdown.
+            </p>
             <div className={s.join}>
               <strong>{state.players.length} / 3 players</strong>
               <button className={s.secondary} onClick={copy}>
@@ -347,8 +388,8 @@ function RoundView({
               <a href={state.join_url}>{state.join_url}</a>
             </div>
             <p className={s.note}>
-              MiniMax FastH3 makes each live scene through Reactor. Final guesses stay
-              on the laptop for local comparison.
+              MiniMax FastH3 makes each live scene through Reactor. Final
+              guesses stay on the laptop for local comparison.
             </p>
             {state.start_blocked && (
               <p className={s.error} role="status">
@@ -378,11 +419,26 @@ function RoundView({
             }
           />
         )}
+        {state.phase === "relay_input" && relaySeconds !== null && (
+          <div
+            className={s.timer}
+            role="timer"
+            aria-label="Relay time remaining"
+          >
+            <strong>{relaySeconds}s</strong>
+            <span>
+              {relaySeconds > 0
+                ? `${active}’s turn · watch and describe`
+                : "Time is up · waiting for the host laptop"}
+            </span>
+          </div>
+        )}
         {input && (
           <Input
             key={`${state.round_id}:${state.phase}:${state.step}`}
             state={state}
             refresh={refresh}
+            expired={state.phase === "relay_input" && relaySeconds === 0}
           />
         )}
         {["author_input", "relay_input"].includes(state.phase) && !input && (
@@ -567,9 +623,13 @@ export function GameRoute({ entry }: GameEntryProps) {
           </button>
         </div>
       )}
-      {expired && poll.error instanceof ApiError && poll.error.code === "session_expired" && (
-        <p className={s.error} role="status">This party has ended. Create or join a new party with your host.</p>
-      )}
+      {expired &&
+        poll.error instanceof ApiError &&
+        poll.error.code === "session_expired" && (
+          <p className={s.error} role="status">
+            This party has ended. Create or join a new party with your host.
+          </p>
+        )}
       {!state && poll.loading ? (
         <p role="status">Finding your party…</p>
       ) : state ? (

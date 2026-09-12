@@ -13,7 +13,7 @@ bash scripts/demo.sh      # one worker, no reload; frontend + API on :8000
 
 The demo builds the frontend before starting. Stop development before using the same API port. Override `BACKEND_PORT`, `FRONTEND_PORT`, `BROWSER_ORIGIN`, `PUBLIC_ORIGIN` in the process environment or root `.env`; use `API_PROXY_TARGET` only for an explicit proxy override. For B/C/D development use ports 8011/5174, 8012/5175, 8013/5176 respectively. The dev command defaults its browser origin to the frontend port. Export BROWSER_ORIGIN for a different development hostname. For the demo set both origins to `http://<laptop-LAN-IP>:8000`. No secret uses a VITE_ variable.
 
-Relative private media paths resolve against this worktree: `<MEDIA_ROOT>/<game-id>/clips`. Persistent Reverse Prompt quota and model paths are outside media, allocated deliberately and preserved across cleanup/restarts. A new worktree does not replenish the shared account allowance. Dependency lockfiles are shared-owner files; request updates through the handoff.
+Relative private media paths resolve against this worktree: `<MEDIA_ROOT>/<game-id>/clips`. Persistent Reverse Prompt quota and model paths are outside media, allocated deliberately and preserved across cleanup/restarts. A new worktree does not replenish the shared account allowance. The original Reverse Prompt campaign record was lost when integration worktree `5a4f` was removed; live mode remains blocked until that record is restored to durable storage. Do not initialize a replacement allowance. See the [current handoff](development/handoffs/reverse-prompt.md). Dependency lockfiles are shared-owner files; request updates through the handoff.
 
 ## Local target for the portal and all games
 

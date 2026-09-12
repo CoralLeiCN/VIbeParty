@@ -37,6 +37,9 @@ class Provider:
         self.wait = None
         self.fail = False
         self.stopped = False
+        self.closes = 0
+        self.failure = asyncio.Event()
+        self.close_error = False
 
     async def generate(self, prompt, directory, step):
         self.calls.append((prompt, step))
@@ -48,6 +51,16 @@ class Provider:
             return FIXTURES / f"scene-{step}.mp4"
         finally:
             self.stopped = True
+
+    async def close(self):
+        self.stopped = True
+        self.closes += 1
+        if self.close_error:
+            raise RuntimeError("private closure details")
+
+    async def wait_failure(self):
+        await self.failure.wait()
+        raise RuntimeError("private provider failure")
 
 
 @pytest.fixture
@@ -408,3 +421,93 @@ async def test_startup_invalidates_sessions_but_preserves_guard(clients):
 
 def GAME_BLOCKED(game):
     return "reverse-prompt" in game.context.parties.blockers
+
+
+async def test_relay_deadline_survives_refresh_rejects_late_input_and_revokes_media(clients):
+    import time
+
+    game, provider, _ = clients
+    a, b, _, _ = await party(clients)
+    game.relay_seconds = 0.15
+    await a.post(BASE + "/start", json={"round_id": game.room.round.id})
+    author = await snapshot(a)
+    assert author["relay_remaining_ms"] is None
+    await send(a, author, PROMPTS[0])
+    await advance(game)
+    state = await snapshot(b)
+    assert 0 < state["relay_remaining_ms"] <= 150 and provider.closes == 0
+    clue = state["media"][0]["url"]
+    await asyncio.sleep(0.01)
+    assert (await snapshot(b))["relay_remaining_ms"] < state["relay_remaining_ms"]
+    # Even before the timer task runs, the server refuses an expired submission.
+    game.room.round.relay_deadline = time.monotonic() - 1
+    assert (await send(b, state, PROMPTS[1])).status_code == 409
+    await game.relay_watch
+    ended = await snapshot(b)
+    assert ended["phase"] == "error" and ended["unscored"]
+    assert ended["relay_remaining_ms"] is None and not ended["media"]
+    assert (await b.get(clue, headers={"Range": "bytes=0-31"})).status_code == 404
+    assert provider.closes == 1 and len(provider.calls) == 1
+    await a.post(BASE + "/reset", json={"round_id": ended["round_id"]})
+    await game.cleanup
+    lobby = await snapshot(a)
+    assert lobby["phase"] == "lobby" and len(lobby["players"]) == 3
+    assert (await send(b, state, PROMPTS[1])).status_code == 409
+
+
+async def test_reset_during_thinking_closes_session_and_cancels_old_deadline(clients):
+    game, provider, _ = clients
+    a, *_ = await party(clients)
+    game.relay_seconds = 0.04
+    await a.post(BASE + "/start", json={"round_id": game.room.round.id})
+    await send(a, await snapshot(a), PROMPTS[0])
+    await advance(game)
+    old_timer = game.relay_watch
+    await a.post(BASE + "/reset", json={"round_id": game.room.round.id})
+    await game.cleanup
+    assert old_timer.done() and provider.closes == 1
+    await asyncio.sleep(0.05)
+    assert (await snapshot(a))["phase"] == "lobby"
+
+
+async def test_idle_provider_failure_ends_round_without_waiting_for_countdown(clients):
+    game, provider, _ = clients
+    a, *_ = await party(clients)
+    await a.post(BASE + "/start", json={"round_id": game.room.round.id})
+    await send(a, await snapshot(a), PROMPTS[0])
+    await advance(game)
+    provider.failure.set()
+    await asyncio.wait_for(game.relay_watch, 1)
+    state = await snapshot(a)
+    assert state["phase"] == "error" and state["unscored"]
+    assert "private provider" not in str(state) and provider.closes == 1
+
+
+async def test_final_video_waits_for_verified_session_closure(clients):
+    game, provider, _ = clients
+    a, b, c, _ = await party(clients)
+    await a.post(BASE + "/start", json={"round_id": game.room.round.id})
+    for client, prompt in zip((a, b), PROMPTS[:2]):
+        await send(client, await snapshot(client), prompt)
+        await advance(game)
+    assert provider.closes == 0
+    provider.close_error = True
+    await send(c, await snapshot(c), PROMPTS[2])
+    await advance(game)
+    state = await snapshot(b)
+    assert state["phase"] == "error" and state["unscored"]
+    assert not state["media"] and "results" not in state
+    assert len(game.room.round.media) == 2
+
+
+async def test_whole_round_cap_cancels_generation_and_closes_session(clients):
+    game, provider, _ = clients
+    a, *_ = await party(clients)
+    game.round_session_seconds = 0.03
+    provider.wait = asyncio.Event()
+    await a.post(BASE + "/start", json={"round_id": game.room.round.id})
+    await send(a, await snapshot(a), PROMPTS[0])
+    await asyncio.wait_for(game.round_watch, 1)
+    state = await snapshot(a)
+    assert state["phase"] == "error" and state["unscored"]
+    assert provider.stopped and provider.closes >= 1 and len(provider.calls) == 1

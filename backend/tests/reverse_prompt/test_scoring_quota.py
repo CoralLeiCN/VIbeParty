@@ -78,3 +78,48 @@ def test_corrupt_history_cannot_clear_an_unresolved_attempt(tmp_path):
     quota.path.write_text(json.dumps(record))
     with pytest.raises(GuardError):
         quota.read()
+
+
+def test_shared_session_counts_each_clip_and_closes_the_group_atomically(tmp_path):
+    quota = Quota(tmp_path / "quota.json")
+    quota.initialize()
+    root = quota.consume()
+    quota.session(root, "one-session")
+    second = quota.consume(root)
+    restarted = Quota(quota.path)
+    assert restarted.read()["remaining"] == 7 and restarted.read()["unresolved"]
+    with pytest.raises(GuardError):
+        restarted.consume()  # Restart cannot mistake an idle owned session for a closed one.
+    with pytest.raises(GuardError):
+        restarted.consume("wrong-owner")
+    third = quota.consume(root)
+    with pytest.raises(GuardError):
+        quota.consume(root)
+    with pytest.raises(GuardError):
+        quota.session(root, "different-session")
+    restarted.confirm_closed(third, "independent terminal GET")
+    value = restarted.read()
+    assert value["remaining"] == 6 and not value["unresolved"]
+    assert [a["id"] for a in value["attempts"]] == [root, second, third]
+    assert all(a["closed"] and a["session_id"] == "one-session" for a in value["attempts"])
+
+
+def test_legacy_campaign_is_preserved_and_partial_group_closure_is_rejected(tmp_path):
+    import json
+
+    quota = Quota(tmp_path / "quota.json")
+    quota.initialize()
+    old = quota.consume()
+    quota.confirm_closed(old, "legacy terminal GET")
+    legacy = quota.read()
+    del legacy["attempts"][0]["session_attempt"]
+    quota.path.write_text(json.dumps(legacy))
+    root = quota.consume()
+    quota.session(root, "new-session")
+    quota.consume(root)
+    record = quota.read()
+    assert record["attempts"][0] == legacy["attempts"][0]
+    record["attempts"][-1]["closed"] = True
+    quota.path.write_text(json.dumps(record))
+    with pytest.raises(GuardError):
+        quota.read()

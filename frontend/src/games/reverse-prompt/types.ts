@@ -20,6 +20,7 @@ export type Snapshot = {
   unscored: boolean;
   join_url: string;
   generation_elapsed?: number;
+  relay_remaining_ms: number | null;
   remaining_attempts?: number;
   cleanup_pending: boolean;
   scripted_text?: string;
