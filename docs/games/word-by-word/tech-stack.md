@@ -6,9 +6,9 @@ Status: simplified implementation plan, 12 September 2026. This replaces the pre
 
 ## 1. Decision
 
-Run **one FastAPI process**, serving a React frontend, holding one room in memory, and running one Reactor generation task. Save the four video clips to temporary local disk and play them on the host laptop. Phones submit words and poll for status once per second.
+Run **one FastAPI process on the host laptop**, serving a React frontend, holding one room in memory, and running one Reactor generation task. Save the four video clips to temporary local disk and play them on that laptop. Phones connect over the same local network, submit words, and poll for status once per second.
 
-No database, Redis, WebSockets, worker service, job queue, object-storage service, or distributed state is required for this demo. These are deliberate scope reductions. A server restart loses the room, so the deployment must use one process and one replica.
+No database, Redis, WebSockets, worker service, job queue, object-storage service, or distributed state is required for this demo. These are deliberate scope reductions. A server restart loses the room, so run exactly one server process.
 
 ## 2. Stack
 
@@ -23,10 +23,10 @@ No database, Redis, WebSockets, worker service, job queue, object-storage servic
 | Video generation | Reactor FastH3 through the generic Python `reactor-sdk`; HTTPX only where its documented REST interface is needed |
 | Background work | One retained `asyncio.Task` in the API process |
 | Media | FFmpeg / ffprobe and private temporary files; no S3 or boto3 |
-| Hosting | One Railway service, one replica, one Dockerfile; platform HTTPS and no persistent volume |
+| Hosting | Local host laptop; one Uvicorn worker serves the built frontend and API over HTTP on the local network |
 | Checks | pytest for a few critical server rules, Ruff, TypeScript checking/build, and a manual phone/browser rehearsal |
 
-Railway is the selected demo hosting target because its documented FastAPI/Dockerfile workflow keeps deployment to one service. Verify Reactor connectivity and capture in that container before relying on it at the event; hosting documentation does not establish model-stream compatibility. [Railway FastAPI guide](https://docs.railway.com/guides/fastapi), [service documentation](https://docs.railway.com/services).
+The demo runs locally for now. Use the host laptop and phones on the same trusted Wi-Fi or hotspot that allows devices to communicate. The laptop needs outbound internet access for Reactor; verify connectivity and capture on that laptop and network before the event. Reactor is the only external API credential required for live generation. Cloud hosting setup is deferred.
 
 Pin working patch releases and the exact Reactor SDK version when implementing. No additional LLM is selected: fixed templates assemble the story and cumulative scene instructions. VEED and Helios have no dependencies or feature flags to implement in this demo; revisit them afterward.
 
@@ -44,7 +44,9 @@ flowchart LR
     App --> Files
 ```
 
-The built frontend is served from the same origin as `/api`. During development, Vite proxies `/api` to FastAPI. Deployment uses a Node build stage and a Python runtime with FFmpeg installed; no Node server, Docker Compose, Caddy, or separately deployed frontend is needed.
+Build the frontend locally, then serve it from FastAPI at the same origin as `/api`. Install Python, uv, Node.js, and FFmpeg on the host laptop. During development, Vite proxies `/api` to FastAPI; the demo uses the built frontend and one Uvicorn worker without auto-reload. A Dockerfile, Docker Compose, Caddy, and a separate frontend server are not demo requirements.
+
+For phone access, bind Uvicorn to `0.0.0.0` on port `8000` and allow that port through the laptop's local firewall. Set the allowed origin to `http://<laptop-LAN-IP>:8000` and use that address for the host screen and all generated join links. `localhost` works for laptop-only development; on a phone it refers to the phone itself. Confirm that every phone can open the LAN address before starting a round, and keep the laptop awake and connected throughout play.
 
 Use a small layout:
 
@@ -54,7 +56,6 @@ backend/app.py           # Routes, cookies, startup/shutdown, static frontend
 backend/game.py          # Room state, assignments, validation, phase changes
 backend/reactor_video.py # One direct provider/capture integration
 backend/tests/test_game.py
-Dockerfile
 ```
 
 No generalized game engine, provider-plugin framework, repository layer, or durable outbox. Fixture mode can be a small explicit branch using a fixed example sequence.
@@ -86,7 +87,7 @@ Every round action includes the current `round_id`; reject a stale ID. Repeated 
 
 The host snapshot contains public names, counts, phase, saved-clip count, and disclosed contributions only. A player additionally sees their own assigned slots and accepted words. Do not serialize the full room object. Authenticate cookies on every request; private clips are outside the static frontend directory and can only be read through the checked route. Future clips are inaccessible even to the host.
 
-Use opaque HttpOnly, Secure, SameSite cookies over the deployed HTTPS origin. Require same-origin JSON POSTs and check `Origin`; rate-limit passcode guesses and join/input attempts in memory. The host passcode and Reactor credential stay in environment variables. A room code locates the room but cannot authorize host actions. No accounts, external authentication service, or display-pairing subsystem.
+Use opaque HttpOnly, SameSite=Lax cookies. For this local HTTP demo, omit the Secure attribute so phone browsers can send cookies to the laptop's LAN address; enable Secure if HTTPS is introduced later. HTTP access is limited to the trusted demo network. Require same-origin JSON POSTs and check `Origin` against the configured LAN origin; rate-limit passcode guesses and join/input attempts in memory. The host passcode and Reactor credential stay in environment variables. A room code locates the room but cannot authorize host actions. No accounts, external authentication service, or display-pairing subsystem. [Cookie attributes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Set-Cookie#secure).
 
 Phones do not play synchronized video. The host reveals each clip manually, and the poll updates phone text within roughly a second. Native video pause/replay is a local UI action; it does not open another provider session. Final replay uses the existing disclosed clips in the browser.
 
@@ -116,18 +117,18 @@ Provider-side session-count and lifetime constraints are documented. Session tim
 - A 120-second application generation timeout requests cancellation and cleanup. The independently enforced 180-second provider limit is the backstop; do not assume a dropped network connection stops charges.
 - Keep `provider_closing` true until closure is confirmed. Saved clips remain playable while it is true. If confirmation fails, block further live rounds and use the provider dashboard to resolve it. After a server crash, verify the old session is closed before restarting live play, since the in-memory guard and attempt counter are lost.
 - Choose live or fixture mode before starting a round. Fixture mode binds fixed words to fixed assets, is clearly labelled, and spends no provider credits. It never substitutes for a failed live generation.
-- Delete old clips and words on a new round, room reset/closure, or 30-minute inactivity expiry. Sweep only this app's temporary directory at startup. Ephemeral files and in-memory rooms are intentionally disposable; do not enable multiple replicas or deploy during a demo round.
+- Delete old clips and words on a new round, room reset/closure, or 30-minute inactivity expiry. Sweep only this app's temporary directory at startup. Ephemeral files and in-memory rooms are intentionally disposable; do not start additional server processes, restart, or update the app during a demo round.
 - Log round IDs, step timings, errors, session closure, and session-attempt count. Do not log raw words, cookies, or credentials. No external analytics/metrics platform.
 
-Configuration is limited to the host passcode, Reactor credential, live/fixture mode, allowed origin, fixed model/preset, attempt limit, timeouts, and temp-directory path. Use placeholders in `.env.example` and exact dependencies in lockfiles.
+Configuration is limited to the host passcode, Reactor credential, live/fixture mode, allowed origin, fixed model/preset, attempt limit, timeouts, and temp-directory path. The root [example.env](../../../example.env) defines the planned variable names and defaults; copy it to the Git-ignored `.env` for local credentials. Implement backend loading of that root file, resolving relative media paths from the repository root, and reject missing/placeholder credentials before live generation or host access. The template alone does not load settings or enforce limits. Keep exact dependencies in lockfiles.
 
 ## 7. Build and test in this order
 
-1. **Video first:** run `forest → fox → dancing → confetti` through the actual model, capture four clips, close the session, and replay them. Confirm continuity, elapsed time, and cost. Run it inside the intended deployment container too.
+1. **Video first:** on the demo laptop and network, run `forest → fox → dancing → confetti` through the actual model, capture four clips, close the session, and replay them. Confirm continuity, elapsed time, and cost.
 2. **One-room flow:** build the host screen and phone form with in-memory state and polling. Exercise the fixed three/four-player assignments using a clearly labelled fixture round.
 3. **Connect the live task:** plug the successful capture function into that flow; keep the same public reveal and privacy checks.
-4. **Rehearse:** run the [demo acceptance checks](game-spec.md#8-demo-acceptance), including a provider timeout, refresh, duplicate action, and attempted future-clip access.
+4. **Rehearse:** verify joining and cookie-backed refresh from three/four phones through the laptop's LAN URL, then run the [demo acceptance checks](game-spec.md#8-demo-acceptance), including a provider timeout, duplicate action, and attempted future-clip access.
 
 Write focused pytest checks for assignment, submission ownership/locking, duplicate start/next protection, hidden snapshot/media access, and timeout results using a fake provider. Run Ruff, TypeScript checking, and the frontend build. Perform the phone/host rehearsal manually. Defer a full Vitest/Testing Library/Playwright matrix, mypy rollout, load testing, migration testing, and process-failover testing until after the hackathon.
 
-This plan supplies the minimum application infrastructure for the chosen demo. The real technical gate remains successful additive video generation and capture. No authenticated trial, dependency installation, deployment, or application test has been completed by this documentation change.
+This plan supplies the minimum application infrastructure for the chosen demo. The real technical gate remains successful additive video generation and capture. No authenticated trial, dependency installation, local server launch, or application test has been completed by this documentation change.

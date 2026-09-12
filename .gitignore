@@ -157,6 +157,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# Local VibeParty demo clips and temporary capture files
+/.local/vibeparty/
+
 # Spyder project settings
 .spyderproject
 .spyproject

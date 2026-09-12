@@ -20,7 +20,7 @@ These changes update the design documents only; neither version has been impleme
 | Room updates | WebSockets and Redis pub/sub/presence | One-second HTTP polling |
 | Server execution | API, scheduler/outbox, separate session controller with database leases | One FastAPI process and one async generation task |
 | Video files | Private S3-compatible service and boto3 | Temporary files, served through an authorized route |
-| Deployment | Docker Compose, Caddy, database, Redis, storage and server processes | One Dockerfile and one Railway service/replica |
+| Deployment | Docker Compose, Caddy, database, Redis, storage and server processes | One local FastAPI process on the host laptop; phones join over the same Wi-Fi or hotspot |
 | Generation limits | 270-second build phase; 300-second provider cap; budget reservation ledger | 120-second build; 180-second provider cap; one session and at most 3 live attempts per server run |
 | Ambiguous provider commands | Stored command intent, reconciliation, lease recovery | Stop without retrying; replay the valid saved prefix |
 | Late shutdown confirmation | Can abort a round even when usable video is saved | Saved clips remain playable; cleanup blocks only the next live session |
@@ -38,7 +38,8 @@ Reactor FastH3 and FFmpeg remain because they serve the central video experience
 ## Accepted limitations
 
 - The demo needs the host screen; phones are not independent synchronized video viewers.
-- A process crash or redeploy ends the room and requires rejoining. The presenter must resolve the old provider session before another live run.
+- A process crash or restart ends the room and requires rejoining. The presenter must resolve the old provider session before another live run.
+- Phones must reach the laptop on the local network, and the laptop must stay awake. Live generation still requires internet access to Reactor.
 - Clip files and the three-attempt counter are temporary. There is no durable spending ledger, gallery, or saved history.
 - Fixture mode is labelled and tied to its example words. A failed live round never silently turns into a prerecorded success.
 - Additive continuity and capture remain real integration gates. Removing infrastructure does not prove that the model will retain the scene.

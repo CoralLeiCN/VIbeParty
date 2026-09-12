@@ -45,7 +45,7 @@ flowchart LR
 ### Host and join
 
 1. The presenter selects **Host Word by Word**, enters the configured host passcode if needed, and reaches the host lobby. There is no account or host-name step.
-2. The lobby shows the room code, a phone join link with **Copy link**, the player names and count, and three short instructions: join on phones, submit secret words, watch the laptop. A QR code is optional polish.
+2. The lobby shows the room code, a phone join link with **Copy link**, the player names and count, and three short instructions: join on phones, submit secret words, watch the laptop. For the local demo, the join link uses the configured laptop LAN origin, and players connect to the same Wi-Fi or hotspot. A QR code is optional polish.
 3. A phone opens the join link, or selects **Join party** on the portal and enters the code. The link prefills the code; the player supplies a guest name and presses **Join**.
 4. Joined phones show the roster and “Waiting for the host to start.” The host’s **Start round** becomes available with three or four players. Fewer players see “Waiting for at least 3 players.” There is no ready check or settings step.
 5. Starting hands both screens to the existing game flow: private words, generation progress, manual reveal, and results. The portal adds no game phases.

@@ -41,7 +41,7 @@ Example: “In forest, fox is dancing. Then: confetti!” Odd grammar is accepta
 
 ## 3. Play a round
 
-1. **Join:** the presenter opens the host screen with a configured host passcode. It shows a join URL and room code. Three or four players join by name on phones. A QR code is optional polish; a working short URL and code are enough.
+1. **Join:** the presenter runs the app locally on the host laptop and opens the host screen with a configured host passcode. It shows a join URL using the laptop's LAN address and a room code. Three or four players on the same Wi-Fi or hotspot join by name on phones. A QR code is optional polish; a working join URL and code are enough.
 2. **Start:** the host presses **Start**. Freeze the roster and assign the four slots. No ready check, settings screen, late joins, or waiting list.
 3. **Write:** players have 45 seconds to submit their assigned words privately. The host sees only the number collected. Begin generation immediately when all four are accepted. If time expires with a missing word, show an incomplete-round message and offer another round. No timer extension.
 4. **Generate:** show “Preparing your story” and the number of saved clips. Build and capture all four in order. Each receives only its own word and earlier scene facts. Never show future words or previews on the host screen.
