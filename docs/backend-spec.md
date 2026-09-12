@@ -99,7 +99,7 @@ For the broader persistent backend, use UUID identifiers and foreign keys, times
 
 | Entity | Important fields and invariants |
 | --- | --- |
-| Room | Join code, status, host participant, settings, version, last activity, expires/ends at. Join code unique while active. |
+| Room | Four-digit join code stored as a string under the shared [room code standard](shared/room-code-spec.md), status, host participant, settings, version, last activity, expires/ends at. Join code unique across games while active. |
 | Participant | Room, display name, role, joined at, removed at. Identity independent of display name. |
 | Session | Hashed opaque credential, participant or display role, expiry, revocation. Display credentials are read-only and room-scoped. |
 | Round | Room, game kind, phase, phase version, phase deadline, settings snapshot, generation/scoring versions, outcome. At most one active round per room. |

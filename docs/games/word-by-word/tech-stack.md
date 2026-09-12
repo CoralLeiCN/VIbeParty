@@ -64,6 +64,8 @@ No generalized game engine, provider-plugin framework, repository layer, or dura
 
 Keep one `RoomState`: room code, host session, up to four player sessions, phase, round ID, four assigned slots, accepted contribution text, input deadline, last meaningful action time, saved clip paths, highest disclosed index, result label, and the generation-task reference. Track whether provider closure is unresolved and how many live session attempts remain.
 
+Follow the shared [four-digit room code standard](../../shared/room-code-spec.md) for generation, string storage, validation, join links, and implementation acceptance. **Another round** keeps the code; a roster-clearing **Reset party** rotates it.
+
 Accept 1–120 Unicode code points after trimming surrounding whitespace, using the same count in the phone counter and backend validation. Allow spaces, punctuation, and non-ASCII text; apply no word-count, sentence-count, or action-suffix check. Run the configured input filter across the full text. Reject empty or over-limit input with a correctable field error; preserve accepted text exactly after trimming. Forms allow short sentences, and reveal/results cards wrap the full text. Category labels stay separate from player text.
 
 Use five phases: `LOBBY`, `INPUT`, `GENERATING`, `REVEAL`, `RESULTS`. A rematch increments/replaces the round ID. Provider callbacks must match the active round before applying results. Timers and tasks are intentionally not durable.
@@ -75,7 +77,7 @@ Start one lightweight in-process deadline loop for the input deadline and 30-min
 | Endpoint | Purpose |
 | --- | --- |
 | `POST /api/host` | Check the configured host passcode and issue a host cookie. |
-| `POST /api/join` | Join the current lobby by room code and name; issue a player cookie. |
+| `POST /api/join` | Validate the four-digit room code string and name, join the current lobby, and issue a player cookie. |
 | `GET /api/state` | Return an explicit host or player snapshot, including server time. |
 | `POST /api/round/start` | Host freezes the roster and starts collection. The final accepted contribution starts generation automatically. |
 | `POST /api/contribution` | Submit `{round_id, slot_index, text}` for the caller's own slot. |

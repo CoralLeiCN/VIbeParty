@@ -46,7 +46,7 @@ The cards together form the story. Keep the exact accepted text; do not insert i
 
 ## 3. Play a round
 
-1. **Join:** the presenter runs the app locally on the host laptop and opens the host screen with a configured host passcode. It shows a join URL using the laptop's LAN address and a room code. Three or four players on the same Wi-Fi or hotspot join by name on phones. A QR code is optional polish; a working join URL and code are enough.
+1. **Join:** the presenter runs the app locally on the host laptop and opens the host screen with a configured host passcode. It shows a join URL using the laptop's LAN address and a four-digit room code following the [shared standard](../../shared/room-code-spec.md), including leading zeros. Three or four players on the same Wi-Fi or hotspot join by name on phones. A QR code is optional polish; a working join URL and code are enough.
 2. **Start:** the host presses **Start**. Freeze the roster and assign the four slots. No ready check, settings screen, late joins, or waiting list.
 3. **Write:** players have 45 seconds to submit their assigned contributions privately. The host sees only the number collected. Begin generation immediately when all four are accepted. If time expires with a missing contribution, show an incomplete-round message and offer another round. No timer extension.
 4. **Generate:** show “Preparing your story” and the number of saved clips. Build and capture all four in order. Each receives only its own contribution and earlier scene facts. Never show future contributions or previews on the host screen.

@@ -16,6 +16,8 @@ The [Worlds hackathon](hackathon.md) delivery goal is a complete group experienc
 
 The [portal specification](portal-spec.md) owns game availability, home-page content, host/join entry, session continuation, return navigation, and the portal build plan. A completed game specification does not by itself make that game available in the portal.
 
+The [room code standard](shared/room-code-spec.md) owns the shared four-digit entry code format, validation, generation, and lifecycle for the portal and all three games. Game-specific admission and authorization follow each game's specifications.
+
 Each **game spec** owns its player counts, roles, round flow, screens, inputs, timers, scoring, privacy, failures, replay behavior, and demo acceptance. Its **technical stack** owns runtime architecture, APIs, provider integration, spending limits, cleanup, build order, and implementation checks.
 
 | Game | Rules and demo acceptance | Implementation and build plan |

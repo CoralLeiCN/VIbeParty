@@ -75,6 +75,8 @@ This deliberately gives up durable execution: process failure loses the room and
 
 Keep one room containing participants, host ID, current round, last-seen times, and lobby topic state: choice mode, selected topic or pending suggestion, suggestion ID, request status, and confirmed suggestion ID. The round contains a frozen roster/topic/topic mode/preset/Live-or-Fixture mode, phase and version, deadlines, submissions by player ID, entry statuses, a fixed shuffled mapping of arena positions/labels to entry IDs, exclusions, ballots by player ID, and final result. Store task/session handles separately from the JSON views.
 
+Keep its room code as a string and follow the shared [four-digit room code standard](../../shared/room-code-spec.md) for generation, validation, join links, lifecycle, and implementation acceptance. **Play again** keeps the code; **End room** removes its lookup.
+
 ```text
 lobby -> prompting -> generating -> screening -> voting -> results
 results -> lobby (Play again)
@@ -86,7 +88,7 @@ Use one lock for room admission and short state changes. Validate role, membersh
 | Route | Behavior |
 | --- | --- |
 | POST /api/room | Create the only room with the host access code; return an existing valid host session on a repeated create. |
-| POST /api/room/join | Join in the lobby; repeat with the same cookie returns existing membership. |
+| POST /api/room/join | Validate the four-digit room code string and name, then join in the lobby; repeat with the same cookie returns existing membership. |
 | GET /api/room | Return an authorized snapshot and update that participant's last-seen time. |
 | POST /api/room/topic | Host changes topic mode or selects a bundled topic in the lobby; clear any previous selection/confirmation when changing mode. |
 | POST /api/room/topic/generate | Host requests one LLM suggestion in the lobby, including Generate another; clear the previous selection/confirmation and track the new request. |

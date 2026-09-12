@@ -44,6 +44,8 @@ flowchart LR
 
 ### Host and join
 
+Use the shared [four-digit room code standard](shared/room-code-spec.md) for every room display, entry field, and copied join link, preserving leading zeros such as `0042`.
+
 1. The presenter selects **Host Word by Word**, enters the configured host passcode if needed, and reaches the host lobby. There is no account or host-name step.
 2. The lobby shows the room code, a phone join link with **Copy link**, the player names and count, and three short instructions: join on phones, submit secret words, watch the laptop. For the local demo, the join link uses the configured laptop LAN origin, and players connect to the same Wi-Fi or hotspot. A QR code is optional polish.
 3. A phone opens the join link, or selects **Join party** on the portal and enters the code. The link prefills the code; the player supplies a guest name and presses **Join**.
@@ -71,6 +73,7 @@ During an active round, the host uses the existing **End round** action to reach
 
 | Situation | What the visitor sees and can do |
 | --- | --- |
+| Code is not exactly four digits after trimming surrounding whitespace | Inline message: “Enter a 4-digit room code.” Keep the form editable. |
 | Wrong code or no room | Inline message: “That party isn’t available. Check the code with your host.” Keep the form editable. |
 | Four players already joined | “This party is full.” Keep the join form available; add no waiting list. |
 | New player joins during a round | “A round is in progress. Try again when the host returns to the lobby.” Existing sessions can still resume. |
@@ -90,7 +93,7 @@ Use the React frontend and FastAPI service from the game’s technical plan. Thr
 | --- | --- |
 | `/` | Introduction, three game cards, join entry, and session continuation. |
 | `/host` | Passcode entry, then the host lobby/game/results according to server state. |
-| `/join?code=…` | Code/name form, then the player lobby/game/results according to server state. Only the room code belongs in the link. |
+| `/join?code=…` | Code/name form, then the player lobby/game/results according to server state. Only the four-digit room code belongs in the link; preserve leading zeros, for example `/join?code=0042`. |
 
 Serve the frontend for direct loads and refreshes of all three paths. Reuse `/api/host`, `/api/join`, `/api/state`, and the existing round/reset actions from the technical plan. Define `/api/host` to initialize the room when absent and otherwise resume it after authentication. The portal requires no separate backend service or catalog API.
 
@@ -112,6 +115,7 @@ Defer game detail pages, search/filtering, accounts, profiles, leaderboards, pub
 - Home shows exactly three games: Word by Word can be hosted; Prompt Royale and Reverse Prompt clearly say **Coming soon** and cannot launch.
 - One laptop and three phones complete the whole loop from `/`, including saved replay and another round with the same players. Check the four-player lobby once.
 - Both manual code entry and the copied join link work on a phone. Direct route loads and refreshes restore the correct screen without creating a second room or duplicate player.
+- Complete the shared [room code acceptance checks](shared/room-code-spec.md#4-implementation-acceptance), including leading zeros and invalid input.
 - **Back to games → Continue party** restores the same role and current state. **Reset party** requires players to rejoin with the new code.
 - A full room, an in-progress round, a wrong code, and a lost room each give a useful message and next action. Partial/failed results still allow return home; cleanup blocks new work as specified.
 - Check the portal on a phone-sized viewport and with a keyboard. Run the frontend type check/build and the game’s focused checks during implementation.

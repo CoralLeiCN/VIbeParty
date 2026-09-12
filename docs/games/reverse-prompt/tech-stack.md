@@ -53,7 +53,9 @@ Suggested files are sufficient: `frontend/src/App.tsx`, `api.ts`, `components/`,
 
 ## 3. State and HTTP contract
 
-Keep one `Room` containing its random ID/code, three player records, host ID, and current `Round`. Each player has a server-issued random guest token. A round holds its ID, phase, step index, three immutable prompts, three local media descriptors, two guesses, final scores/outcome, and submission receipts. No history survives reset or restart.
+Keep one `Room` containing its random internal ID, a separate four-digit room code string, three player records, host ID, and current `Round`. Each player has a server-issued random guest token. A round holds its ID, phase, step index, three immutable prompts, three local media descriptors, two guesses, final scores/outcome, and submission receipts. No history survives reset or restart.
+
+Follow the shared [room code standard](../../shared/room-code-spec.md) for generation, validation, join links, lifecycle, and implementation acceptance. The round **Reset** keeps the roster and code; a server restart removes the room lookup and requires everyone to join a newly created room.
 
 ```text
 lobby → author_input → generating(0) → relay_input(1)
@@ -65,7 +67,7 @@ Any generation failure → error; host reset → lobby
 | Route | Contract |
 | --- | --- |
 | `POST /api/room` | Organizer code and name create the only room; reject if one exists |
-| `POST /api/join` | Room code and name claim a free lobby slot; issue guest cookie |
+| `POST /api/join` | Validate the four-digit room code string and name, claim a free lobby slot, and issue guest cookie |
 | `GET /api/state` | Return only this guest's public state, own accepted text, and allowed media IDs |
 | `POST /api/start` | Host only; exactly three players, scoring model ready, no unresolved session, at least three unused attempts |
 | `POST /api/submit` | Round ID, expected phase/step, client submission UUID, text; server derives player/role |

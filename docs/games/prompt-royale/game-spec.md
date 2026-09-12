@@ -57,7 +57,7 @@ Server time decides deadlines. Browser timers are visual estimates. Every screen
 
 ### Join and start
 
-The host creates the single room using the configured host access code, enters a name, and receives a short join code and copyable link using the laptop's LAN origin. Guests join with a name. An opaque browser session identifies each player; a name alone cannot reclaim an identity.
+The host creates the single room using the configured host access code, enters a name, and receives a four-digit room code following the [shared standard](../../shared/room-code-spec.md), including leading zeros, and a copyable link using the laptop's LAN origin. Guests join with the room code and a name. An opaque browser session identifies each player; a name alone cannot reclaim an identity.
 
 Show the roster, a concise rule card, two topic modes, and Start. The host checks that everyone is present; there is no separate ready action. Topic selection happens in the lobby before the round timer starts:
 

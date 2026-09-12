@@ -5,6 +5,7 @@ VibeParty is a multiplayer party-game app being developed for the Worlds hackath
 ## Start here
 
 - [Portal specification](portal-spec.md): home page, host/join entry, return/replay loop, and build order.
+- [Room code standard](shared/room-code-spec.md): four-digit entry codes, validation, generation, and lifecycle shared by every game.
 - [Game specifications](#game-specifications): rules, technical stack, scope decisions, and research for each game.
 - [Hackathon scope](hackathon.md): official event link, our demo limitations, and future exploration.
 - [Parallel development plan](parallel-development-plan.md): proposed four-worktree implementation of the portal and all three games on the host laptop, with explicit portal milestones, shared contracts, ownership, and integration checkpoints. This expands the current portal scope once its foundation amendments are adopted.
@@ -48,7 +49,7 @@ The development effort also includes these two playable games:
 
 The portal and all three games run locally on the host laptop. Use `http://localhost:8000` for laptop-only checks; phones and the host use `http://<laptop-LAN-IP>:8000` for group play on the same Wi-Fi or hotspot. One FastAPI process serves the built frontend and API. Remote deployment, domains, Caddy, and TLS setup are deferred. The laptop needs internet access for Reactor video generation and Prompt Royale's live topic suggestions; Reverse Prompt scoring runs locally. QR joining is optional polish; a working join link and room code are required.
 
-Prompt Royale's dedicated demo plan supports three or four players including the playing host. Reverse Prompt uses exactly three players, including its playing host, with no input countdowns. Each simplified demo runs one room at a time and follows its own specification; a server restart loses the current room. Join codes and links follow each game's demo scope.
+Prompt Royale's dedicated demo plan supports three or four players including the playing host. Reverse Prompt uses exactly three players, including its playing host, with no input countdowns. Each simplified demo runs one room at a time and follows its own specification; a server restart loses the current room. All games use the shared [four-digit room code standard](shared/room-code-spec.md) for entry codes and join links.
 
 ## Game specifications
 
@@ -65,8 +66,9 @@ Additional references:
 - [Word by Word: Consequences](research/word-by-word/consequences.md): traditional-game reference and the origin of the adaptation.
 - Reverse Prompt's archived [game spec](games/reverse-prompt/archive/game-spec-v1.md) and [technical stack](games/reverse-prompt/archive/tech-stack-v1.md): historical designs before simplification.
 
-## Shared plans
+## Shared standards and plans
 
+- [Room code standard](shared/room-code-spec.md): four-digit room entry shared by the portal and every game. Shared standards live in `shared/`.
 - [App specification](app-spec.md): product purpose, app boundaries, and ownership of requirements across the portal and games.
 - [Backend specification](backend-spec.md): broader backend proposal; its database/queue architecture is deferred for all three dedicated game demos.
 
@@ -79,6 +81,8 @@ docs/
   app-spec.md
   backend-spec.md
   hackathon.md
+  shared/                # Standards used by the portal and every game
+    room-code-spec.md
   games/<game>/
     game-spec.md
     tech-stack.md
@@ -89,7 +93,7 @@ docs/
     consequences.md      # Word by Word's reference note
 ```
 
-Use `word-by-word`, `prompt-royale`, and `reverse-prompt` as the game folder names. Keep current rules and implementation decisions in `games/`, supporting evidence in `research/`, and superseded designs in the relevant game's `archive/`.
+Use `word-by-word`, `prompt-royale`, and `reverse-prompt` as the game folder names. Keep standards that apply across games in `shared/`, game-specific rules and implementation decisions in `games/`, supporting evidence in `research/`, and superseded designs in the relevant game's `archive/`.
 
 ## Reactor resources
 
