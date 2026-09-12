@@ -1,0 +1,63 @@
+{
+  "mode": "live",
+  "model": "reactor/fast-h3",
+  "sdk": "1.5.1",
+  "clips": [],
+  "steps": [
+    {
+      "index": 0,
+      "prompt_codepoints": 233,
+      "continued": false,
+      "enqueue_frames": 158,
+      "enqueue_ack_seconds": 0.186,
+      "generated_seconds": 4.387,
+      "generated_frames": 158,
+      "expected_frames": 158,
+      "received_frames": 156,
+      "first_frame_id": null,
+      "last_frame_id": null,
+      "first_timestamp_us": null,
+      "last_timestamp_us": null,
+      "metadata_missing_frames": 156,
+      "frame_id_gaps": null,
+      "queue_peak": 2,
+      "capture_error": null,
+      "start_event_to_first_frame_seconds": 0.207,
+      "start_event_to_finish_event_seconds": 6.504,
+      "finish_event_to_last_frame_seconds": 0.109,
+      "frame_delivery_seconds": 6.405,
+      "boundary_review": "required until the laptop capture gate passes",
+      "step_seconds": 30.004
+    }
+  ],
+  "closure_checks": [
+    {
+      "http_status": 200,
+      "state": "CLOSED"
+    }
+  ],
+  "phase": "capture",
+  "closed": true,
+  "slot": "2026-09-12-word-003",
+  "started_utc": "2026-09-12T14:33:24.277066+00:00",
+  "session_attempts": 1,
+  "account_precheck": "waived_by_user",
+  "contribution_codepoints": [
+    16,
+    19,
+    24,
+    28
+  ],
+  "continuity_review": "required",
+  "account_spend": "operator measurement required",
+  "token_http_status": 200,
+  "startup_seconds": 7.549,
+  "constraints": {
+    "max_sessions": 1,
+    "max_session_duration_seconds": 180
+  },
+  "error_type": "TimeoutError",
+  "cleanup_seconds": 0.862,
+  "total_seconds": 38.415,
+  "session_id_recorded_privately": true
+}

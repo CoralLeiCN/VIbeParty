@@ -20,7 +20,8 @@ def scene_prompt(texts: list[str], index: int) -> str:
     prompt = STYLE + "\n".join(
         f"{CATEGORIES[i]}: {text}" for i, text in enumerate(texts[: index + 1])
     )
-    if len(prompt) > 4000:
+    # The current schema is stricter than the marketing API page (4,000).
+    if len(prompt) > 800:
         raise ValueError("prompt_limit")
     return prompt
 

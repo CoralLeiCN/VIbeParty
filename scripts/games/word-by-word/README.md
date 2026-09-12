@@ -15,7 +15,7 @@ npm --prefix frontend run lint
 
 ## Coordinated paid spike
 
-Do not run this command until integration has allocated this exact trial and the operator has checked account/session readiness. A new process does not grant another allowance. No paid command is part of setup or tests.
+Do not run this command until integration has allocated this exact trial. A new process does not grant another allowance. No paid command is part of setup or tests.
 
 ```sh
 .venv/bin/python scripts/games/word-by-word/spike.py \
@@ -24,6 +24,8 @@ Do not run this command until integration has allocated this exact trial and the
 ```
 
 The output directory must be new. One invocation makes at most one constrained session and four enqueues, with 120 seconds overall and 30 seconds per step. Default text is the documented forest/fox/dance/confetti example. For the group-selected trial, pass `--contributions-json /private/path/four-texts.json` (an array of four accepted strings). This never logs their contents. The evidence file records safe timing/frame metrics and independent closure; inspect all clips, boundaries, continuity, and saved replay, and record measured account spend separately. A failed/ambiguous request is not retried. Never transfer the slot until closure is confirmed.
+
+The user explicitly directed the first trial to use the existing API key without dashboard account prechecks. For that allocated trial, replace `--previous-session-closed` with `--account-precheck-waived`; private evidence records the waiver without claiming prior closure was verified. The API establishes credential/funding validity. This does not waive exclusive allocation, attempt limits, or independent closure of any session created by the trial. Account spend can remain unmeasured if the dashboard is unavailable.
 
 ## Live app gates
 

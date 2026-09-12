@@ -1,0 +1,46 @@
+{
+  "mode": "live",
+  "model": "reactor/fast-h3",
+  "sdk": "1.5.1",
+  "clips": [],
+  "steps": [
+    {
+      "index": 0,
+      "prompt_codepoints": 233,
+      "continued": false,
+      "enqueue_ack_seconds": 0.212,
+      "generated_seconds": 4.522
+    }
+  ],
+  "closure_checks": [
+    {
+      "http_status": 200,
+      "state": "CLOSED"
+    }
+  ],
+  "phase": "wait_generated",
+  "closed": true,
+  "slot": "2026-09-12-word-001",
+  "started_utc": "2026-09-12T14:26:52.599978+00:00",
+  "session_attempts": 1,
+  "account_precheck": "waived_by_user",
+  "contribution_codepoints": [
+    16,
+    19,
+    24,
+    28
+  ],
+  "continuity_review": "required",
+  "account_spend": "operator measurement required",
+  "token_http_status": 200,
+  "startup_seconds": 8.407,
+  "constraints": {
+    "max_sessions": 1,
+    "max_session_duration_seconds": 180
+  },
+  "error_type": "CaptureError",
+  "error_code": "missing_clip_frame_count",
+  "cleanup_seconds": 1.137,
+  "total_seconds": 14.066,
+  "session_id_recorded_privately": true
+}

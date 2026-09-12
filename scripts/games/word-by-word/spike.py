@@ -9,12 +9,13 @@ import asyncio
 import json
 import shutil
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from backend.games.word_by_word.domain import FIXTURE_TEXT, validate_text  # noqa: E402
-from backend.games.word_by_word.live import FastH3Provider, LiveSettings  # noqa: E402
+from backend.games.word_by_word.live import CaptureError, FastH3Provider, LiveSettings  # noqa: E402
 
 
 async def main():
@@ -22,7 +23,13 @@ async def main():
     parser.add_argument("--env-file", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--slot", required=True, help="Integration's allocated trial identifier")
-    parser.add_argument("--previous-session-closed", required=True, action="store_true")
+    readiness = parser.add_mutually_exclusive_group(required=True)
+    readiness.add_argument("--previous-session-closed", action="store_true")
+    readiness.add_argument(
+        "--account-precheck-waived",
+        action="store_true",
+        help="Only with the user's explicit direction to proceed without account prechecks",
+    )
     parser.add_argument("--contributions-json", type=Path, help="JSON array of four accepted texts")
     args = parser.parse_args()
     for executable in ("ffmpeg", "ffprobe"):
@@ -47,6 +54,11 @@ async def main():
     out.mkdir(parents=True, mode=0o700, exist_ok=False)
     provider = FastH3Provider(key, evidence_path=out / "evidence.json")
     provider.evidence["slot"] = args.slot
+    provider.evidence["started_utc"] = datetime.now(UTC).isoformat()
+    provider.evidence["session_attempts"] = 1
+    provider.evidence["account_precheck"] = (
+        "waived_by_user" if args.account_precheck_waived else "previous_session_closed_confirmed"
+    )
     provider.evidence["contribution_codepoints"] = [len(t) for t in texts]
     provider.evidence["continuity_review"] = "required"
     provider.evidence["account_spend"] = "operator measurement required"
@@ -59,6 +71,9 @@ async def main():
                 print(json.dumps({"saved_clip": index, "duration": clip.duration}), flush=True)
     except (Exception, asyncio.CancelledError) as error:
         provider.evidence["error_type"] = type(error).__name__
+        if isinstance(error, CaptureError):
+            # CaptureError messages are local fixed codes, never raw provider errors.
+            provider.evidence["error_code"] = str(error)
         print(json.dumps({"trial_failed": type(error).__name__}), flush=True)
     finally:
         try:

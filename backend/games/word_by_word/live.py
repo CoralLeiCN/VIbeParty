@@ -73,6 +73,13 @@ class FrameCapture:
         self.first_timestamp: int | None = None
         self.last_timestamp: int | None = None
         self.dimensions: tuple[int, int] | None = None
+        self.armed_at: float | None = None
+        self.finished_at: float | None = None
+        self.first_received_at: float | None = None
+        self.last_received_at: float | None = None
+        self.frame_id_gaps = 0
+        self.metadata_missing_frames = 0
+        self.queue_peak = 0
         self.finished = asyncio.Event()
         self.process: asyncio.subprocess.Process | None = None
         self.task: asyncio.Task | None = None
@@ -90,7 +97,9 @@ class FrameCapture:
             if self.dimensions and self.dimensions != (width, height):
                 self.error = "dimensions_changed"
                 return
-            if self.last_id is not None and frame_id <= self.last_id:
+            # The native SDK emits (0, 0, b"") when frame metadata is absent.
+            has_metadata = bool(frame_id or timestamp or metadata)
+            if has_metadata and self.last_id is not None and frame_id <= self.last_id:
                 self.error = "non_monotonic_frame_ids"
                 return
             self.dimensions = (width, height)
@@ -100,9 +109,19 @@ class FrameCapture:
                 self.error = "frame_queue_overflow"
                 return
             self.received += 1
-            if self.first_id is None:
-                self.first_id, self.first_timestamp = frame_id, timestamp
-            self.last_id, self.last_timestamp = frame_id, timestamp
+            received_at = time.monotonic()
+            if self.received == 1:
+                self.first_received_at = received_at
+            if has_metadata:
+                if self.first_id is None:
+                    self.first_id, self.first_timestamp = frame_id, timestamp
+                elif frame_id != self.last_id + 1:
+                    self.frame_id_gaps += 1
+                self.last_id, self.last_timestamp = frame_id, timestamp
+            else:
+                self.metadata_missing_frames += 1
+            self.last_received_at = received_at
+            self.queue_peak = max(self.queue_peak, self.frames.qsize())
 
     async def write(self) -> Clip:
         self.destination.parent.mkdir(parents=True, exist_ok=True)
@@ -188,6 +207,9 @@ class FrameCapture:
             await asyncio.gather(self.task, return_exceptions=True)
 
     def evidence(self) -> dict:
+        def elapsed(start, end):
+            return round(end - start, 3) if start is not None and end is not None else None
+
         return {
             "expected_frames": self.expected,
             "received_frames": self.received,
@@ -195,6 +217,14 @@ class FrameCapture:
             "last_frame_id": self.last_id,
             "first_timestamp_us": self.first_timestamp,
             "last_timestamp_us": self.last_timestamp,
+            "metadata_missing_frames": self.metadata_missing_frames,
+            "frame_id_gaps": None if self.metadata_missing_frames else self.frame_id_gaps,
+            "queue_peak": self.queue_peak,
+            "capture_error": self.error,
+            "start_event_to_first_frame_seconds": elapsed(self.armed_at, self.first_received_at),
+            "start_event_to_finish_event_seconds": elapsed(self.armed_at, self.finished_at),
+            "finish_event_to_last_frame_seconds": elapsed(self.finished_at, self.last_received_at),
+            "frame_delivery_seconds": elapsed(self.first_received_at, self.last_received_at),
             "boundary_review": "required until the laptop capture gate passes",
         }
 
@@ -231,6 +261,9 @@ class FastH3Provider:
             "model": MODEL,
             "sdk": "1.5.1",
             "clips": [],
+            "steps": [],
+            "closure_checks": [],
+            "phase": "created",
             "closed": False,
         }
         self.started_at = time.monotonic()
@@ -241,6 +274,15 @@ class FastH3Provider:
         if not isinstance(data, dict):
             raise CaptureError("invalid_provider_message")
         return data
+
+    @staticmethod
+    def clip_metrics(clip: dict) -> dict:
+        # A compact event must not erase metadata acknowledged at enqueue.
+        # Some transports serialize integer JSON numbers as whole floats.
+        frames = clip.get("frames")
+        if type(frames) in {int, float} and 124 <= frames <= 175 and int(frames) == frames:
+            return {"frames": int(frames)}
+        return {}
 
     def message(self, message: dict) -> None:
         try:
@@ -257,14 +299,16 @@ class FastH3Provider:
             if not isinstance(clip_id, str) or len(self.generated) >= 8:
                 self.on_error()
                 return
-            self.generated[clip_id] = {"frames": clip.get("frames")}
+            self.generated[clip_id] = self.clip_metrics(clip or data)
         if kind == "clip_started" and clip_id:
             if clip_id == self.capture_clip_id and self.capture:
                 # This event/frame ordering is intentionally a measured live gate.
                 with self.capture.lock:
                     self.capture.accepting = True
+                    self.capture.armed_at = time.monotonic()
         if kind == "clip_finished" and clip_id:
             if clip_id == self.capture_clip_id and self.capture:
+                self.capture.finished_at = time.monotonic()
                 self.capture.finished.set()
         self.changed.set()
 
@@ -281,6 +325,7 @@ class FastH3Provider:
     async def open(self) -> None:
         if self.reactor or self.connect_started:
             raise CaptureError("session_already_attempted")
+        self.evidence["phase"] = "token"
         async with self.client_factory() as client:
             response = await client.post(
                 API + "/tokens",
@@ -296,6 +341,7 @@ class FastH3Provider:
                     ],
                 },
             )
+            self.evidence["token_http_status"] = response.status_code
             response.raise_for_status()
             self.jwt = response.json()["jwt"]
         if not isinstance(self.jwt, str) or not self.jwt:
@@ -311,6 +357,7 @@ class FastH3Provider:
         self.reactor.on("error", lambda _: self.on_error())
         self.reactor.track("main_video").on_raw_frame(self.frame)
         self.connect_started = True
+        self.evidence["phase"] = "connect"
         await self.reactor.connect()
         self.session_changed(self.reactor.session_id)
         if not self.session_id:
@@ -320,11 +367,13 @@ class FastH3Provider:
             ("set_canvas", {"aspect": "16:9"}, "canvas_accepted"),
             ("set_flush_on_clip_end", {"enabled": False}, "flush_accepted"),
         ):
+            self.evidence["phase"] = name
             reply = await self.command(name, data)
             if not reply or reply.get("type") != acknowledgment:
                 raise CaptureError("unconfirmed_session_settings")
         self.evidence["startup_seconds"] = round(time.monotonic() - self.started_at, 3)
         self.evidence["constraints"] = {"max_sessions": 1, "max_session_duration_seconds": 180}
+        self.evidence["phase"] = "ready"
 
     def on_error(self):
         self.failure = "provider_session_failed"
@@ -357,10 +406,14 @@ class FastH3Provider:
         if index != self.next_index or not self.session_id or self.closed:
             raise CaptureError("invalid_chain_order")
         started = time.monotonic()
+        prompt = scene_prompt(texts, index)
+        step = {"index": index, "prompt_codepoints": len(prompt), "continued": bool(self.previous)}
+        self.evidence["steps"].append(step)
+        self.evidence["phase"] = "enqueue"
         reply = await self.command(
             "enqueue",
             {
-                "prompt": scene_prompt(texts, index),
+                "prompt": prompt,
                 "seconds": 6,
                 "continue_from_clip_id": self.previous,
                 "metadata": f"word-by-word-{index}",
@@ -373,9 +426,27 @@ class FastH3Provider:
         clip_id = clip.get("clip_id")
         if not clip_id or not isinstance(clip_id, str):
             raise CaptureError("missing_clip_identity")
+        queued_metrics = self.clip_metrics(clip)
+        step["enqueue_frames"] = queued_metrics.get("frames")
+        step["enqueue_ack_seconds"] = round(time.monotonic() - started, 3)
+        self.evidence["phase"] = "wait_generated"
         generated = await self.wait_generated(clip_id)
-        clip = {**clip, **generated}
-        frames = clip.get("frames")
+        step["generated_seconds"] = round(time.monotonic() - started, 3)
+        step["generated_frames"] = generated.get("frames")
+        metrics = {**queued_metrics, **generated}
+        if not metrics:
+            # Read the existing generated clip; never retry the paid enqueue.
+            self.evidence["phase"] = "read_clip_metadata"
+            queue_reply = await self.command("get_queue", {})
+            if queue_reply and queue_reply.get("type") == "queue_update":
+                ready = self.payload(queue_reply).get("playout", [])
+                if isinstance(ready, list):
+                    for item in ready[:20]:
+                        if isinstance(item, dict) and item.get("clip_id") == clip_id:
+                            metrics = self.clip_metrics(item)
+                            step["queue_frames"] = metrics.get("frames")
+                            break
+        frames = metrics.get("frames")
         if not isinstance(frames, int):
             raise CaptureError("missing_clip_frame_count")
         capture = FrameCapture(destination, frames)
@@ -383,6 +454,7 @@ class FastH3Provider:
         capture.task = asyncio.create_task(capture.write())
         failed = asyncio.create_task(self.capture_failure())
         try:
+            self.evidence["phase"] = "capture"
             await self.command("play", {"clip_id": clip_id})
             done, _ = await asyncio.wait(
                 (capture.task, failed), return_when=asyncio.FIRST_COMPLETED
@@ -405,11 +477,14 @@ class FastH3Provider:
                     **capture.evidence(),
                 }
             )
+            self.evidence["phase"] = "saved"
             return saved
         finally:
             failed.cancel()
             await asyncio.gather(failed, return_exceptions=True)
             await capture.abort()
+            step.update(capture.evidence())
+            step["step_seconds"] = round(time.monotonic() - started, 3)
             self.capture, self.capture_clip_id = None, None
 
     async def terminal(self, client) -> bool:
@@ -417,19 +492,30 @@ class FastH3Provider:
             f"{API}/sessions/{quote(self.session_id, safe='')}",
             headers={**SESSION_HEADERS, "Authorization": f"Bearer {self.jwt}"},
         )
+        # Record only status and allowlisted lifecycle states, never response bodies.
+        check = {"http_status": response.status_code}
+        self.evidence["closure_checks"] = (self.evidence["closure_checks"] + [check])[-8:]
         if response.status_code == 404:
             return True
         response.raise_for_status()
         data = response.json()
         if data.get("session_id", self.session_id) != self.session_id:
+            check["identity_matches"] = False
             return False
+        check["state"] = (
+            data.get("state")
+            if data.get("state") in {"CLOSED", "INACTIVE", "ACTIVE", "SUSPENDED"}
+            else "unknown"
+        )
         return data.get("state") in {"CLOSED", "INACTIVE"}
 
     async def close(self) -> bool:
+        started = time.monotonic()
         try:
             return await self._close()
         finally:
             self.evidence["closed"] = self.closed
+            self.evidence["cleanup_seconds"] = round(time.monotonic() - started, 3)
             self.evidence["total_seconds"] = round(time.monotonic() - self.started_at, 3)
             if self.evidence_path:
                 await asyncio.to_thread(self.write_evidence, self.evidence_path)

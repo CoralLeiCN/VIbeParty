@@ -21,6 +21,9 @@ class FakeReactor:
         self.setting_ack = True
         self.fail_connect = False
         self.fail_play = False
+        self.compact_generated = False
+        self.queue_metadata_only = False
+        self.zero_frame_metadata = False
         self.streams = []
         self.provider = None
 
@@ -56,8 +59,15 @@ class FakeReactor:
                 return None
             count = sum(n == "enqueue" for n, _ in self.commands)
             clip = {"clip_id": f"clip-{count}", "frames": 141}
-            self.emit("clip_generated", clip)  # Broadcast may precede command completion.
-            return {"type": "clip_queued", "data": {"clip": clip}}
+            event_clip = {"clip_id": clip["clip_id"]} if self.compact_generated else clip
+            self.emit("clip_generated", event_clip)  # Broadcast may precede command completion.
+            ack = {"clip_id": clip["clip_id"]} if self.queue_metadata_only else clip
+            return {"type": "clip_queued", "data": {"clip": ack}}
+        if name == "get_queue":
+            return {
+                "type": "queue_update",
+                "data": {"playout": [{"clip_id": "clip-1", "frames": 141.0}]},
+            }
         if name == "play":
             if self.fail_play:
                 self.callbacks["error"]("synthetic failure")
@@ -76,7 +86,8 @@ class FakeReactor:
         for i in range(141):
             while capture.frames.qsize() >= 2:
                 await asyncio.sleep(0.001)
-            self.frame(bytes([i % 256, 100, 200, 255]) * 32 * 32, 32, 32, i, i * 41667, b"")
+            frame_id, timestamp = (0, 0) if self.zero_frame_metadata else (i, i * 41667 + 1)
+            self.frame(bytes([i % 256, 100, 200, 255]) * 32 * 32, 32, 32, frame_id, timestamp, b"")
             await asyncio.sleep(0.001)
 
     async def disconnect(self):
@@ -149,11 +160,51 @@ async def test_scoped_additive_protocol_and_saved_capture(tmp_path):
     report = json.loads((tmp_path / "evidence.json").read_text())
     assert report["closed"] and len(report["clips"]) == 4
     assert all(c["first_frame_id"] == 0 and c["received_frames"] == 141 for c in report["clips"])
+    assert all(step["frame_id_gaps"] == 0 for step in report["steps"])
+    assert all(step["finish_event_to_last_frame_seconds"] > 0 for step in report["steps"])
+    assert [step["continued"] for step in report["steps"]] == [False, True, True, True]
+    assert report["closure_checks"] == [{"http_status": 200, "state": "CLOSED"}]
     assert not list(tmp_path.glob("*.partial.mp4"))
     assert "scoped-test-token" not in json.dumps(report)
     assert "rk_test-only" not in json.dumps(report)
     assert FIXTURE_TEXT[0] not in json.dumps(report)
     assert len(list(tmp_path.glob("*.mp4"))) == 4  # Remains after independent closure.
+
+
+@pytest.mark.asyncio
+async def test_absent_optional_frame_metadata_is_reported_without_claiming_no_gaps(tmp_path):
+    provider, reactor, _ = adapter(tmp_path)
+    reactor.zero_frame_metadata = True
+    await provider.open()
+    async with asyncio.timeout(5):
+        await provider.segment(list(FIXTURE_TEXT), 0, tmp_path / "0.mp4")
+    assert await provider.close()
+    report = provider.evidence["clips"][0]
+    assert report["metadata_missing_frames"] == report["received_frames"] == 141
+    assert report["first_frame_id"] is None and report["frame_id_gaps"] is None
+
+
+def test_duplicate_meaningful_frame_metadata_still_invalidates_capture(tmp_path):
+    capture = FrameCapture(tmp_path / "0.mp4", 141)
+    capture.accepting = True
+    capture.accept(bytes(16), 2, 2, 0, 1, b"")
+    capture.accept(bytes(16), 2, 2, 0, 41668, b"")
+    assert capture.error == "non_monotonic_frame_ids" and capture.received == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("queue_only", [False, True])
+async def test_compact_generated_event_preserves_or_reads_frame_metadata(tmp_path, queue_only):
+    provider, reactor, _ = adapter(tmp_path)
+    reactor.compact_generated = True
+    reactor.queue_metadata_only = queue_only
+    await provider.open()
+    async with asyncio.timeout(5):
+        clip = await provider.segment(list(FIXTURE_TEXT), 0, tmp_path / "0.mp4")
+    assert clip.duration == pytest.approx(141 / 24)
+    assert sum(name == "enqueue" for name, _ in reactor.commands) == 1
+    assert sum(name == "get_queue" for name, _ in reactor.commands) == int(queue_only)
+    assert await provider.close()
 
 
 @pytest.mark.asyncio
@@ -165,6 +216,8 @@ async def test_ambiguous_enqueue_is_never_retried(tmp_path):
         await provider.segment(list(FIXTURE_TEXT), 0, tmp_path / "0.mp4")
     assert sum(n == "enqueue" for n, _ in reactor.commands) == 1
     assert not provider.next_index and not list(tmp_path.glob("*.mp4"))
+    assert provider.evidence["phase"] == "enqueue"
+    assert len(provider.evidence["steps"]) == 1
     assert await provider.close()
     assert sum(r.method == "POST" for r in requests) == 1
 
@@ -206,7 +259,9 @@ async def test_disconnect_ack_and_delete_ack_do_not_clear_active_guard(tmp_path)
     await provider.open()
     assert not await provider.close()
     assert not provider.closed and not reactor.released
-    assert json.loads((tmp_path / "evidence.json").read_text())["closed"] is False
+    evidence = json.loads((tmp_path / "evidence.json").read_text())
+    assert evidence["closed"] is False
+    assert [check["state"] for check in evidence["closure_checks"]] == ["ACTIVE", "SUSPENDED"]
     assert await provider.close()
     assert [r.method for r in requests] == ["POST", "GET", "DELETE", "GET", "GET"]
 
