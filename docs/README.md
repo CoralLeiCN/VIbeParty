@@ -12,6 +12,8 @@ The repository contains planning documents; the app has not been implemented. Th
 
 ## Local configuration
 
+See [Local environment setup](environment-setup.md) for initial configuration and automatic `.env` copying into Codex worktrees.
+
 The root [example.env](../example.env) contains the planned settings for the local Word by Word demo. From the repository root, create a private copy without overwriting an existing configuration:
 
 ```sh

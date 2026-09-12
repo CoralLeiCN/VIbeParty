@@ -1,0 +1,2 @@
+# Copy the private root configuration into local Codex-managed worktrees.
+/.env
