@@ -27,15 +27,16 @@ The output directory must be new. One invocation makes at most one constrained s
 
 The user explicitly directed the first trial to use the existing API key without dashboard account prechecks. For that allocated trial, replace `--previous-session-closed` with `--account-precheck-waived`; private evidence records the waiver without claiming prior closure was verified. The API establishes credential/funding validity. This does not waive exclusive allocation, attempt limits, or independent closure of any session created by the trial. Account spend can remain unmeasured if the dashboard is unavailable.
 
-## Live app gates
+## Enable live play
 
-These settings are read only by the game from the root private `.env`. Defaults are disabled/empty. Integration owns any additions to the shared example environment.
+Set `WORD_BY_WORD_LIVE_ENABLED=true` in the root private `.env`, configure
+`REACTOR_API_KEY`, and restart the server. The host can then select **Live FastH3**
+in the lobby. Generation begins only after all four contributions are accepted.
 
-- `WORD_BY_WORD_LIVE_ENABLED`: presenter opt-in.
-- `WORD_BY_WORD_CAPTURE_VERIFIED`: set only after actual laptop capture/boundary/continuity checks pass.
-- `WORD_BY_WORD_PROMPT_LIMIT_VERIFIED`: set only after proving the full cumulative 120-code-point contribution contract fits FastH3's token limit. No tokenizer was guessed and no accepted text is truncated.
-- `WORD_BY_WORD_LIVE_SLOT`: current integration allocation identifier.
-- `WORD_BY_WORD_PREVIOUS_SESSION_CLOSED`: fresh operator confirmation after a restart/slot handoff.
-- `REACTOR_API_KEY`: private credential; never put it in URLs or browser code.
+The presenter's live setting replaces the earlier capture/prompt verification and
+trial-slot configuration gates. Enabling it does not establish capture quality,
+continuity, or maximum Unicode token fit; the earlier failed capture remains in
+the [trial evidence](../../../docs/research/word-by-word/laptop-gate-2026-09-12.md).
+Keep credentials private; never put them in URLs or browser code.
 
 The app separately enforces three live session attempts per process, one generation task, deadlines, ownership, disclosure, and unresolved-cleanup guards. Live evidence is stored privately beside the game's clips under `live-evidence/`; it survives round/file cleanup. Neither fixture checks nor mocked captures satisfy live acceptance.

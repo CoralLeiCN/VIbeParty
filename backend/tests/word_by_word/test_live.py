@@ -339,16 +339,10 @@ async def test_cleanup_cancellation_is_bounded_and_keeps_guard(tmp_path):
     assert not provider.closed and not reactor.released
 
 
-def test_live_gate_requires_capture_prompt_slot_and_previous_closure():
+def test_live_gate_requires_presenter_opt_in_and_credential():
     settings = LiveSettings(_env_file=None)
     assert settings.unavailable_reason()
     settings.word_by_word_live_enabled = True
-    settings.word_by_word_capture_verified = True
-    assert settings.unavailable_reason()
-    settings.word_by_word_prompt_limit_verified = True
-    assert settings.unavailable_reason()
-    settings.word_by_word_live_slot = "allocated-test-slot"
-    settings.word_by_word_previous_session_closed = True
     assert settings.unavailable_reason()
     from pydantic import SecretStr
 

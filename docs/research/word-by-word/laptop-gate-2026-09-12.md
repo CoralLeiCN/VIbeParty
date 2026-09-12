@@ -1,5 +1,9 @@
 # FastH3 laptop gate — 12 September 2026
 
+The later [live enablement change](live-enablement.md) replaces the app's historical
+verification and trial-slot flags with the presenter's live setting. The measured
+capture failures below remain unresolved.
+
 ## Local compatibility evidence
 
 - Runtime: Darwin arm64, Python 3.13.3, Node 24.3.0/npm 11.6.2.

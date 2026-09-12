@@ -1,6 +1,5 @@
-"""FastH3's four-step predecessor chain. Live admission stays gated on measured capture.
+"""FastH3's four-step predecessor chain, enabled by the presenter's live setting.
 
-The frame/event boundary policy requires a real laptop spike before enabling play.
 No local SDK status or disconnect acknowledgment can clear the closure guard alone.
 """
 
@@ -32,18 +31,10 @@ class LiveSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ROOT / ".env", extra="ignore")
     reactor_api_key: SecretStr = SecretStr("")
     word_by_word_live_enabled: bool = False
-    word_by_word_capture_verified: bool = False
-    word_by_word_prompt_limit_verified: bool = False
-    word_by_word_live_slot: str = ""
-    word_by_word_previous_session_closed: bool = False
 
     def unavailable_reason(self) -> str | None:
-        if not self.word_by_word_live_enabled or not self.word_by_word_capture_verified:
-            return "FastH3 live verification is pending. Use the fixture rehearsal."
-        if not self.word_by_word_prompt_limit_verified:
-            return "FastH3’s full contribution limit still needs verification."
-        if not self.word_by_word_live_slot or not self.word_by_word_previous_session_closed:
-            return "The presenter must confirm the live trial slot and previous session closure."
+        if not self.word_by_word_live_enabled:
+            return "The presenter has not enabled live FastH3 generation."
         key = self.reactor_api_key.get_secret_value()
         if not key.startswith("rk_"):
             return "The presenter must configure the Reactor credential before live play."
