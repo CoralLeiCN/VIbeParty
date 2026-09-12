@@ -86,8 +86,23 @@ def test_http_cookie_origin_role_private_range_and_session_discovery(tmp_path):
             "game_id": "prompt-royale",
             "join_url": f"/games/prompt-royale/join?code={code}",
         }
+        assert host("/room/generation-mode", mode="invalid").status_code == 422
+        assert host("/room/generation-mode", mode="fixture").json()["mode"] == "fixture"
+        assert (
+            client.post(
+                API + "/room/generation-mode",
+                headers=headers(tokens[1]),
+                json={
+                    "command_id": uid(),
+                    "expected_version": integration.engine.room.version,
+                    "mode": "live",
+                },
+            ).status_code
+            == 403
+        )
         host("/room/topic", mode="bundled", topic=TOPICS[0])
         assert host("/room/start").status_code == 200
+        assert host("/room/generation-mode", mode="fixture").status_code == 409
         r = integration.engine.room.round
         for index, token in enumerate(tokens):
             response = client.post(

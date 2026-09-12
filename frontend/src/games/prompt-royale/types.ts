@@ -45,6 +45,8 @@ export type Snapshot = {
     pending: boolean;
     error?: string;
     topics: string[];
+    live_unavailable_reason: string | null;
+    live_capacity: number;
     video_starts_remaining: number;
     topic_calls_remaining: number;
   };

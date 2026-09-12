@@ -349,7 +349,7 @@ async def test_live_start_requires_capacity_and_reserved_attempts(game):
     e, tokens, _ = game
     size = len(tokens)
     e.room.mode = "live"
-    e.video.live = True  # No provider calls; this test stops at Start admission.
+    e.video = e.live_video  # No provider calls; this test stops at Start admission.
     e.settings.prompt_royale_live_enabled = True
     e.settings.prompt_royale_live_slot = "unit-test-no-calls"
     e.settings.reactor_api_key = "fake"

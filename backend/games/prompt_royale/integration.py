@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
@@ -41,6 +43,10 @@ class Topic(HostCommand):
 
 class PlayerCount(HostCommand):
     player_count: int = Field(ge=1, le=4, strict=True)
+
+
+class GenerationMode(HostCommand):
+    mode: Literal["fixture", "live"]
 
 
 class Confirm(HostCommand):
@@ -149,6 +155,11 @@ async def topic(data: Topic, request: Request):
 @router.post("/room/player-count")
 async def player_count(data: PlayerCount, request: Request):
     return await engine.mutate(token(request), "player-count", data.model_dump())
+
+
+@router.post("/room/generation-mode")
+async def generation_mode(data: GenerationMode, request: Request):
+    return await engine.mutate(token(request), "generation-mode", data.model_dump())
 
 
 @router.post("/room/topic/generate")

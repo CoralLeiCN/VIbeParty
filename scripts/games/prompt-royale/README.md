@@ -67,8 +67,14 @@ Topic provider: OPENAI_API_KEY, gpt-5.6-luna, reasoning effort none, total timeo
 160 accepted characters, no automatic retries, maximum 16 calls separate from video starts.
 Generation sends only the generic topic instruction, with store:false and no tools.
 
+The host can switch **Video generation** between **Fixture rehearsal** and
+**Real generation · Reactor** in the lobby, including after returning from a finished round.
+The choice applies to the whole room and is locked during a round. Topic suggestions keep
+their separate PROMPT_ROYALE_TOPIC_MODE setting. GENERATION_MODE sets the initial video
+mode for new rooms; it can stay at fixture while real generation is available in the lobby.
+
 Live gameplay stays disabled by default. Explicit launch setup needs the current slot,
-PROMPT_ROYALE_LIVE_ENABLED=true, GENERATION_MODE=live, verified tokenizer/provider access,
+PROMPT_ROYALE_LIVE_ENABLED=true, verified tokenizer/provider access,
 PROMPT_ROYALE_REHEARSED_CAPACITY matching a passed rehearsal for the selected 1–4 player count, and an allocated
 PROMPT_ROYALE_LIVE_SESSION_STARTS (maximum 16). Remaining starts must cover two per player.
 Rehearse three players then four, including physical Safari/Chrome and projected playback,

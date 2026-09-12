@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from backend.games.prompt_royale.config import TOPICS, RoyaleSettings
+from backend.games.prompt_royale.helios import HeliosVideo
 from backend.games.prompt_royale.providers import FixtureVideo, ProviderFailure, Topics
 from backend.games.prompt_royale.validation import PromptValidator, normalized, rendered
 from backend.shared.contracts import GameContext
@@ -118,12 +119,14 @@ class Engine:
         self.housekeeper: asyncio.Task | None = None
         self.root = context.settings.media_dir(GAME_ID)
         self.validator = validator or PromptValidator(self.settings.prompt_royale_tokenizer)
-        self.video = video or FixtureVideo()
         self.journal = self.root.parent / "unresolved-provider.json"
-        if video is None and context.settings.generation_mode == "live":
-            from backend.games.prompt_royale.helios import HeliosVideo
-
-            self.video = HeliosVideo(self.settings, self.journal)
+        self.fixture_video = video if video is not None and not video.live else FixtureVideo()
+        self.live_video = (
+            video if video is not None and video.live else HeliosVideo(self.settings, self.journal)
+        )
+        self.video = (
+            self.live_video if context.settings.generation_mode == "live" else self.fixture_video
+        )
         self.topics = topics or Topics(self.settings)
         self.topic_task: asyncio.Task | None = None
         self.admission: dict[str, list[float]] = {}
@@ -255,8 +258,9 @@ class Engine:
                     raise AppError(
                         503,
                         "live_not_ready",
-                        "Live capture and capacity need operator validation. Use fixture setup.",
+                        self.live_unavailable_reason(),
                     )
+                self.video = self.live_video if mode == "live" else self.fixture_video
                 room = Room(
                     uid(),
                     reservation.code,
@@ -278,16 +282,23 @@ class Engine:
         return token, self.snapshot(player)
 
     def live_ready(self):
+        return self.live_unavailable_reason() is None
+
+    def live_unavailable_reason(self):
         s = self.settings
-        return (
-            s.prompt_royale_live_enabled
-            and s.prompt_royale_live_slot
-            and s.prompt_royale_rehearsed_capacity >= 1
-            and s.reactor_api_key
-            and self.video.live
-            and not self.blocked
-            and self.validator.tokenizer is not None
-        )
+        if self.blocked or self.live_video.uncertain:
+            return "Provider cleanup must finish before real generation is available."
+        if not s.prompt_royale_live_enabled:
+            return "Real generation is disabled in this server's Prompt Royale settings."
+        if not s.prompt_royale_live_slot or s.prompt_royale_rehearsed_capacity < 1:
+            return "Real generation needs a configured live slot and rehearsed player capacity."
+        if not s.reactor_api_key:
+            return "Real generation needs a Reactor API key on the server."
+        if not self.live_video.live:
+            return "The live video provider is unavailable."
+        if self.validator.tokenizer is None:
+            return "Install the verified Helios tokenizer before using real generation."
+        return None
 
     async def join(self, token, name, code, ip):
         async with self.lock:
@@ -366,7 +377,21 @@ class Engine:
                     raise AppError(
                         409, "state_changed", "The screen changed. Check it and try again."
                     )
-            if action == "player-count":
+            if action == "generation-mode":
+                self._lobby()
+                mode = data.get("mode")
+                if mode not in {"fixture", "live"}:
+                    raise AppError(422, "generation_mode", "Choose fixture or real generation.")
+                if self.blocked or self.video.uncertain:
+                    raise AppError(
+                        409, "cleanup_pending", "Provider cleanup must finish before switching."
+                    )
+                if mode == "live" and not self.live_ready():
+                    raise AppError(409, "live_not_ready", self.live_unavailable_reason())
+                self.video = self.live_video if mode == "live" else self.fixture_video
+                room.mode = mode
+                self._changed(True)
+            elif action == "player-count":
                 self._lobby()
                 player_count = self._player_count(data.get("player_count"))
                 if player_count < len(room.players):
@@ -891,6 +916,8 @@ class Engine:
                 "pending": room.topic_pending,
                 "error": room.topic_error,
                 "topics": TOPICS,
+                "live_unavailable_reason": self.live_unavailable_reason(),
+                "live_capacity": self.settings.prompt_royale_rehearsed_capacity,
                 "video_starts_remaining": self.settings.prompt_royale_live_session_starts
                 - self.starts,
                 "topic_calls_remaining": self.settings.prompt_royale_topic_calls

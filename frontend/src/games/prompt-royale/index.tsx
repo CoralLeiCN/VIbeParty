@@ -380,6 +380,34 @@ export function GameRoute({ entry }: GameEntryProps) {
                 <h3>Set the scene</h3>
                 {state.me.host && lobby ? (
                   <>
+                    <label htmlFor="royale-generation-mode">
+                      Video generation
+                    </label>
+                    <select
+                      id="royale-generation-mode"
+                      value={state.mode}
+                      disabled={busy || state.closing || state.cleanup_pending}
+                      aria-describedby="royale-generation-mode-hint"
+                      onChange={(e) =>
+                        void act("/room/generation-mode", {
+                          mode: e.target.value,
+                        })
+                      }
+                    >
+                      <option value="fixture">Fixture rehearsal</option>
+                      <option
+                        value="live"
+                        disabled={!!lobby.live_unavailable_reason}
+                      >
+                        Real generation · Reactor
+                      </option>
+                    </select>
+                    <p id="royale-generation-mode-hint" className={styles.hint}>
+                      {lobby.live_unavailable_reason ||
+                        (state.mode === "live"
+                          ? `Generate videos from your scenes with Reactor. Supports up to ${lobby.live_capacity} players; ${lobby.video_starts_remaining} video starts remaining.`
+                          : "Play sample videos for rehearsal, or choose real generation to bring your scenes to life.")}
+                    </p>
                     <label htmlFor="royale-lobby-player-count">
                       Number of players
                     </label>
