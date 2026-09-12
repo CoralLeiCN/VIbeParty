@@ -1,0 +1,131 @@
+# Word by Word: hackathon technical stack
+
+Status: simplified implementation plan, 12 September 2026. This replaces the previous multi-service plan for Word by Word. Implementation has not started. Follow the [demo game spec](word-by-word-spec.md); see [before and after](research/word-by-word/hackathon-simplification.md) for the removed scope.
+
+## 1. Decision
+
+Run **one FastAPI process**, serving a React frontend, holding one room in memory, and running one Reactor generation task. Save the four video clips to temporary local disk and play them on the host laptop. Phones submit words and poll for status once per second.
+
+No database, Redis, WebSockets, worker service, job queue, object-storage service, or distributed state is required for this demo. These are deliberate scope reductions. A server restart loses the room, so the deployment must use one process and one replica.
+
+## 2. Stack
+
+| Concern | Demo choice |
+| --- | --- |
+| UI | React 19, TypeScript, Vite, ordinary CSS, browser HTML video |
+| Frontend tooling | Node.js 24 LTS and npm; commit `package-lock.json` |
+| Backend | Python 3.13, FastAPI, Pydantic 2, Uvicorn with exactly one worker |
+| Python environment | uv with committed `uv.lock` |
+| State | Python dataclasses/dictionaries; one `asyncio.Lock` protects mutations |
+| Client updates | HTTP POST actions and a one-second `GET /api/state` poll; no overlapping polls |
+| Video generation | Reactor FastH3 through the generic Python `reactor-sdk`; HTTPX only where its documented REST interface is needed |
+| Background work | One retained `asyncio.Task` in the API process |
+| Media | FFmpeg / ffprobe and private temporary files; no S3 or boto3 |
+| Hosting | One Railway service, one replica, one Dockerfile; platform HTTPS and no persistent volume |
+| Checks | pytest for a few critical server rules, Ruff, TypeScript checking/build, and a manual phone/browser rehearsal |
+
+Railway is the selected demo hosting target because its documented FastAPI/Dockerfile workflow keeps deployment to one service. Verify Reactor connectivity and capture in that container before relying on it at the event; hosting documentation does not establish model-stream compatibility. [Railway FastAPI guide](https://docs.railway.com/guides/fastapi), [service documentation](https://docs.railway.com/services).
+
+Pin working patch releases and the exact Reactor SDK version when implementing. No additional LLM is selected: fixed templates assemble the story and cumulative scene instructions. VEED and Helios have no dependencies or feature flags to implement in this demo; revisit them afterward.
+
+## 3. Runtime and files
+
+```mermaid
+flowchart LR
+    Phones[3–4 phones: words and polling] --> App[One FastAPI process]
+    Host[Host laptop: controls and video] --> App
+    App --> State[Room in memory]
+    App --> Task[One async generation task]
+    Task --> Reactor[Reactor FastH3]
+    Reactor --> Capture[SDK frames and FFmpeg]
+    Capture --> Files[Private local clips]
+    App --> Files
+```
+
+The built frontend is served from the same origin as `/api`. During development, Vite proxies `/api` to FastAPI. Deployment uses a Node build stage and a Python runtime with FFmpeg installed; no Node server, Docker Compose, Caddy, or separately deployed frontend is needed.
+
+Use a small layout:
+
+```text
+frontend/src/             # Host screen, player form, simple polling hook
+backend/app.py           # Routes, cookies, startup/shutdown, static frontend
+backend/game.py          # Room state, assignments, validation, phase changes
+backend/reactor_video.py # One direct provider/capture integration
+backend/tests/test_game.py
+Dockerfile
+```
+
+No generalized game engine, provider-plugin framework, repository layer, or durable outbox. Fixture mode can be a small explicit branch using a fixed example sequence.
+
+## 4. State, actions, and privacy
+
+Keep one `RoomState`: room code, host session, up to four player sessions, phase, round ID, four assigned slots, accepted words, input deadline, last meaningful action time, saved clip paths, highest disclosed index, result label, and the generation-task reference. Track whether provider closure is unresolved and how many live session attempts remain.
+
+Use five phases: `LOBBY`, `INPUT`, `GENERATING`, `REVEAL`, `RESULTS`. A rematch increments/replaces the round ID. Provider callbacks must match the active round before applying results. Timers and tasks are intentionally not durable.
+
+Protect each state-changing decision with the room's `asyncio.Lock`; release it before network calls, capture, or file I/O. Store the generation-task reference while still holding the lock so simultaneous requests cannot open two sessions. Run blocking media work in FFmpeg or a thread rather than blocking the API loop.
+
+Start one lightweight in-process deadline loop for the input deadline and 30-minute inactivity expiry. Only joins, submissions, and host actions extend inactivity; polling does not. Wrap the generation coroutine in a 120-second overall timeout; give each step up to 30 seconds within that remaining budget. Keep references to both generation and cleanup tasks so exceptions are handled and shutdown can close the provider.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /api/host` | Check the configured host passcode and issue a host cookie. |
+| `POST /api/join` | Join the current lobby by room code and name; issue a player cookie. |
+| `GET /api/state` | Return an explicit host or player snapshot, including server time. |
+| `POST /api/round/start` | Host freezes the roster and starts collection. The final accepted word starts generation automatically. |
+| `POST /api/word` | Submit `{round_id, slot_index, word}` for the caller's own slot. |
+| `POST /api/reveal/next` | Host sends `{round_id, expected_reveal_index}` to disclose exactly the next clip, or finish after the last one. |
+| `GET /api/clips/{round_id}/{index}` | Stream a disclosed clip to the authorized host, with range support. |
+| `POST /api/round/end` | Host stops new work, requests cleanup, and shows already disclosed history. |
+| `POST /api/round/new` | From results, clear the old round/files and return the same players to the lobby. Reject while generation is running or provider closure is unresolved. |
+| `POST /api/room/reset` | Host clears the room, rotates its code, and requires players to rejoin. Also rejects while generation is running or closure is unresolved. |
+
+Every round action includes the current `round_id`; reject a stale ID. Repeated submission of the same accepted word succeeds without another write. A different word for a filled slot is a conflict. Starting outside `LOBBY` is a conflict. `expected_reveal_index` prevents a repeated **Next** request from skipping an addition. This is enough for the demo; no generic idempotency table is needed.
+
+The host snapshot contains public names, counts, phase, saved-clip count, and disclosed contributions only. A player additionally sees their own assigned slots and accepted words. Do not serialize the full room object. Authenticate cookies on every request; private clips are outside the static frontend directory and can only be read through the checked route. Future clips are inaccessible even to the host.
+
+Use opaque HttpOnly, Secure, SameSite cookies over the deployed HTTPS origin. Require same-origin JSON POSTs and check `Origin`; rate-limit passcode guesses and join/input attempts in memory. The host passcode and Reactor credential stay in environment variables. A room code locates the room but cannot authorize host actions. No accounts, external authentication service, or display-pairing subsystem.
+
+Phones do not play synchronized video. The host reveals each clip manually, and the poll updates phone text within roughly a second. Native video pause/replay is a local UI action; it does not open another provider session. Final replay uses the existing disclosed clips in the browser.
+
+## 5. Reactor integration contract
+
+Keep one direct implementation for FastH3. Its documented predecessor chaining fits the four additions, and its queued playback is consumed when played, which is why the demo still needs private capture for replay. Chaining is a capability to test, not a guarantee of visual preservation. [FastH3 API](https://www.reactor.inc/models/fast-h3/api).
+
+The entire provider experiment is small:
+
+1. Open one server-owned session scoped to `reactor/fast-h3`, permitting one session and a maximum lifetime of 180 seconds. Verify that the installed Python SDK applies the constraints. Never send provider credentials or queue messages to a browser.
+2. Disable autoplay. Request approximately six seconds per segment with one frozen landscape preset. Store the actual duration only in the room's in-memory clip metadata.
+3. Generate place, then character, then action, then consequence. Each prompt includes the exact word for that step and earlier facts, with fixed style/continuity instructions. It never contains a later word.
+4. Wait for the specific clip to be ready. Play it once privately while capturing its video track; save the file, check it, and continue from its provider clip ID. The next step is admitted only after the previous capture succeeds.
+5. Expose the saved valid prefix through `REVEAL` and initiate non-recoverable provider shutdown. Cleanup completion gates another live session, not playback of saved files. If nothing was saved, show a failed result.
+
+The generic SDK documents receiving decoded frames through a track handler. Connect that handler to a bounded FFmpeg input queue. Verify first/last-frame boundaries against the clip events in the initial spike; do not guess that receipt of a finish message means all buffered frames have arrived. [Reactor Python SDK](https://docs.reactor.inc/sdk-reference/python/reactor).
+
+Encode muted H.264 MP4 with `yuv420p` and fast-start metadata. Probe duration, decodability, and dimensions, reject incomplete captures, and cap each file at 20 MiB. Keep source dimensions and letterbox the display. The four-clip local storage allowance is 80 MiB, plus bounded temporary capture overhead.
+
+If an enqueue acknowledgement is ambiguous, do not retry the paid operation. Stop the build, close the session, and use already saved clips. No command journal, session takeover, automatic reconnect, or alternative-provider implementation. If frame capture or continuation cannot work reliably, record the failure and revise the approach before building further UI; do not claim a fixture proves it works.
+
+Provider-side session-count and lifetime constraints are documented. Session time while holding a GPU is billable, including idle time. Verify the actual model rate and the effect of shutdown in the account before rehearsal. [Reactor authentication](https://docs.reactor.inc/authentication), [billing](https://docs.reactor.inc/resources/billing).
+
+## 6. Small operational safeguards
+
+- One host can admit one generation task. Default to at most three live session attempts per server run, decrementing before attempting to open a session. No automatic rerolls, speculative warmup, or application budget ledger.
+- A 120-second application generation timeout requests cancellation and cleanup. The independently enforced 180-second provider limit is the backstop; do not assume a dropped network connection stops charges.
+- Keep `provider_closing` true until closure is confirmed. Saved clips remain playable while it is true. If confirmation fails, block further live rounds and use the provider dashboard to resolve it. After a server crash, verify the old session is closed before restarting live play, since the in-memory guard and attempt counter are lost.
+- Choose live or fixture mode before starting a round. Fixture mode binds fixed words to fixed assets, is clearly labelled, and spends no provider credits. It never substitutes for a failed live generation.
+- Delete old clips and words on a new round, room reset/closure, or 30-minute inactivity expiry. Sweep only this app's temporary directory at startup. Ephemeral files and in-memory rooms are intentionally disposable; do not enable multiple replicas or deploy during a demo round.
+- Log round IDs, step timings, errors, session closure, and session-attempt count. Do not log raw words, cookies, or credentials. No external analytics/metrics platform.
+
+Configuration is limited to the host passcode, Reactor credential, live/fixture mode, allowed origin, fixed model/preset, attempt limit, timeouts, and temp-directory path. Use placeholders in `.env.example` and exact dependencies in lockfiles.
+
+## 7. Build and test in this order
+
+1. **Video first:** run `forest → fox → dancing → confetti` through the actual model, capture four clips, close the session, and replay them. Confirm continuity, elapsed time, and cost. Run it inside the intended deployment container too.
+2. **One-room flow:** build the host screen and phone form with in-memory state and polling. Exercise the fixed three/four-player assignments using a clearly labelled fixture round.
+3. **Connect the live task:** plug the successful capture function into that flow; keep the same public reveal and privacy checks.
+4. **Rehearse:** run the [demo acceptance checks](word-by-word-spec.md#8-demo-acceptance), including a provider timeout, refresh, duplicate action, and attempted future-clip access.
+
+Write focused pytest checks for assignment, submission ownership/locking, duplicate start/next protection, hidden snapshot/media access, and timeout results using a fake provider. Run Ruff, TypeScript checking, and the frontend build. Perform the phone/host rehearsal manually. Defer a full Vitest/Testing Library/Playwright matrix, mypy rollout, load testing, migration testing, and process-failover testing until after the hackathon.
+
+This plan supplies the minimum application infrastructure for the chosen demo. The real technical gate remains successful additive video generation and capture. No authenticated trial, dependency installation, deployment, or application test has been completed by this documentation change.

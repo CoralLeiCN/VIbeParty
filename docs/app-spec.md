@@ -2,6 +2,8 @@
 
 Status: proposed MVP specification, 12 September 2026.
 
+**Word by Word hackathon override:** its [dedicated demo spec](word-by-word-spec.md) and [simplified stack](word-by-word-tech-stack.md) take precedence over the shared requirements below. That demo uses one room, three/four player phones, one host screen, four words, and disposable in-memory state. The broader room infrastructure and other games remain separate plans; they are not prerequisites for this demo.
+
 ## 1. Product concept
 
 VibeParty turns a group of friends into the creators and audience of AI-generated entertainment. Players join a room on their phones, contribute words or prompts, watch the results, and compete through voting or guessing.
@@ -10,16 +12,16 @@ The app is a demo for the [Worlds hackathon](hackathon.md). Its first release su
 
 | Game | Player activity | Result | Competition |
 | --- | --- | --- | --- |
-| Word by Word | Each player adds one word to each shared sentence. | The sentences become a prompt that generates a world clip. | Cooperative; no winner. |
+| Word by Word | Players contribute words to a shared story inspired by Consequences. | Each contribution adds to an evolving video scene. | Cooperative; no winner. |
 | Prompt Royale | Everyone writes a prompt for the same topic. | One short clip per accepted entry, followed by a group screening. | Most votes wins. |
 | Reverse Prompt | Players alternate between watching a video and describing it to generate the next video. | A chain of prompts and videos, followed by guesses of the original prompt. | Closest final guess wins. |
 
-Names are working titles. The game rules below are implementation defaults, not additional requirements supplied by the founder.
+Names are working titles. Except for explicitly confirmed design directions, the game rules below are proposed implementation defaults.
 
 ### Interpretation and assumptions
 
-- “One world” in the first game is interpreted as **one word** per participant.
-- The first game's initial output is assumed to be a **short video of a generated world**, pending clarification. It uses an existing generative model; training a model is outside the MVP. An interactive world or 3D scene would require an updated output and interaction specification.
+- “One world” in the first game is interpreted as **one word** per contribution. The finalized proposed template assigns one or two contributions per player according to room size.
+- Word by Word uses **Consequences** as its selected reference and an **evolving video with additive contributions** as its intended output. Its [demo specification](word-by-word-spec.md) selects four private words followed by four connected segments; its [technical plan](word-by-word-tech-stack.md) selects Reactor FastH3 for evaluation. It uses an existing generative model; training a model is outside the MVP.
 - “Model Python” is interpreted as **modern Python for the backend**. See the [backend specification](backend-spec.md).
 - The initial experience is a browser app for a group playing together. Personal devices carry private inputs; an optional shared display shows only public information.
 - English is the initial language for instructions, word validation, and similarity scoring.
@@ -63,19 +65,19 @@ The host can start valid rounds, extend an input timer once, remove a player, tr
 
 | Setting | MVP default |
 | --- | --- |
-| Active players | 3–8 |
+| Active players | Prompt Royale / Reverse Prompt: 3–8. Word by Word demo: 3–4, plus a separate host screen. |
 | Rounds | One round per game launch; replay from results |
-| Word by Word | Two sentences; 10 seconds per word |
+| Word by Word | Four fixed slots, one word per slot, 45-second private collection, then host-controlled connected video segments; see the [demo specification](word-by-word-spec.md) |
 | Prompt Royale | 60 seconds to submit a prompt; 30 seconds to vote |
 | Reverse Prompt | Everyone takes one generation turn; 45 seconds per prompt; 45 seconds for final guesses |
 | Individually written prompt / guess length | 1–500 characters after trimming, subject to provider and scoring token limits |
-| Video preset | Target 5 seconds, landscape, muted by default; use one supported preset selected before the round |
-| Generation deadline | 180 seconds per generation phase, including queue time; a configurable product limit, not a latency claim |
-| Input extension | Host may add 30 seconds once per phase; 10 seconds for a word turn |
+| Video preset | Target 5 seconds for Prompt Royale / Reverse Prompt; Word by Word requests approximately 6 seconds per segment. Landscape and muted by default. |
+| Generation deadline | 180 seconds per Prompt Royale / Reverse Prompt generation phase; Word by Word has a 120-second total build limit, with provider cleanup separate from saved playback. These are product limits, not latency claims. |
+| Input extension | Prompt Royale / Reverse Prompt: host may add 30 seconds once per input phase. Word by Word demo: no extension. |
 
 For the contest, the generation phase covers all entries in parallel. For the relay, each step has its own generation phase. The UI explains that larger relay groups require more sequential generations. Use a three-player room for a short demo; time estimates must come from measured provider performance.
 
-Settings are selected from server-validated presets. For Word by Word, validate that the maximum assembled sentence length plus rendering instructions fits the provider's input limit before accepting a preset; lower word/sentence limits if needed. Never truncate accepted contributions. The 500-character limit applies to individually written prompts and guesses, not the multi-player assembled prompt.
+Settings are selected from server-validated presets. For Word by Word, validate that the category template, contribution limits, and cumulative rendering instructions fit the selected provider's input limit before accepting a preset. Never truncate accepted contributions. The 500-character limit applies to individually written prompts and guesses, not the multi-player assembled prompt.
 
 ### Screens and interaction
 
@@ -95,34 +97,20 @@ Phone browsers may require a tap to start video or sound. Provide keyboard acces
 
 ### Objective
 
-Create surprising scenes together. Every active player contributes one word to a sentence; multiple sentences become the exact creative content of the generation prompt.
+Create a shared story inspired by **Consequences**, with each player's word adding something to an evolving video. The [hackathon game specification](word-by-word-spec.md) is authoritative for this game's rules, and the [simplified technical stack](word-by-word-tech-stack.md) defines its implementation. The [reference note](word-by-word.md) records the traditional-game background.
 
-### Rules and sequence
+### Proposed gameplay
 
-1. The server freezes a random player order and shows empty word slots for the first sentence.
-2. Players take turns. The active player sees the sentence so far and submits exactly one word.
-3. Accept letters or numbers with internal apostrophes or hyphens, up to 32 characters. Reject whitespace-separated phrases, empty input, and markup. Words are rendered as plain text.
-4. The server immediately locks and reveals each accepted word. No other player or host can rewrite it.
-5. Once everyone has contributed, the server joins the words with spaces and adds a full stop. The next sentence rotates the starting player by one position.
-6. After two sentences by default, show the assembled prompt and queue one generation. No additional confirmation is needed.
-7. Reveal the video and replay the word-by-word construction with contributor names. The group can replay the video or start again.
+Assign four fixed slots—place, character, action, consequence—across three or four players in join order. Collect privately for 45 seconds. With three players the first supplies two words; with four everyone supplies one. The laptop host is a separate role and does not see private answers.
 
-Example with six players:
+After all words are accepted, privately build four connected video segments, each adding the next word while retaining earlier scene facts. The host reveals each word, contributor, and approximately six-second clip with Play/Next. Everyone watches the host screen; phones show words and status. Replay uses saved local files. Provider cleanup does not block saved playback. Continuous steering and broader room features are deferred; see [before and after](research/word-by-word/hackathon-simplification.md).
 
-```text
-An / astronaut / dances / beside / a / volcano
-Tiny / robots / cheer / beneath / purple / lightning
+### Constraints
 
-An astronaut dances beside a volcano. Tiny robots cheer beneath purple lightning.
-```
-
-Store both the original contributions and the assembled prompt. The provider adapter may add a fixed, versioned rendering instruction, such as requesting a short scene, but must preserve the players' words and order. Grammatical oddities are part of the game. Do not silently paraphrase the result with another model.
-
-### Missed turns and scoring
-
-- On timeout, pause the word sequence for up to 60 seconds. The host can grant the one extension or remove the absent player from the remainder of the round; the app never invents their word. If the host takes no action within that pause, end the round unscored.
-- Removing a player preserves words already accepted and skips their future slots. Every remaining player must still contribute once to each sentence. Abort if fewer than three active players remain.
-- A blocked prompt or failed generation produces a clear no-result state with a replay option. It does not remove the group's visible sentence history.
+- Store original contributions and contributor identities separately from assembled text and provider instructions. Templates may add connecting text; they must not silently replace accepted contributions.
+- Hidden contributions stay private until their scheduled reveal, including from the host and shared display. A generated scene must not reveal later words early.
+- Refreshing a browser restores accepted contributions while the server process lives. Missing input ends the round; no automatic replacements or host migration. A server restart loses the room.
+- A failed step stops further generation. A saved valid prefix can be revealed while provider cleanup completes; another live session waits for confirmed closure. Unshown words remain private, including in partial results. No paid rerolls.
 - This game is cooperative. There are no points, winners, or ranking requirements.
 
 ## 5. Game 2: Prompt Royale
@@ -222,7 +210,7 @@ This 0–100 scale is a proposed game rule. Display “Similarity: 82 / 100,” 
 
 Generation is shared infrastructure across all games. The app must remain responsive while a provider is working. Show truthful phase labels and elapsed time; show percentages or ETA only when backed by provider data or measurements.
 
-The initial setup must configure a room budget, provider concurrency, request deadlines, and a maximum number of attempts. Reserve enough budget for the planned round before starting it. At `n` players, base demand is one output for Word by Word, `n` outputs for Prompt Royale, and `n` sequential outputs for Reverse Prompt. Retries can add cost; account for them explicitly.
+The broader app setup must configure a room budget, provider concurrency, request deadlines, and a maximum number of attempts. Reserve enough budget for its planned rounds before starting them. At `n` players, base demand is `n` outputs for Prompt Royale and `n` sequential outputs for Reverse Prompt. The Word by Word demo instead builds four connected clips with one active session, a verified 180-second provider cap, no paid retries, and at most three live session attempts per server run. It has no persistent budget ledger; its dedicated plan explains the restart limitation. Other games' permitted retries can add cost; account for them explicitly.
 
 If admission fails, tell the host before the round begins. If an unexpected limit is reached during play, stop admitting new generation requests and apply that game's failure rules. Do not automatically switch a live room to fixture clips or another model. Rehearsal mode uses clearly labelled prerecorded outputs and mock scores throughout the room.
 
@@ -235,7 +223,7 @@ Rooms and media are private by default. Players are told that submitted generati
 | Area | Observable completion condition |
 | --- | --- |
 | Join and reconnect | Three separate browsers join one room; refreshing retains identity and restores the current phase without duplicate entries. |
-| Word by Word | Every active player contributes one word per sentence; the generated prompt preserves all accepted words and their order; one output is revealed. |
+| Word by Word | Three/four players follow the four-slot rules; private answers stay hidden; three live runs including a variation demonstrate additions, continuity, and saved replay. Meet the [demo acceptance checks](word-by-word-spec.md#8-demo-acceptance). |
 | Prompt Royale | All players receive one topic; clips and authors are anonymous until results; self-votes and duplicate votes are rejected; ties produce joint winners. |
 | Reverse Prompt | A three-player chain produces three videos; only the next player can retrieve its input video; eligible guesses are compared with `P0`; the author is unscored. |
 | Privacy | Direct API calls, WebSocket events, snapshots, and media URLs cannot expose other players' hidden content before the proper phase. |
@@ -247,10 +235,10 @@ Rooms and media are private by default. Players are told that submitted generati
 
 ## 9. Delivery order and remaining decisions
 
-1. Build room/session management and all game state transitions against the fixture provider.
-2. Implement Word by Word end to end, including a real generation and playback.
+1. Build room/session management and the fixture provider infrastructure.
+2. For the standalone Word by Word hackathon demo, follow its dedicated build order: verify one four-word live chain, add the one-room phone/host flow, then rehearse. The broader shared-room infrastructure is not a dependency.
 3. Add parallel contest generation, anonymous screening, and voting.
 4. Add private relay turns, final guesses, and the fixed scoring implementation.
 5. Exercise reconnects, privacy boundaries, budget limits, and failure recovery; rehearse all three games with the live provider.
 
-Before live integration, confirm the first game's output type, obtain provider access, select a supported common video preset, benchmark generation latency, set a budget, and pin the scoring model. These are integration decisions; they do not prevent implementing the room and game rules against fixtures.
+Before live integration, obtain provider access, verify supported video presets and private capture, benchmark generation latency and continuity, set verified spending bounds, and pin the scoring model for Reverse Prompt. Word by Word's gameplay and state transitions are now specified; its provider capabilities remain live verification gates. Shared room work and game flows can proceed against labelled fixtures.

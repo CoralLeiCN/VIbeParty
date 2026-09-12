@@ -2,6 +2,8 @@
 
 Status: proposed implementation, 12 September 2026. Product behavior is defined in the [app and game specification](app-spec.md).
 
+**Word by Word hackathon override:** its [demo game specification](word-by-word-spec.md) and [simplified technical plan](word-by-word-tech-stack.md) take precedence over this broader backend plan. Build that demo as one FastAPI process with an in-memory room, HTTP polling, one async Reactor task, and local clip files. PostgreSQL, Redis, Celery, migrations, distributed leases, S3, and a budget ledger below are not demo dependencies. They remain a broader architecture proposal for the other games and future expansion. See [before and after](research/word-by-word/hackathon-simplification.md).
+
 ## 1. Architecture
 
 Use a modular Python application with a separate worker process built from the same codebase. Keep game rules independent of HTTP, queue infrastructure, and model-provider SDKs. The first release does not need microservices or an extensible game-plugin framework.
@@ -87,7 +89,7 @@ Use lifespan hooks for resource initialization/cleanup, typed settings for confi
 
 ## 3. Domain model and constraints
 
-Use UUID identifiers and foreign keys, timestamp every durable record, and index foreign keys plus frequent room/state queries. Use integer counts and integer currency minor units with an explicit currency for budgets.
+For the broader persistent backend, use UUID identifiers and foreign keys, timestamp every durable record, and index foreign keys plus frequent room/state queries. Use integer counts and integer budget units with an explicit currency and scale. The Word by Word demo holds its room in memory and uses session/attempt limits instead of a monetary ledger.
 
 | Entity | Important fields and invariants |
 | --- | --- |
@@ -96,7 +98,7 @@ Use UUID identifiers and foreign keys, timestamp every durable record, and index
 | Session | Hashed opaque credential, participant or display role, expiry, revocation. Display credentials are read-only and room-scoped. |
 | Round | Room, game kind, phase, phase version, phase deadline, settings snapshot, generation/scoring versions, outcome. At most one active round per room. |
 | RoundParticipant | Frozen roster, order, author/relay role, eligibility, withdrawal status. Unique `(round_id, participant_id)`. |
-| WordContribution | Round, sentence index, slot index, participant, original word, normalized word. Unique slot and unique participant per sentence. |
+| Word by Word demo state | Not a database entity in the demo: four assigned slots, accepted words, clip metadata, and reveal index live in one in-memory RoomState. See its dedicated technical plan. |
 | Submission | Round, participant, kind, step index, original text, effective provider prompt, moderation status, accepted at. Unique permitted participant/kind/step slot. |
 | RelayStep | Round, step index, assigned participant, input asset, submission, output asset, status. Unique `(round_id, step_index)`; first step is the author. |
 | GenerationJob | Round, source submission or assembled prompt, logical key, state, deadline, attempt limit, lease owner/expiry, provider job ID, preset, error category. Logical key unique. |
@@ -118,11 +120,11 @@ Cross-record invariants such as self-vote prevention and active relay ownership 
 
 | Game | Normal phase progression |
 | --- | --- |
-| Word by Word | `word_turn` → next slot/sentence → `generating` → `reveal` → `finished` |
+| Word by Word demo | `LOBBY` → `INPUT` → `GENERATING` → `REVEAL` → `RESULTS`; failed/partial rounds also end at results. No separate recovery phase. |
 | Prompt Royale | `prompting` → `generating` → `screening` → `voting` → `results` → `finished` |
 | Reverse Prompt | `author_prompt` → `generating_step` → `relay_prompt` → `generating_step` (repeat) → `guessing` → `scoring` → `reveal` → `finished` |
 
-`awaiting_host` handles a missed word turn with its own 60-second deadline. `aborted` and `unscored` are explicit outcomes with game-specific reveal behavior. An abort or final result cannot be reopened by a late generation result.
+Word by Word ends an incomplete input round without generation and stops building at the first failed step. A saved valid prefix may play while provider cleanup completes, with unshown words remaining private. Result labels describe complete, partial, or no video; they are not scores. Other games use their explicit aborted/unscored behavior. A finished round cannot be reopened by a late generation result.
 
 For every mutation:
 
@@ -151,7 +153,7 @@ All routes are under `/api/v1` except health endpoints. Room identifiers and joi
 | `POST /rooms/{room_id}/host-transfer` | Current host transfers control to an eligible connected participant. |
 | `POST /rooms/{room_id}/display-pairings` | Host creates a short-lived, single-use code to pair a read-only display session. |
 | `POST /display-sessions` | Redeem a pairing code and set the display cookie; rate-limited. |
-| `POST /rounds/{round_id}/words` | Submit the active player's word for an explicit sentence and slot. |
+| Word by Word demo routes | The dedicated plan uses smaller `/api/word`, `/api/state`, and `/api/reveal/next` routes. Do not implement this broader `/api/v1` route set as a prerequisite for the demo. |
 | `POST /rounds/{round_id}/prompts` | Submit a contest, author, or relay prompt with an explicit kind/step. |
 | `POST /rounds/{round_id}/screening/advance` | Host marks a contest clip screened and moves to the next; last clip opens voting. |
 | `POST /rounds/{round_id}/entries/{entry_id}/exclude` | Host excludes an unplayable contest entry before voting, with a visible reason. |
@@ -202,7 +204,7 @@ class GenerationProvider(Protocol):
 
 These are proposed application types, not claims about a partner's SDK. Capabilities include supported media types, preset limits, whether idempotent submission and cancellation exist, and available moderation/status mechanisms. Adapters map unavailable features to explicit unsupported results.
 
-`GenerationRequest` contains the application job ID, creative prompt, immutable rendering-template version, frozen model/preset, and seed only if supported. Use text-to-video for all MVP games. Preserve player text separately from the exact effective provider request. The relay submits only the current interpretation, without an earlier video or hidden prompt.
+`GenerationRequest` contains the application job ID, creative prompt, immutable rendering-template version, frozen model/preset, and seed only if supported. Use text-to-video for Prompt Royale and Reverse Prompt. The Word by Word demo uses a direct FastH3 integration function with cumulative scene instructions, predecessor clip IDs, and private capture; it does not implement this generic job framework. That video path still requires live validation. Preserve player text separately from effective provider instructions. The Reverse Prompt relay submits only the current interpretation, without an earlier video or hidden prompt.
 
 Output is a validated asset descriptor with MIME type, dimensions, duration, and internal storage location. Browser clients never choose arbitrary model identifiers, provider URLs, job IDs, or credentials. There is no generic public “generate anything” route; generation admission follows an authorized game action.
 
@@ -262,7 +264,7 @@ All targets below are requirements to verify during implementation; no runtime p
 
 | Layer | Coverage |
 | --- | --- |
-| Unit | Exact word order, turn rotation, permitted state transitions, ties/abstentions, author exclusion, skipped relay steps, score clamping/rounding, deadline boundaries. |
+| Unit | Contribution preservation and reveal order under the finalized Word by Word rules, permitted state transitions, ties/abstentions, author exclusion, skipped relay steps, score clamping/rounding, deadline boundaries. |
 | Database integration | Simultaneous submissions, duplicate votes, unique constraints, phase-timeout races, concurrent budget reservations, transaction/outbox atomicity. Use PostgreSQL, not SQLite substitutes for locking behavior. |
 | Provider contract | Success, rejection, timeout after acceptance, duplicate receipt, safe retry, cancellation unsupported, late completion, invalid/oversized media, fixed preset preservation. |
 | Authorization | Cross-room access, forged actor IDs, removed players, display restrictions, private relay URLs, anonymous contest metadata, CSRF and socket-origin checks. |
