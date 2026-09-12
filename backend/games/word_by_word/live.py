@@ -25,6 +25,8 @@ API = "https://api.reactor.inc"
 MODEL = "reactor/fast-h3"
 SESSION_HEADERS = {"Reactor-API-Version": "1", "Reactor-API-Accept-Version": "1"}
 MAX_BYTES = 20 * 1024 * 1024
+CAPTURE_QUEUE_FRAMES = 32
+CAPTURE_QUEUE_BYTES = 128 * 1024 * 1024
 
 
 class LiveSettings(BaseSettings):
@@ -46,14 +48,16 @@ class CaptureError(RuntimeError):
 
 
 class FrameCapture:
-    """A bounded native-thread-to-FFmpeg queue; overflow invalidates the capture."""
+    """Buffer startup/delivery bursts within fixed frame and raw-byte limits."""
 
     def __init__(self, destination: Path, expected_frames: int):
         if not 124 <= expected_frames <= 175:
             raise CaptureError("unexpected_clip_length")
         self.destination = destination
         self.expected = expected_frames
-        self.frames: queue.Queue = queue.Queue(maxsize=8)
+        # FFmpeg starts after the first frame supplies its dimensions. Native delivery
+        # continues during that startup, and may burst faster than the playback rate.
+        self.frames: queue.Queue = queue.Queue(maxsize=CAPTURE_QUEUE_FRAMES)
         self.lock = threading.Lock()
         self.accepting = False
         self.closed = False
@@ -94,6 +98,9 @@ class FrameCapture:
                 self.error = "non_monotonic_frame_ids"
                 return
             self.dimensions = (width, height)
+            if (self.frames.qsize() + 1) * len(bgra) > CAPTURE_QUEUE_BYTES:
+                self.error = "frame_queue_overflow"
+                return
             try:
                 self.frames.put_nowait(bgra)
             except queue.Full:
@@ -211,6 +218,11 @@ class FrameCapture:
             "metadata_missing_frames": self.metadata_missing_frames,
             "frame_id_gaps": None if self.metadata_missing_frames else self.frame_id_gaps,
             "queue_peak": self.queue_peak,
+            "queue_peak_bytes": self.queue_peak * self.dimensions[0] * self.dimensions[1] * 4
+            if self.dimensions
+            else 0,
+            "queue_limit_frames": CAPTURE_QUEUE_FRAMES,
+            "queue_limit_bytes": CAPTURE_QUEUE_BYTES,
             "capture_error": self.error,
             "start_event_to_first_frame_seconds": elapsed(self.armed_at, self.first_received_at),
             "start_event_to_finish_event_seconds": elapsed(self.armed_at, self.finished_at),

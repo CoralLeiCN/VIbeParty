@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import time
 
 import httpx
 import pytest
@@ -184,6 +185,84 @@ async def test_absent_optional_frame_metadata_is_reported_without_claiming_no_ga
     assert report["first_frame_id"] is None and report["frame_id_gaps"] is None
 
 
+@pytest.mark.asyncio
+async def test_native_frame_burst_during_encoder_startup_saves_every_frame(tmp_path, monkeypatch):
+    width, height, frame_count = 1344, 768, 158
+    capture = FrameCapture(tmp_path / "burst.mp4", frame_count)
+    capture.accepting = True
+    encoder_starting = asyncio.Event()
+    release_encoder = asyncio.Event()
+    create_process = asyncio.create_subprocess_exec
+
+    async def delayed_encoder(*args, **kwargs):
+        encoder_starting.set()
+        await release_encoder.wait()
+        return await create_process(*args, **kwargs)
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", delayed_encoder)
+
+    def frame_color(index):
+        return (32 + index % 6 * 40, 32 + index // 6 % 6 * 40, 32 + index // 36 * 40)
+
+    def send_frame(index):
+        red, green, blue = frame_color(index)
+        pixels = bytes([blue, green, red, 255]) * width * height
+        capture.accept(pixels, width, height, 0, 0, b"")
+
+    def startup_burst():
+        # Native delivery cannot inspect the app queue or wait for FFmpeg startup.
+        for index in range(1, 25):
+            send_frame(index)
+
+    def remaining_frames():
+        for index in range(25, frame_count):
+            time.sleep(1 / 24)
+            send_frame(index)
+
+    capture.task = asyncio.create_task(capture.write())
+    try:
+        async with asyncio.timeout(20):
+            send_frame(0)
+            await encoder_starting.wait()
+            await asyncio.to_thread(startup_burst)
+            assert capture.error is None
+            release_encoder.set()
+            # A sender finish event may arrive before all buffered frames.
+            capture.finished.set()
+            await asyncio.to_thread(remaining_frames)
+            saved = await capture.task
+            assert (saved.width, saved.height) == (width, height)
+            assert saved.duration == pytest.approx(frame_count / 24, abs=0.001)
+            assert capture.received == frame_count and capture.queue_peak >= 24
+            decoder = await create_process(
+                "ffmpeg",
+                "-v",
+                "error",
+                "-i",
+                str(saved.path),
+                "-vf",
+                "scale=1:1",
+                "-pix_fmt",
+                "rgb24",
+                "-f",
+                "rawvideo",
+                "pipe:1",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            pixels, errors = await decoder.communicate()
+            assert decoder.returncode == 0, errors
+            assert len(pixels) == frame_count * 3
+            # Unique, well-separated colors detect dropped, duplicated or reordered frames.
+            for index in range(frame_count):
+                actual = pixels[index * 3 : (index + 1) * 3]
+                assert all(abs(a - e) <= 4 for a, e in zip(actual, frame_color(index), strict=True))
+    finally:
+        release_encoder.set()
+        await capture.abort()
+    assert not list(tmp_path.glob("*.partial.mp4"))
+
+
 def test_duplicate_meaningful_frame_metadata_still_invalidates_capture(tmp_path):
     capture = FrameCapture(tmp_path / "0.mp4", 141)
     capture.accepting = True
@@ -300,12 +379,16 @@ async def test_provider_failure_aborts_pending_capture(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_capture_overflow_invalidates_output(tmp_path):
+@pytest.mark.parametrize("width,height,capacity", [(2, 2, 32), (1920, 1080, 16)])
+async def test_capture_overflow_invalidates_output(tmp_path, width, height, capacity):
     capture = FrameCapture(tmp_path / "0.mp4", 141)
     capture.accepting = True
-    for i in range(9):
-        capture.accept(bytes(16), 2, 2, i, i, b"")
-    assert capture.frames.qsize() == 8 and capture.error == "frame_queue_overflow"
+    frame = bytes(width * height * 4)
+    for i in range(capacity + 1):
+        capture.accept(frame, width, height, i, i + 1, b"")
+    assert capture.frames.qsize() == capacity and capture.error == "frame_queue_overflow"
+    assert capture.received == capacity
+    assert capture.evidence()["queue_peak_bytes"] <= 128 * 1024 * 1024
     with pytest.raises(CaptureError, match="overflow"):
         await capture.write()
     assert not list(tmp_path.glob("*.mp4"))
