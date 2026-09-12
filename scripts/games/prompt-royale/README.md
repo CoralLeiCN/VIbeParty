@@ -63,7 +63,7 @@ An unresolved-provider.json marker blocks shared admission on restart. The opera
 verify every named session, or the whole account for a missing ID, before clearing it.
 Never remove the marker merely to unblock a game.
 
-Topic provider: OPENAI_API_KEY, gpt-4.1-mini-2025-04-14, total timeout 10s, 64 output tokens,
+Topic provider: OPENAI_API_KEY, gpt-5.6-luna, reasoning effort none, total timeout 10s, 64 output tokens,
 160 accepted characters, no automatic retries, maximum 16 calls separate from video starts.
 Generation sends only the generic topic instruction, with store:false and no tools.
 

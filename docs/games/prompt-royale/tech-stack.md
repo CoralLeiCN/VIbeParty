@@ -16,7 +16,7 @@ Version: 1.5, 12 September 2026. Status: selected simplified design with two top
 | Frontend tools | Node.js 24 LTS, npm, package-lock.json | Build static assets and lock dependencies. |
 | Backend | Python 3.13, uv, FastAPI, Pydantic v2, Uvicorn | Rules, validation, sessions, polling API, and file responses. |
 | Room state | Python dictionaries/dataclasses plus asyncio.Lock | In-memory authoritative state; no database or ORM. |
-| Topic suggestions | Backend LLM request through HTTPX; provider/model to be selected and validated | Suggest one topic in the lobby for the host to confirm or regenerate. |
+| Topic suggestions | Backend HTTPX request to OpenAI [GPT-5.6 Luna](https://developers.openai.com/api/docs/models/gpt-5.6-luna), with reasoning effort `none`; live validation remains open | Suggest one topic in the lobby for the host to confirm or regenerate. |
 | Generation orchestration | Tracked asyncio tasks and a semaphore | Two active entry slots and one bounded retry per entry inside the app; no job broker. |
 | Scene provider | Reactor Helios via reactor-sdk; HTTPX for scoped token requests | One fixed provider/model integration. |
 | Input validation | Helios-compatible tokenizer, pinned during the integration spike | Count the complete effective prompt; no rewriting model. |

@@ -59,7 +59,7 @@ Operational settings (private .env and process environment):
 
 - `PROMPT_ROYALE_TOKENIZER`: pinned local tokenizer.json; default game-local .local path.
 - `PROMPT_ROYALE_TOPIC_MODE=fixture|live`: independent of video GENERATION_MODE; default fixture.
-- `OPENAI_API_KEY`: backend only. Topic model gpt-4.1-mini-2025-04-14, total timeout 10s,
+- `OPENAI_API_KEY`: backend only. Topic model gpt-5.6-luna, reasoning effort none, total timeout 10s,
   max_output_tokens 64, accepted topic 160 code points; `PROMPT_ROYALE_TOPIC_CALLS` at most 16.
 - Live requires `GENERATION_MODE=live`, `PROMPT_ROYALE_LIVE_ENABLED=true`, a current
   `PROMPT_ROYALE_LIVE_SLOT`, Reactor key and rehearsed capacity 3 or 4. Default capacity is 0.

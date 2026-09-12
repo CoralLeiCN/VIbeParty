@@ -39,7 +39,7 @@ received-media timestamps, bounded HTTPX recording download, deterministic first
 H.264 preparation, byte caps, saved-source/download recovery and independent terminal-state
 checks. A persistent unresolved-session marker blocks admission after a crash; no paid replay.
 
-Topic choice: OpenAI gpt-4.1-mini-2025-04-14 via HTTPX, 10s total timeout, max_output_tokens64,
+Topic choice: OpenAI gpt-5.6-luna via HTTPX, reasoning effort none, 10s total timeout, max_output_tokens64,
 160 accepted topic code points, no automatic retries, separate 16-call maximum, store:false.
 Credentials and player input never enter the frontend or topic request.
 

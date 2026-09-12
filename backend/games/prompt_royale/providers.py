@@ -8,7 +8,7 @@ from backend.games.prompt_royale.config import FIXTURE_TOPICS, RoyaleSettings
 from backend.games.prompt_royale.validation import normalized
 
 FIXTURES = Path(__file__).parent / "fixtures"
-TOPIC_MODEL = "gpt-4.1-mini-2025-04-14"
+TOPIC_MODEL = "gpt-5.6-luna"
 TOPIC_INSTRUCTION = (
     "Suggest exactly one playful topic for friends to interpret as a five-second silent scene. "
     "Use one sentence, at most 20 words. Keep it suitable for a general audience. "
@@ -79,6 +79,7 @@ class Topics:
                         headers={"Authorization": f"Bearer {self.settings.openai_api_key}"},
                         json={
                             "model": TOPIC_MODEL,
+                            "reasoning": {"effort": "none"},
                             "input": TOPIC_INSTRUCTION,
                             "max_output_tokens": 64,
                             "store": False,

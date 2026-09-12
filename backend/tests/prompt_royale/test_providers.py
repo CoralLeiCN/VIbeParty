@@ -168,6 +168,8 @@ async def test_topic_http_payload_failure_allowance_and_output_validation():
     import json
 
     data = json.loads(requests[0].content)
+    assert data["model"] == "gpt-5.6-luna"
+    assert data["reasoning"] == {"effort": "none"}
     assert data["max_output_tokens"] == 64 and data["store"] is False and "tools" not in data
 
     def timeout(request):
