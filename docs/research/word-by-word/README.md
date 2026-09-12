@@ -6,7 +6,7 @@ Researched: 12 September 2026. Scope: the [Consequences-inspired Word by Word ga
 
 **Evaluate Reactor for the evolving scene. Use VEED only where a narrator or finished-video editing adds value.** Reactor documents both continuous prompt steering through Helios and connected clips through FastH3. These support the continuous and segmented options evaluated here. VEED's Fabric API documents talking-character generation from an image and audio, while its Subtitles API processes an existing video. These are useful supporting roles; the reviewed VEED APIs do not establish arbitrary live additions to a shared scene. This recommendation is our assessment of the documented interfaces. [Helios](https://docs.reactor.inc/model-api-reference/helios/overview), [FastH3](https://docs.reactor.inc/model-api-reference/fast-h3/overview), [Fabric API](https://fal.ai/models/veed/fabric-1.0/api), [Subtitles API](https://fal.ai/models/veed/subtitles/api).
 
-**Hackathon specification decision:** the [demo game spec](../../games/word-by-word/game-spec.md) selects four private words followed by a host-controlled additive reveal. The [simplified technical plan](../../games/word-by-word/tech-stack.md) selects FastH3 with server-side capture and local clips in one FastAPI process. Helios and VEED are deferred from the demo build. See [before and after](../../games/word-by-word/simplification.md). These are design selections, not completed provider trials.
+**Hackathon specification decision:** the [demo game spec](../../games/word-by-word/game-spec.md) selects four private contributions, each a word, phrase, or short sentence up to 120 characters, followed by a host-controlled additive reveal. Each complete contribution maps to one segment. The single-word sequences below remain minimal research examples. The [simplified technical plan](../../games/word-by-word/tech-stack.md) selects FastH3 with server-side capture and local clips in one FastAPI process. Helios and VEED are deferred from the demo build. See [before and after](../../games/word-by-word/simplification.md). These are design selections, not completed provider trials.
 
 The key experiment is visual continuity: can “forest → fox → dancing → snow” retain the forest and the same fox while visibly adding the action and weather? A command being accepted is not evidence that its word appeared correctly.
 
@@ -14,8 +14,8 @@ The key experiment is visual continuity: can “forest → fox → dancing → s
 
 | Game requirement | Reactor | VEED | Assessment |
 | --- | --- | --- | --- |
-| Apply words while one video continues | Helios accepts prompt changes during generation. | No equivalent live scene-steering contract was verified. | Helios is the later continuous-playback candidate. |
-| Reveal one new segment per word | FastH3 can continue a clip from another clip's final frame. | Fabric generates talking-character clips, not a general continuation of the forest scene. | Test FastH3 first for the selected staged reveal. |
+| Apply contributions while one video continues | Helios accepts prompt changes during generation. | No equivalent live scene-steering contract was verified. | Helios is the later continuous-playback candidate. |
+| Reveal one new segment per contribution | FastH3 can continue a clip from another clip's final frame. | Fabric generates talking-character clips, not a general continuation of the forest scene. | Test FastH3 first for the selected staged reveal. |
 | Preserve earlier additions | History/reference conditioning and continuation inputs are documented; semantic preservation needs testing. | Reusing an avatar image can support a consistent narrator. | Neither establishes a guarantee that arbitrary objects and actions persist. |
 | Narrate category prompts or the final story | Helios outputs video only; FastH3 also generates audio. | Fabric animates a supplied character to supplied audio. | VEED is an optional host, not required for gameplay. |
 | Show exact words and contributor names | The app should render these from accepted contributions. | Subtitles accepts our own SRT for a finished replay. | Keep live labels in the app; consider VEED after the round. |
@@ -32,7 +32,7 @@ Reactor lists 33-frame chunks and a 24 fps frame rate. That represents about **1
 
 The prompt guide recommends adding one new action, object, or event per update and briefly reinforcing the existing background. It documents a 512-token encoder limit with silent truncation beyond it and recommends staying below roughly 500 tokens. [Prompt guide](https://docs.reactor.inc/model-api-reference/helios/prompt-guide).
 
-**Proposed use:** maintain the accepted scene facts in our backend, then compose a concise update containing the new word and the relevant earlier facts. Keep the original player contributions separately. Start with fixed templates rather than an unconstrained prompt-writing model, so supporting instructions cannot replace player choices or invent future contributions. Validate prompt length before sending it.
+**Proposed use:** maintain the accepted scene facts in our backend, then compose a concise update containing the new contribution and the relevant earlier facts. Keep the original player contributions separately. Start with fixed templates rather than an unconstrained prompt-writing model, so supporting instructions cannot replace player choices or invent future contributions. Validate prompt length before sending it.
 
 Illustrative effective prompts, written for this project:
 

@@ -6,7 +6,7 @@ Status: simplified implementation plan, 12 September 2026. This replaces the pre
 
 ## 1. Decision
 
-Run **one FastAPI process on the host laptop**, serving a React frontend, holding one room in memory, and running one Reactor generation task. Save the four video clips to temporary local disk and play them on that laptop. Phones connect over the same local network, submit words, and poll for status once per second.
+Run **one FastAPI process on the host laptop**, serving a React frontend, holding one room in memory, and running one Reactor generation task. Save the four video clips to temporary local disk and play them on that laptop. Phones connect over the same local network, submit words, phrases, or short sentences, and poll for status once per second.
 
 No database, Redis, WebSockets, worker service, job queue, object-storage service, or distributed state is required for this demo. These are deliberate scope reductions. A server restart loses the room, so run exactly one server process.
 
@@ -28,13 +28,13 @@ No database, Redis, WebSockets, worker service, job queue, object-storage servic
 
 The demo runs locally for now. Use the host laptop and phones on the same trusted Wi-Fi or hotspot that allows devices to communicate. The laptop needs outbound internet access for Reactor; verify connectivity and capture on that laptop and network before the event. Reactor is the only external API credential required for live generation. Cloud hosting setup is deferred.
 
-Pin working patch releases and the exact Reactor SDK version when implementing. No additional LLM is selected: fixed templates assemble the story and cumulative scene instructions. VEED and Helios have no dependencies or feature flags to implement in this demo; revisit them afterward.
+Pin working patch releases and the exact Reactor SDK version when implementing. No additional LLM is selected: the story displays original contributions in ordered cards, and fixed templates assemble cumulative scene instructions. VEED and Helios have no dependencies or feature flags to implement in this demo; revisit them afterward.
 
 ## 3. Runtime and files
 
 ```mermaid
 flowchart LR
-    Phones[3–4 phones: words and polling] --> App[One FastAPI process]
+    Phones[3–4 phones: contributions and polling] --> App[One FastAPI process]
     Host[Host laptop: controls and video] --> App
     App --> State[Room in memory]
     App --> Task[One async generation task]
@@ -62,7 +62,9 @@ No generalized game engine, provider-plugin framework, repository layer, or dura
 
 ## 4. State, actions, and privacy
 
-Keep one `RoomState`: room code, host session, up to four player sessions, phase, round ID, four assigned slots, accepted words, input deadline, last meaningful action time, saved clip paths, highest disclosed index, result label, and the generation-task reference. Track whether provider closure is unresolved and how many live session attempts remain.
+Keep one `RoomState`: room code, host session, up to four player sessions, phase, round ID, four assigned slots, accepted contribution text, input deadline, last meaningful action time, saved clip paths, highest disclosed index, result label, and the generation-task reference. Track whether provider closure is unresolved and how many live session attempts remain.
+
+Accept 1–120 Unicode code points after trimming surrounding whitespace, using the same count in the phone counter and backend validation. Allow spaces, punctuation, and non-ASCII text; apply no word-count, sentence-count, or action-suffix check. Run the configured input filter across the full text. Reject empty or over-limit input with a correctable field error; preserve accepted text exactly after trimming. Forms allow short sentences, and reveal/results cards wrap the full text. Category labels stay separate from player text.
 
 Use five phases: `LOBBY`, `INPUT`, `GENERATING`, `REVEAL`, `RESULTS`. A rematch increments/replaces the round ID. Provider callbacks must match the active round before applying results. Timers and tasks are intentionally not durable.
 
@@ -75,17 +77,17 @@ Start one lightweight in-process deadline loop for the input deadline and 30-min
 | `POST /api/host` | Check the configured host passcode and issue a host cookie. |
 | `POST /api/join` | Join the current lobby by room code and name; issue a player cookie. |
 | `GET /api/state` | Return an explicit host or player snapshot, including server time. |
-| `POST /api/round/start` | Host freezes the roster and starts collection. The final accepted word starts generation automatically. |
-| `POST /api/word` | Submit `{round_id, slot_index, word}` for the caller's own slot. |
+| `POST /api/round/start` | Host freezes the roster and starts collection. The final accepted contribution starts generation automatically. |
+| `POST /api/contribution` | Submit `{round_id, slot_index, text}` for the caller's own slot. |
 | `POST /api/reveal/next` | Host sends `{round_id, expected_reveal_index}` to disclose exactly the next clip, or finish after the last one. |
 | `GET /api/clips/{round_id}/{index}` | Stream a disclosed clip to the authorized host, with range support. |
 | `POST /api/round/end` | Host stops new work, requests cleanup, and shows already disclosed history. |
 | `POST /api/round/new` | From results, clear the old round/files and return the same players to the lobby. Reject while generation is running or provider closure is unresolved. |
 | `POST /api/room/reset` | Host clears the room, rotates its code, and requires players to rejoin. Also rejects while generation is running or closure is unresolved. |
 
-Every round action includes the current `round_id`; reject a stale ID. Repeated submission of the same accepted word succeeds without another write. A different word for a filled slot is a conflict. Starting outside `LOBBY` is a conflict. `expected_reveal_index` prevents a repeated **Next** request from skipping an addition. This is enough for the demo; no generic idempotency table is needed.
+Every round action includes the current `round_id`; reject a stale ID. Repeated submission of the same accepted text after trimming succeeds without another write. Different text for a filled slot is a conflict. Starting outside `LOBBY` is a conflict. `expected_reveal_index` prevents a repeated **Next** request from skipping an addition. This is enough for the demo; no generic idempotency table is needed.
 
-The host snapshot contains public names, counts, phase, saved-clip count, and disclosed contributions only. A player additionally sees their own assigned slots and accepted words. Do not serialize the full room object. Authenticate cookies on every request; private clips are outside the static frontend directory and can only be read through the checked route. Future clips are inaccessible even to the host.
+The host snapshot contains public names, counts, phase, saved-clip count, and disclosed contributions only. A player additionally sees their own assigned slots and accepted contributions. Do not serialize the full room object. Authenticate cookies on every request; private clips are outside the static frontend directory and can only be read through the checked route. Future clips are inaccessible even to the host.
 
 Use opaque HttpOnly, SameSite=Lax cookies. For this local HTTP demo, omit the Secure attribute so phone browsers can send cookies to the laptop's LAN address; enable Secure if HTTPS is introduced later. HTTP access is limited to the trusted demo network. Require same-origin JSON POSTs and check `Origin` against the configured LAN origin; rate-limit passcode guesses and join/input attempts in memory. The host passcode and Reactor credential stay in environment variables. A room code locates the room but cannot authorize host actions. No accounts, external authentication service, or display-pairing subsystem. [Cookie attributes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Set-Cookie#secure).
 
@@ -99,7 +101,7 @@ The entire provider experiment is small:
 
 1. Open one server-owned session scoped to `reactor/fast-h3`, permitting one session and a maximum lifetime of 180 seconds. Verify that the installed Python SDK applies the constraints. Never send provider credentials or queue messages to a browser.
 2. Disable autoplay. Request approximately six seconds per segment with one frozen landscape preset. Store the actual duration only in the room's in-memory clip metadata.
-3. Generate place, then character, then action, then consequence. Each prompt includes the exact word for that step and earlier facts, with fixed style/continuity instructions. It never contains a later word.
+3. Generate place, then character, then action, then consequence. Each prompt includes the category and exact contribution for that step and earlier facts, with fixed style/continuity instructions. Treat the full contribution as one scene addition; refer actions such as “They start breakdancing.” to the established character. It never contains a later contribution. Verify the maximum cumulative text plus fixed instructions fits the provider's input limit during the integration spike; never silently truncate accepted text.
 4. Wait for the specific clip to be ready. Play it once privately while capturing its video track; save the file, check it, and continue from its provider clip ID. The next step is admitted only after the previous capture succeeds.
 5. Expose the saved valid prefix through `REVEAL` and initiate non-recoverable provider shutdown. Cleanup completion gates another live session, not playback of saved files. If nothing was saved, show a failed result.
 
@@ -116,9 +118,9 @@ Provider-side session-count and lifetime constraints are documented. Session tim
 - One host can admit one generation task. Default to at most three live session attempts per server run, decrementing before attempting to open a session. No automatic rerolls, speculative warmup, or application budget ledger.
 - A 120-second application generation timeout requests cancellation and cleanup. The independently enforced 180-second provider limit is the backstop; do not assume a dropped network connection stops charges.
 - Keep `provider_closing` true until closure is confirmed. Saved clips remain playable while it is true. If confirmation fails, block further live rounds and use the provider dashboard to resolve it. After a server crash, verify the old session is closed before restarting live play, since the in-memory guard and attempt counter are lost.
-- Choose live or fixture mode before starting a round. Fixture mode binds fixed words to fixed assets, is clearly labelled, and spends no provider credits. It never substitutes for a failed live generation.
-- Delete old clips and words on a new round, room reset/closure, or 30-minute inactivity expiry. Sweep only this app's temporary directory at startup. Ephemeral files and in-memory rooms are intentionally disposable; do not start additional server processes, restart, or update the app during a demo round.
-- Log round IDs, step timings, errors, session closure, and session-attempt count. Do not log raw words, cookies, or credentials. No external analytics/metrics platform.
+- Choose live or fixture mode before starting a round. Fixture mode binds fixed contributions to fixed assets, is clearly labelled, and spends no provider credits. It never substitutes for a failed live generation.
+- Delete old clips and contributions on a new round, room reset/closure, or 30-minute inactivity expiry. Sweep only this app's temporary directory at startup. Ephemeral files and in-memory rooms are intentionally disposable; do not start additional server processes, restart, or update the app during a demo round.
+- Log round IDs, step timings, errors, session closure, and session-attempt count. Do not log raw contributions, cookies, or credentials. No external analytics/metrics platform.
 
 Configuration is limited to the host passcode, Reactor credential, live/fixture mode, allowed origin, fixed model/preset, attempt limit, timeouts, and temp-directory path. The root [example.env](../../../example.env) defines the planned variable names and defaults; copy it to the Git-ignored `.env` for local credentials. Implement backend loading of that root file, resolving relative media paths from the repository root, and reject missing/placeholder credentials before live generation or host access. The template alone does not load settings or enforce limits. Keep exact dependencies in lockfiles.
 
@@ -129,6 +131,6 @@ Configuration is limited to the host passcode, Reactor credential, live/fixture 
 3. **Connect the live task:** plug the successful capture function into that flow; keep the same public reveal and privacy checks.
 4. **Rehearse:** verify joining and cookie-backed refresh from three/four phones through the laptop's LAN URL, then run the [demo acceptance checks](game-spec.md#8-demo-acceptance), including a provider timeout, duplicate action, and attempted future-clip access.
 
-Write focused pytest checks for assignment, submission ownership/locking, duplicate start/next protection, hidden snapshot/media access, and timeout results using a fake provider. Run Ruff, TypeScript checking, and the frontend build. Perform the phone/host rehearsal manually. Defer a full Vitest/Testing Library/Playwright matrix, mypy rollout, load testing, migration testing, and process-failover testing until after the hackathon.
+Write focused pytest checks for assignment, contribution validation and preservation, submission ownership/locking, duplicate start/next protection, hidden snapshot/media access, and timeout results using a fake provider. Run Ruff, TypeScript checking, and the frontend build. Perform the phone/host rehearsal manually, including full-length contribution display. Defer a full Vitest/Testing Library/Playwright matrix, mypy rollout, load testing, migration testing, and process-failover testing until after the hackathon.
 
 This plan supplies the minimum application infrastructure for the chosen demo. The real technical gate remains successful additive video generation and capture. No authenticated trial, dependency installation, local server launch, or application test has been completed by this documentation change.

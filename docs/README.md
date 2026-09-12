@@ -32,7 +32,7 @@ We're building a browser app that turns a group of friends' ideas into AI-genera
 The hackathon demo includes:
 
 - **Main portal:** One home page to host or join Word by Word, return to the current party, and discover two coming-soon games.
-- **Word by Word:** Secretly contribute four words inspired by Consequences, then reveal four connected video segments, each adding the next word to the scene. Everyone creates together; there is no winner.
+- **Word by Word:** Secretly contribute four words, phrases, or short sentences inspired by Consequences, then reveal four connected video segments, each adding the next idea to the scene. Everyone creates together; there is no winner.
 - **Group play:** One room, three or four player phones, a separate host laptop, guest names, a join code/link, and browser refresh recovery while the server stays running.
 - **Complete round loop:** Join, contribute, watch the reveal, replay saved clips, and start another round with the same players or return to the portal.
 

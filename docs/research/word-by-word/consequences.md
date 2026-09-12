@@ -5,8 +5,8 @@ Status: reference note recorded on 12 September 2026. Consequences is the founde
 ## Confirmed direction
 
 - Use the traditional party game **Consequences** as the main gameplay reference.
-- Players contribute words that combine into a shared sentence or story.
-- The experience is a video, with each contribution making an additive change to the scene. Each word should have a visible effect, and the scene should retain what earlier contributions established.
+- Players contribute words, phrases, or short sentences that combine into a shared story.
+- The experience is a video, with each contribution making an additive change to the scene. Each contribution should have a visible effect, and the scene should retain what earlier contributions established.
 
 ## How the reference game works
 
@@ -18,11 +18,11 @@ The reference supplies three useful ideas: an assigned contribution, limited kno
 
 ## Proposed adaptation
 
-1. Assign each player a category, such as a character (noun), an action (verb), a place, or a description (adjective). Show a plain-language instruction and an example on their phone.
+1. Assign each player a category: place, character, action, or consequence. Show a plain-language instruction and an example on their phone. Accept a word, phrase, or short sentence, with a 120-character demo limit per contribution.
 2. Collect each player's contribution privately. Players see their own category and answer; the shared display shows participation progress. Collecting simultaneously is a digital adaptation of passing folded paper.
-3. Lock the contributions and assemble them with a simple sentence template. Preserve the submitted words; the template supplies connecting text. Request any required grammatical form, such as a verb ending in “-ing”, when collecting the word.
-4. Reveal the contributions in sequence through one evolving video. Each reveal introduces its word and its visible effect, while retaining the established characters, setting, and additions. Keep later contributions hidden, including in generated imagery, until their reveal.
-5. Finish with the complete sentence or story, contributor names, and a replay of how the video developed. Keep the existing cooperative, unscored direction for now.
+3. Lock accepted contributions, preserving the submitted text after trimming. Categories guide the idea without requiring a particular grammatical form. Show contributions as ordered story cards, with their category labels, rather than inserting whole sentences into a sentence template.
+4. Reveal the contributions in sequence through one evolving video. Each reveal introduces the full contribution and its visible effect, while retaining the established characters, setting, and additions. Keep later contributions hidden, including in generated imagery, until their reveal.
+5. Finish with the complete story cards, contributor names, and a replay of how the video developed. Keep the existing cooperative, unscored direction for now.
 
 The demo specification selects private collection before the reveal to preserve the surprise of Consequences. Submitting after watching a video change is a later experiment.
 
@@ -30,17 +30,17 @@ The demo specification selects private collection before the reveal to preserve 
 
 | Assigned category | Player contribution | Intended reveal |
 | --- | --- | --- |
-| Place | Forest | Establish the forest scene. |
-| Character / noun | Fox | Introduce a fox in the forest. |
-| Action / verb ending in “-ing” | Dancing | The fox begins dancing. |
-| Weather | Snow | Snow starts falling around the dancing fox. |
+| Place | a moonlit forest | Establish the forest scene. |
+| Character | a fox in a tiny hat | Introduce the fox in the forest. |
+| Action | They start breakdancing. | The fox begins breakdancing. |
+| Consequence | Confetti rains from the sky. | Confetti falls around the same dancing fox. |
 
-The assembled sentence could be: “In a forest, a fox is dancing as snow falls.” This is our example, not a traditional Consequences script. The category order is illustrative; templates must be selected before collecting answers.
+The final story displays these four contributions in order with their category labels and contributor names. This is our example, not a traditional Consequences script. The demo fixes this category order before collecting answers.
 
 ## Decisions recorded in the demo specification
 
 - **Playback:** privately build four connected Reactor FastH3 segments, then let the host reveal one addition at a time on a shared screen. Each step targets approximately six seconds.
-- **Contribution timing and size:** private collection before generation; one word per assigned category, one or two contributions per player.
+- **Contribution timing and size:** private collection before generation; a word, phrase, or short sentence per assigned category, up to 120 Unicode code points after trimming; one or two contributions per player.
 - **Story structure:** place, character, action, consequence across three or four players; 45-second collection, without timer extensions.
 - **Continuity and recovery:** maintain cumulative scene facts and predecessor conditioning; stop at a failed step and allow the saved valid prefix to play. Provider cleanup runs separately and blocks another live session until closure is confirmed.
 

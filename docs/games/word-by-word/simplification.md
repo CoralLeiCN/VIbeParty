@@ -11,9 +11,10 @@ These changes update the design documents only; neither version has been impleme
 | Area | Before: broader MVP | After: hackathon demo |
 | --- | --- | --- |
 | Players | 3–8, flexible slot templates | 3–4, fixed join-order assignments |
-| Contributions | 6–8 words: setting, character, action, prop, companion, consequence, optional adjective/weather | 4 words: place, character, action, consequence |
+| Contributions | 6–8 words: setting, character, action, prop, companion, consequence, optional adjective/weather | 4 contributions: place, character, action, consequence; each accepts a word, phrase, or short sentence up to 120 characters |
+| Story text | Contributions inserted into a fixed sentence template | Exact contributions shown as ordered cards with category labels and contributor names |
 | Room operation | Multi-room-ready architecture, readiness, late arrivals, host migration | One room; host starts; no late joins or automatic migration |
-| Shared viewing | Paired display plus synchronized video on phones | Host laptop is the shared screen; phones show forms/status/words |
+| Shared viewing | Paired display plus synchronized video on phones | Host laptop is the shared screen; phones show forms/status/contributions |
 | Reveal | Scheduled playback, automatic progression, one recovery window | Host presses Play/Next; native pause/replay |
 | State machine | 8 phases with durable deadlines and terminal outcomes | 5 phases with in-process timers and a result label |
 | State storage | PostgreSQL, SQLAlchemy, psycopg, Alembic | One in-memory Python room and one lock |
@@ -31,7 +32,7 @@ These changes update the design documents only; neither version has been impleme
 
 ## What stays
 
-The point of the game is unchanged: **private Consequences-style contributions become visible additions to one evolving scene**. Preserve actual player words, cumulative scene facts, ordered disclosure, provider credentials on the backend, and replay without another generation.
+The point of the game is unchanged: **private Consequences-style contributions become visible additions to one evolving scene**. Preserve actual player text, cumulative scene facts, ordered disclosure, provider credentials on the backend, and replay without another generation.
 
 Reactor FastH3 and FFmpeg remain because they serve the central video experience. A database and distributed services solve scale/recovery requirements that the one-room demonstration does not need. The shorter four-step chain also reduces generation and capture work, but actual latency and cost still require measurement.
 
@@ -41,9 +42,9 @@ Reactor FastH3 and FFmpeg remain because they serve the central video experience
 - A process crash or restart ends the room and requires rejoining. The presenter must resolve the old provider session before another live run.
 - Phones must reach the laptop on the local network, and the laptop must stay awake. Live generation still requires internet access to Reactor.
 - Clip files and the three-attempt counter are temporary. There is no durable spending ledger, gallery, or saved history.
-- Fixture mode is labelled and tied to its example words. A failed live round never silently turns into a prerecorded success.
+- Fixture mode is labelled and tied to its example contributions. A failed live round never silently turns into a prerecorded success.
 - Additive continuity and capture remain real integration gates. Removing infrastructure does not prove that the model will retain the scene.
 
 ## New build priority
 
-First, produce and replay one four-word live chain after closing Reactor. Second, add the host screen and three/four phone inputs. Third, rehearse privacy, duplicate actions, a timeout, and a rematch. Build the larger multiplayer platform only after the demonstration works.
+First, produce and replay one four-contribution live chain after closing Reactor. Second, add the host screen and three/four phone inputs. Third, rehearse words, phrases, and short sentences alongside privacy, duplicate actions, a timeout, and a rematch. Build the larger multiplayer platform only after the demonstration works.

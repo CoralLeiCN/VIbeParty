@@ -102,7 +102,7 @@ For the broader persistent backend, use UUID identifiers and foreign keys, times
 | Session | Hashed opaque credential, participant or display role, expiry, revocation. Display credentials are read-only and room-scoped. |
 | Round | Room, game kind, phase, phase version, phase deadline, settings snapshot, generation/scoring versions, outcome. At most one active round per room. |
 | RoundParticipant | Frozen roster, order, author/relay role, eligibility, withdrawal status. Unique `(round_id, participant_id)`. |
-| Word by Word demo state | Not a database entity in the demo: four assigned slots, accepted words, clip metadata, and reveal index live in one in-memory RoomState. See its dedicated technical plan. |
+| Word by Word demo state | Not a database entity in the demo: four assigned slots, accepted contribution text (a word, phrase, or short sentence of up to 120 Unicode code points after trimming), clip metadata, and reveal index live in one in-memory RoomState. See its dedicated technical plan. |
 | Submission | Round, participant, kind, step index, original text, effective provider prompt, moderation status, accepted at. Unique permitted participant/kind/step slot. |
 | RelayStep | Round, step index, assigned participant, input asset, submission, output asset, status. Unique `(round_id, step_index)`; first step is the author. |
 | GenerationJob | Round, source submission or assembled prompt, logical key, state, deadline, attempt limit, lease owner/expiry, provider job ID, preset, error category. Logical key unique. |
@@ -128,7 +128,7 @@ Cross-record invariants such as self-vote prevention and active relay ownership 
 | Prompt Royale | `prompting` → `generating` → `screening` → `voting` → `results` → `finished` |
 | Reverse Prompt | `author_prompt` → `generating_step` → `relay_prompt` → `generating_step` (repeat) → `guessing` → `scoring` → `reveal` → `finished` |
 
-Word by Word ends an incomplete input round without generation and stops building at the first failed step. A saved valid prefix may play while provider cleanup completes, with unshown words remaining private. Result labels describe complete, partial, or no video; they are not scores. Other games use their explicit aborted/unscored behavior. A finished round cannot be reopened by a late generation result.
+Word by Word ends an incomplete input round without generation and stops building at the first failed step. A saved valid prefix may play while provider cleanup completes, with unshown contributions remaining private. Result labels describe complete, partial, or no video; they are not scores. Other games use their explicit aborted/unscored behavior. A finished round cannot be reopened by a late generation result.
 
 For every mutation:
 
@@ -157,7 +157,7 @@ All routes are under `/api/v1` except health endpoints. Room identifiers and joi
 | `POST /rooms/{room_id}/host-transfer` | Current host transfers control to an eligible connected participant. |
 | `POST /rooms/{room_id}/display-pairings` | Host creates a short-lived, single-use code to pair a read-only display session. |
 | `POST /display-sessions` | Redeem a pairing code and set the display cookie; rate-limited. |
-| Word by Word demo routes | The dedicated plan uses smaller `/api/word`, `/api/state`, and `/api/reveal/next` routes. Do not implement this broader `/api/v1` route set as a prerequisite for the demo. |
+| Word by Word demo routes | The dedicated plan uses smaller `/api/contribution`, `/api/state`, and `/api/reveal/next` routes. Do not implement this broader `/api/v1` route set as a prerequisite for the demo. |
 | `POST /rounds/{round_id}/prompts` | Submit a contest, author, or relay prompt with an explicit kind/step. |
 | Prompt Royale arena routes | The dedicated demo uses `/api/round/exclude` and `/api/round/open-voting`: reveal all clips together in the arena, then let the host freeze the ballot and open a 10-second vote. See the [demo HTTP contract](games/prompt-royale/tech-stack.md#3-minimal-state-and-http-contract). |
 | `POST /rounds/{round_id}/entries/{entry_id}/exclude` | Host excludes an unplayable contest entry before voting, with a visible reason. |
