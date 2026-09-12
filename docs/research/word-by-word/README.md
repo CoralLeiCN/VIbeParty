@@ -10,6 +10,8 @@ Researched: 12 September 2026. Scope: the [Consequences-inspired Word by Word ga
 
 The key experiment is visual continuity: can “forest → fox → dancing → snow” retain the forest and the same fox while visibly adding the action and weather? A command being accepted is not evidence that its word appeared correctly.
 
+For future runs, use the [standard category test scenarios](../../games/word-by-word/test-scenarios.md), recorded on 12 September 2026. They define the shared themes, player categories, exact example answers, expected effects, and result record. The short sequences below remain illustrative research examples; the category scenarios supply the current acceptance inputs.
+
 ## Fit to the game
 
 | Game requirement | Reactor | VEED | Assessment |
@@ -119,7 +121,7 @@ Additional discrepancies to resolve before integration:
 
 Keep this as research until access and a trial budget are available. The following is a proposed evaluation, not completed validation.
 
-1. Verify the selected FastH3 capture and predecessor contract with the four-slot demo sequence: forest, fox, dancing, confetti. Complete two runs of that sequence and one group-selected variation. The older forest/fox/dancing/snow example above remains useful for diagnosing an effect addition.
+1. Verify the selected FastH3 capture and predecessor contract with the [standard category scenarios](../../games/word-by-word/test-scenarios.md). Run `WW-CAT-01` twice and `WW-CAT-02` once, or record a named alternative from that catalog for the variation. Map the theme to Place and Scene change to Consequence for the four-slot demo, and retain the exact example answers. The older forest/fox/dancing/snow example above remains useful for diagnosing an effect addition.
 2. Collect privately before opening the session. Generate and capture privately, sending only facts through the step being built. Use fixed style and minimal camera movement; withhold future assets and metadata from viewers.
 3. Record startup, per-step build/capture time, visible word effects, prior details lost, transition stalls/cuts, shutdown, actual billable duration, and cost. Measure decoded media and viewer playback, not just API acknowledgements.
 4. Apply the demo specification's continuity and privacy checks. Aim for roughly two minutes under the tested configuration, with a 120-second build limit and manual host reveal. These are application targets, not vendor performance claims.

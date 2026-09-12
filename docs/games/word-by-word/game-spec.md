@@ -1,6 +1,6 @@
 # Word by Word: hackathon game specification
 
-[All docs](../../README.md) · [Technical stack](tech-stack.md) · [Simplification](simplification.md) · [Research](../../research/word-by-word/README.md)
+[All docs](../../README.md) · [Technical stack](tech-stack.md) · [Test scenarios](test-scenarios.md) · [Simplification](simplification.md) · [Research](../../research/word-by-word/README.md)
 
 Status: simplified demo design, 12 September 2026. This replaces the earlier broader MVP specification. The repository still contains planning documents, not an implemented game.
 
@@ -20,12 +20,14 @@ This specification owns Word by Word's demo rules and acceptance; its [technical
 
 | Order | Category | Phone instruction | Example | Visible effect |
 | --- | --- | --- | --- | --- |
-| 1 | Place | “Where does the story happen?” | a moonlit forest | Establish the setting. |
-| 2 | Character | “Who appears in the story?” | a fox in a tiny hat | Introduce the character in that setting. |
-| 3 | Action | “What do they do?” | They start breakdancing. | Make that character perform the action. |
-| 4 | Consequence | “What surprising thing happens next?” | Confetti rains from the sky. | Add the effect around the existing character and scene. |
+| 1 | Place | “Where does the story happen?” | Enchanted forest | Establish the setting. |
+| 2 | Character | “Who appears in the scene?” | A fox wearing a crown | Introduce the character in that setting. |
+| 3 | Action | “What does the character do?” | Dances ballet | Make that character perform the action. |
+| 4 | Consequence (Scene change) | “What happens around them?” | Glowing snow begins falling | Add the effect around the existing character and scene. |
 
 Every phone prompt includes: “Write a word, phrase, or short sentence. Keep it to one idea.” Categories guide the contribution; they do not require a particular grammatical form. A word such as `forest` or `dancing` is still valid.
+
+Use the [standard category examples](test-scenarios.md) for future tests. They provide a shared theme plus Character, Action, and Scene change answers. In this four-slot demo, enter the theme as Place and map Scene change to Consequence using the assignments below.
 
 Assign slots round-robin in player join order. With three players, the first gets place and consequence, and the others get one slot each. With four, everyone gets one. Keep the order for rematches. No randomization service, category settings, or extra templates.
 
@@ -36,10 +38,10 @@ An accepted contribution locks. Repeating the same submission returns the same a
 The final story presents the disclosed contributions in category order, with a label and contributor name on each card. Use this layout for words, phrases, and sentences alike:
 
 ```text
-Place: a moonlit forest
-Character: a fox in a tiny hat
-Action: They start breakdancing.
-Consequence: Confetti rains from the sky.
+Place: Enchanted forest
+Character: A fox wearing a crown
+Action: Dances ballet
+Consequence: Glowing snow begins falling
 ```
 
 The cards together form the story. Keep the exact accepted text; do not insert it into the former single-sentence template or use an extra model to rewrite it. Partial results show only disclosed cards. Reveal text and cards must wrap to show the full contribution on phones and the host screen.
@@ -59,7 +61,7 @@ The reveal is deliberately manual: the presenter can pause for a laugh or retry 
 
 Use Reactor FastH3 as the integration candidate with one fixed illustrated style, a wide view, and minimal camera movement. Continue each segment from the preceding one and reinforce established facts in the prompt. Interpret each contribution in its assigned category and the established scene; an action such as “They start breakdancing.” applies to the existing character. Strip audio; render contribution text and contributor names in the app.
 
-The forest must remain recognizable when the fox appears; the fox must remain when dancing starts; the dancing fox must remain when confetti appears. A character being regenerated with a different appearance is a quality issue, not the intended additive effect.
+In the primary test scenario, the forest must remain recognizable when the crowned fox appears; the same fox and crown must remain when ballet starts; the dancing fox must remain when glowing snow appears. A character being regenerated with a different appearance is a quality issue, not the intended additive effect.
 
 Four independent clips or a single final clip containing all contributions do not meet the demo objective. Brief holds between segments are acceptable. The video model's continuity remains unverified until a live trial passes.
 
@@ -117,7 +119,7 @@ Fixture mode is a separate, clearly labelled rehearsal option selected before a 
 The demo is ready when these checks pass on the actual host and network:
 
 1. Three phones join the host screen, submit all four slots, and complete the reveal. Also check four-player assignment once. Exercise words, phrases, and short sentences, including an action without an `-ing` ending and punctuation/non-ASCII text. Verify empty and over-120-character answers can be corrected, and accepted text appears in full and unchanged at reveal and results.
-2. Complete three live runs: two of `forest → fox → dancing → confetti` and one group-selected variation containing phrases and short sentences. Each shows every addition while retaining the earlier scene. Save timings and review actual video, not just command acknowledgements.
+2. Complete three live runs using the [standard test scenarios](test-scenarios.md): `WW-CAT-01` (Enchanted forest) twice and `WW-CAT-02` (Space station) once, with the theme entered as Place and Scene change mapped to Consequence. Record a named alternative if the group selects `WW-CAT-03` or `WW-CAT-04` for the variation. Verify the category instructions and example answers on the phones. Each reveal shows its addition while retaining the earlier scene. Save timings and review actual video, not just command acknowledgements.
 3. Replay works after the provider session closes, using the saved clips without a new generation request.
 4. Inspect a host snapshot and attempt to request a future clip: neither exposes hidden contributions/media. A player cannot submit another player's slot or start generation.
 5. Duplicate submission/start/next actions do not duplicate accepted contributions, sessions, or reveal advances. One provider timeout produces a bounded partial/failed result.

@@ -8,6 +8,8 @@ Run tests appropriate to the change and complete required checks. Once those pas
 
 For frontend changes that affect visible behavior, use the browser to verify the affected flows when available.
 
+For Word by Word rehearsals, fixture preparation, and model evaluations, use the category instructions, example answers, and expected effects in [the standard test scenarios](docs/games/word-by-word/test-scenarios.md). Record the scenario ID and results; follow that document's mapping to the current demo's four slots.
+
 ## Writing
 
 Use plain language over jargon, and reference technical details only to the degree that it helps illustrate an idea or your work to the user. Communicate complex concepts in a clear and cohesive manner, and calibrate your writing to the level of background knowledge assumed from the user's prompt and context.

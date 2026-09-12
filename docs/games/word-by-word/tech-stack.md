@@ -1,6 +1,6 @@
 # Word by Word: hackathon technical stack
 
-[All docs](../../README.md) · [Game spec](game-spec.md) · [Simplification](simplification.md) · [Research](../../research/word-by-word/README.md)
+[All docs](../../README.md) · [Game spec](game-spec.md) · [Test scenarios](test-scenarios.md) · [Simplification](simplification.md) · [Research](../../research/word-by-word/README.md)
 
 Status: simplified implementation plan, 12 September 2026. This replaces the previous multi-service plan for Word by Word. Implementation has not started. Follow the [demo game spec](game-spec.md); see [before and after](simplification.md) for the removed scope.
 
@@ -128,8 +128,8 @@ Configuration is limited to the host passcode, Reactor credential, live/fixture 
 
 ## 7. Build and test in this order
 
-1. **Video first:** on the demo laptop and network, run `forest → fox → dancing → confetti` through the actual model, capture four clips, close the session, and replay them. Confirm continuity, elapsed time, and cost.
-2. **One-room flow:** build the host screen and phone form with in-memory state and polling. Exercise the fixed three/four-player assignments using a clearly labelled fixture round.
+1. **Video first:** on the demo laptop and network, run [scenario `WW-CAT-01`](test-scenarios.md#ww-cat-01-enchanted-forest--primary-scenario): Enchanted forest → A fox wearing a crown → Dances ballet → Glowing snow begins falling. Use the exact category answers, capture four clips, close the session, and replay them. Record continuity, elapsed time, and cost with the scenario's result record.
+2. **One-room flow:** build the host screen and phone form with in-memory state and polling. Exercise the fixed three/four-player assignments using a clearly labelled fixture round based on the [standard test scenarios](test-scenarios.md), including their category instructions and example answers. Keep each fixture's contributions paired with its corresponding captured media.
 3. **Connect the live task:** plug the successful capture function into that flow; keep the same public reveal and privacy checks.
 4. **Rehearse:** verify joining and cookie-backed refresh from three/four phones through the laptop's LAN URL, then run the [demo acceptance checks](game-spec.md#8-demo-acceptance), including a provider timeout, duplicate action, and attempted future-clip access.
 
