@@ -159,7 +159,7 @@ All routes are under `/api/v1` except health endpoints. Room identifiers and joi
 | `POST /display-sessions` | Redeem a pairing code and set the display cookie; rate-limited. |
 | Word by Word demo routes | The dedicated plan uses smaller `/api/word`, `/api/state`, and `/api/reveal/next` routes. Do not implement this broader `/api/v1` route set as a prerequisite for the demo. |
 | `POST /rounds/{round_id}/prompts` | Submit a contest, author, or relay prompt with an explicit kind/step. |
-| `POST /rounds/{round_id}/screening/advance` | Host marks a contest clip screened and moves to the next; last clip opens voting. |
+| Prompt Royale arena routes | The dedicated demo uses `/api/round/exclude` and `/api/round/open-voting`: reveal all clips together in the arena, then let the host freeze the ballot and open a 10-second vote. See the [demo HTTP contract](games/prompt-royale/tech-stack.md#3-minimal-state-and-http-contract). |
 | `POST /rounds/{round_id}/entries/{entry_id}/exclude` | Host excludes an unplayable contest entry before voting, with a visible reason. |
 | `POST /rounds/{round_id}/votes` | Submit one target entry or explicit abstention. |
 | `POST /rounds/{round_id}/guesses` | Submit one eligible final guess. |

@@ -19,7 +19,7 @@ Prompt Royale credits **[Quiplash by Jackbox Games](https://store.steampowered.c
 
 ## What Prompt Royale needs
 
-The current hackathon specification has 3–4 players, one shared topic, 60 seconds for private submissions, one approximately five-second landscape clip per accepted entry, a group screening, and 30 seconds for voting. The 180-second generation deadline includes queueing and media preparation. Authors and prompts stay hidden until results; ballots are counted by the application.
+The current hackathon specification has 3–4 players, one shared topic, 60 seconds for private submissions, one approximately five-second landscape clip per accepted entry, a 2×2 arena showing all clips playing together on repeat, and 10 seconds for voting from the same grid. Before starting, the host chooses a bundled topic or requests an LLM-generated suggestion, labelled as such, and confirms it or generates another if the group has played it before. The topic LLM remains to be selected and validated; this research covers the video providers. The 180-second video generation deadline includes queueing and media preparation. Authors and prompts stay hidden until results; ballots are counted by the application.
 
 The provider choice must preserve equal generation settings, anonymous entries, replayable clips, and a reveal that works with sound muted. VibeParty should own the room state machine and voting rules. An animated host must remain optional so an unavailable host asset cannot block a round.
 
@@ -46,7 +46,7 @@ Simplified demo task sequence:
 3. Start generation. Collect enough actual media for the fixed capture window; do not equate five seconds of wall-clock waiting with five seconds of valid video.
 4. Request the clip, download its segments, and close the owned session promptly. Initially complete the download before disconnecting; benchmark whether earlier termination safely preserves download access.
 5. Remux and validate duration, dimensions, codecs, and content. If needed, trim by the same deterministic rule for every entry. Never choose the funniest segment after inspecting an entry.
-6. Save the MP4 in a private local directory with opaque identifiers. Serve it only through authorized routes during the scheduled screening, then freeze eligible entries before voting.
+6. Save the MP4 in a private local directory with opaque identifiers. Authorize all completed eligible clips together when arena screening begins, then freeze the remaining eligible entries when the host opens voting.
 
 The exact capture start, warm-up allowance, and handling of chunk boundaries need a live spike. A confirmed transient capture failure may retry once after the old session is known ended, within the existing deadline and call allowance. Reuse the existing recording/source for download or preparation retries. If recovery fails or cannot fit, mark the entry unavailable. Never offer a reroll of a successful clip.
 
@@ -75,9 +75,9 @@ This makes Fabric a good fit for a character delivering instructions. It does no
 | Moment | Host contribution | Information allowed |
 | --- | --- | --- |
 | Lobby | Explain the rules with a reusable introduction. | Public rules only. |
-| Topic reveal | Introduce a curated topic; keep its text on screen. | Shared topic, never private submissions. |
+| Topic reveal | Introduce the selected topic after host confirmation where required; keep its text on screen. | Shared topic, never private submissions. |
 | Generation | Play a short reusable transition once. | Public completion count, if needed; no invented progress. |
-| Screening and voting | Introduce neutral entry numbers and invite votes. | Public phase and entry labels; no commentary ranking the clips. |
+| Arena screening and voting | Introduce the full grid of anonymous clips and invite votes when the host opens voting. | Public phase and entry labels; no commentary ranking the clips. |
 | Results | Celebrate the winners or a tie. | Final server-calculated results, after voting closes. |
 
 Pre-render a small library of instructions and transition clips with Fabric, and show dynamic topics, names, and scores as ordinary UI text. This uses VEED visibly without adding render latency to each round. Provide the same words as captions or visible text. If a host clip fails, continue using the text UI.
@@ -134,7 +134,7 @@ There is a documentation discrepancy: VEED's help article lists $0.05/second and
 
 ## Data and failure behavior
 
-Reactor screens submitted text and reference images and may terminate a violating session. Previously accrued session charges still apply. Map this to the entry's rejection/failure outcome; it must not restart automatically with rewritten content. The reviewed input-moderation description does not establish that every recorded output is safe for screening. The supervised demo uses host Skip/Abort controls and makes no automated output-review claim; a separate review service is deferred. [Reactor moderation](https://docs.reactor.inc/resources/content-moderation).
+Reactor screens submitted text and reference images and may terminate a violating session. Previously accrued session charges still apply. Map this to the entry's rejection/failure outcome; it must not restart automatically with rewritten content. The reviewed input-moderation description does not establish that every recorded output is safe for screening. The supervised demo uses host Exclude clip/Abort controls and makes no automated output-review claim; a separate review service is deferred. [Reactor moderation](https://docs.reactor.inc/resources/content-moderation).
 
 fal distinguishes stored request JSON from generated media. Request payloads default to 30-day retention; it documents separate controls for payload storage and media expiry. Its CDN links are public by default, and v3 objects support access controls; input uploads require their own ACL settings. Configure and verify these controls before sending room-specific host material, and serve final assets through application authorization. Copying a file to private storage alone does not remove the provider's copy. [Data retention](https://fal.ai/docs/documentation/model-apis/media-expiration), [File access controls](https://fal.ai/docs/documentation/model-apis/file-access-controls).
 
@@ -149,8 +149,9 @@ This is proposed validation work; none of these outcomes has been measured yet.
 | Confirm access | Reactor key/model access, recording enabled, actual quotas and rates; fal key and Fabric availability; any separate live-avatar offer. | Do not promise partner-specific capabilities from the event listing alone. |
 | Capture one entry | Exact prompt preserved, five seconds of usable video, successful Python download/remux, phone playback, session termination. | Proceed with Reactor only when the complete file path works. |
 | Run three then four entries | Queue delay, time to ready, first media, capture/download/preparation time, valid-entry count, total round time, observed cost. | Validate hackathon capacity without exceeding four players; investigate larger groups after the event. |
+| Rehearse the arena | Four clips playing together in the 2×2 grid on phone Safari/Chrome and the projected host screen; group replay/pause, loading failures, fixed positions, and the 10-second vote. | Validate simultaneous playback separately from clip generation; these checks remain unrun. |
 | Compare output quality, later | Same visual joke prompts on Helios and LongLive; human assessment of recognizable action, topic fit, and entertainment. | Defer comparison unless the selected Helios integration fails. |
 | Exercise demo failures | Process restart, ambiguous creation, rejected prompt, transient failure then retry success/exhaustion, repeated browser command, late result. | Restart clears the room; no automatic crash replay, third attempt, or late ballot entry. Verify bounded session cleanup and reuse of saved media. |
 | Add VEED host library | Legible character, accurate speech/captions, reusable assets, text fallback, no private content. | Enable as optional presentation after the contest loop works. |
 
-The first implementation should therefore be **Reactor-generated entries → private recorded clips → group screening → application voting**, with **VEED host segments around that flow**. Dynamic live hosting can follow once its access and operating characteristics are demonstrated.
+The first implementation should therefore be **Reactor-generated entries → private recorded clips → simultaneous arena screening → application voting**, with **VEED host segments around that flow**. Dynamic live hosting can follow once its access and operating characteristics are demonstrated.

@@ -2,7 +2,7 @@
 
 [All docs](../../README.md) · [Technical stack](tech-stack.md) · [Simplification](simplification.md) · [Research](../../research/prompt-royale/README.md)
 
-Version: 1.2, 12 September 2026. Status: simplified demo design with one bounded retry; no application or live performance has been validated yet.
+Version: 1.4, 12 September 2026. Status: simplified demo design with two topic modes, an arena reveal, 10-second voting, and one bounded retry; no application or live performance has been validated yet.
 
 This is the authoritative scope for the Prompt Royale hackathon demo. The [app specification](../../app-spec.md) defines the wider product boundaries. See the [demo stack](tech-stack.md), [before-and-after decisions](simplification.md), and [partner research](../../research/prompt-royale/README.md).
 
@@ -10,7 +10,7 @@ This is the authoritative scope for the Prompt Royale hackathon demo. The [app s
 
 **One topic. Everyone directs a short scene. The room picks its favorite.**
 
-Three or four friends join in their browsers, privately write scene prompts for the same topic, watch generated clips anonymously, and vote for a favorite. The host plays too and counts toward the four-player maximum.
+Three or four friends join in their browsers, privately write scene prompts for the same topic, watch the anonymous generated clips playing together in a 2×2 arena grid, and vote for a favorite. The host plays too and counts toward the four-player maximum.
 
 The creative prompt-and-vote inspiration comes from **Quiplash by Jackbox Games**, which includes open prompts and sentence blanks whose answers compete for other players' votes. Credit goes to Jackbox Games. [Quiplash on Steam](https://store.steampowered.com/app/351510/Quiplash/).
 
@@ -18,9 +18,9 @@ Prompt Royale adapts that idea to generated video. Players write complete scene 
 
 ## 2. Demo scope
 
-Build one invite-only room, 3–4 guest players, one fixed host, a curated topic list, prompt submission, generation, screening, voting, results, and Play again. Use one model and one video preset. Optional pre-rendered VEED host clips add presentation after the core round works.
+Build one invite-only room, 3–4 players including one fixed playing host, two topic modes (host choice or LLM generation with host confirmation), prompt submission, video generation, screening, voting, results, and Play again. Use one scene model and one video preset. Optional pre-rendered VEED host clips add presentation after the core round works.
 
-No accounts, matchmaking, tournaments, game-switching UI, audience role, paired display, ready checks, QR generator, host transfer, player removal, timer extensions, or player-requested rerolls are required. One automatic retry for a confirmed transient failure is included. The other VibeParty games remain separate designs, not dependencies of this demo.
+No accounts, matchmaking, tournaments, game-switching UI, audience role, paired display, ready checks, QR generator, host transfer, player removal, timer extensions, or player-requested video rerolls are required. One automatic retry for a confirmed transient failure is included. The other VibeParty games remain separate designs, not dependencies of this demo.
 
 ### Hackathon limitations and future exploration
 
@@ -38,14 +38,14 @@ After the hackathon, explore five-to-eight-player groups, simultaneous rooms, pe
 | --- | --- |
 | Players | 3–4, including the host; one room per deployment. |
 | Name | 1–24 Unicode code points after trimming and NFC normalization; suffix duplicate names. |
-| Topic | Host chooses from a small bundled list before starting. |
+| Topic | Before starting, choose Host chooses or Auto-generated topic. The host selects from a small bundled list or confirms an LLM-generated suggestion, with an option to generate another. |
 | Prompt | 1–500 code points after trimming and NFC normalization; entire rendered model input must also fit the 500-token application limit. |
 | Prompting | 60 seconds; close early when everyone submits. No extension. |
 | Generation | 180 seconds total, including queueing, capture, and preparation. |
 | Retry | One recovery pass per entry for confirmed transient failures; unchanged inputs, original deadline, and at most two creation attempts. |
 | Clip | Five-second silent landscape MP4; same preset and capture policy for everyone. |
-| Screening | Host advances clips; 180 seconds for the entire screening phase. |
-| Voting | 30 seconds; close early when everyone votes or abstains. No extension. |
+| Screening | Reveal all eligible clips together in a 2×2 arena grid, playing simultaneously on repeat. The host opens voting after the group has watched; 180 seconds for the entire screening phase. |
+| Voting | 10 seconds; close early when everyone votes or abstains. No extension. |
 | Host absence | No successful host poll/command for 30 seconds ends an active round unscored. |
 | Room expiry | End after two hours without an authenticated participant request. |
 
@@ -57,9 +57,16 @@ Server time decides deadlines. Browser timers are visual estimates. Every screen
 
 The host creates the single room using the deployment's host access code, enters a name, and receives a short join code and copyable link. Guests join with a name. An opaque browser session identifies each player; a name alone cannot reclaim an identity.
 
-Show the roster, a concise rule card, topic selector, and Start. The host checks that everyone is present; there is no separate ready action. Start checks the 3–4-player limit, presence within the last 30 seconds, selected mode, configured live capacity, and remaining generation allowance before freezing the roster and topic. Only demonstrate a live size after rehearsing it. Reject a second room and over-capacity joins/starts on the server, including simultaneous requests. To replace departed players or change host, end the room and create a new one.
+Show the roster, a concise rule card, two topic modes, and Start. The host checks that everyone is present; there is no separate ready action. Topic selection happens in the lobby before the round timer starts:
 
-Initial topics:
+1. **Host chooses:** the host selects a topic from the small bundled list.
+2. **Auto-generated topic:** an LLM creates a topic suggestion. Show the host the topic with the label “Generated by an LLM” and the actions “Confirm topic” and “Generate another.” The host can request another suggestion if the group has played that topic before, then confirm the one to use. A generated suggestion cannot start a round until the host confirms it. Generating another suggestion or changing topic mode clears the previous selection/confirmation.
+
+These topic modes are separate from Live/Fixture video mode. If topic generation fails, show an error and let the host try again or choose from the bundled list. Host review handles topics remembered from earlier games; automatic detection of previously played topics is not required.
+
+Start checks the selected topic and, for an LLM suggestion, confirmation of that exact suggestion, as well as the 3–4-player limit, presence within the last 30 seconds, Live/Fixture mode, configured live capacity, and remaining video generation allowance before freezing the roster, topic mode, and topic. Only demonstrate a live size after rehearsing it. Reject a second room and over-capacity joins/starts on the server, including simultaneous requests. To replace departed players or change host, end the room and create a new one.
+
+Initial topics for Host chooses:
 
 - The worst possible first day at a new job.
 - A hotel with one very unusual rule.
@@ -86,31 +93,37 @@ Allow one automatic retry for a confirmed transient failure, using the same inpu
 
 Show aggregate Queued, Generating, Retrying, and Preparing states and elapsed time. Hide clips, authors, and other players' prompts. Close once all entries finish, including eligible retries, or at 180 seconds. Freeze only completed, playable clips; failed and late entries remain unavailable. With zero clips, show no result; with one, offer an unscored showcase; with two or more, screen them for voting.
 
-### Screening
+### Screening: arena reveal
 
-Shuffle the completed entries once and assign neutral labels, such as Clip 1. Reveal the current and previously screened clips; future clips remain inaccessible. Phones poll for the same current clip, but players tap Play themselves. Frame-perfect playback synchronization is unnecessary.
+Reveal every completed eligible clip together in a **2×2 arena grid**. Shuffle entries into positions once on the server and assign neutral labels, Clip 1 through Clip 4. Every browser uses the same labels and positions throughout screening, voting, and results. Authors and prompts stay hidden until results.
 
-The host controls Next and Skip clip. Next confirms that the group has watched the clip. Skip excludes an unplayable or unsuitable clip with a public reason before voting; it does not regenerate it. No separate reporting queue or automated output-review service is required for this supervised demo. Provider input moderation is not a guarantee about every generated frame.
+| Clip 1 | Clip 2 |
+| --- | --- |
+| Clip 3 | Clip 4 |
 
-The host can project the normal screen during screening/results. A separate spectator identity or paired-display route is deferred. Keep private prompt entry and voting off the projected screen, and keep the host's game tab foreground during play so polling continues.
+All four five-second silent videos play **at the same time** and repeat together so players can compare them. Show the topic above the arena. Load the eligible videos before playback, then provide one “Play arena” action to start all videos on that screen together, plus Pause all and Replay all. Keep all four tiles visible on phones and the projected screen. Playback is coordinated within each screen; browsers can start after their own tap, without requiring frame-perfect synchronization across devices.
 
-After the last remaining clip, freeze the ballot and open voting. If fewer than two clips remain, finish unscored. If the host does not finish screening within 180 seconds, finish unscored with “Screening was not completed.”
+With three eligible clips, leave the fourth tile empty with “No entry”; with two, show two clips and two empty tiles. Empty tiles are not candidates. If a clip cannot load or play, show the affected tile's status and allow playback retry within the screening deadline. The host can use **Exclude clip** on any tile before voting, with a public reason; replace it with a neutral excluded placeholder and keep other positions fixed. Exclusion does not regenerate a clip. No separate reporting queue or automated output-review service is required for this supervised demo. Provider input moderation is not a guarantee about every generated frame.
+
+The host can project the normal arena during screening/results. A separate spectator identity or paired-display route is deferred. Keep private prompt entry and voting off the projected screen, and keep the host's game tab foreground during play so polling continues.
+
+The host selects **Open voting** to confirm that the group has watched at least one full playback of every remaining clip. Freeze the ballot and begin the 10-second vote, keeping the arena visible. If fewer than two clips remain, finish unscored. If the host does not open voting within the original 180-second screening deadline, finish unscored with “Arena screening was not completed.” Loading, replays, and exclusions do not extend that deadline.
 
 ### Voting
 
 Every player on the frozen roster can vote once for another player's eligible clip or choose Abstain. Players who missed submission or whose generation failed can still vote. A local selection is editable until Vote is accepted; then the ballot locks. Reject self-votes, changed ballots, excluded targets, and late requests on the server.
 
-Show all eligible clips and the topic for replay. Mark the author's own entry as unavailable only in their private view. Keep totals, other ballots, authors, and prompts hidden. Close when every player votes/abstains or 30 seconds expires; missing ballots add no votes.
+Keep the same arena grid, labels, positions, and topic visible, with simultaneous playback and Pause all/Replay all available. Players select a tile and press Vote, or choose Abstain. Mark the author's own entry as unavailable only in their private view; empty and excluded tiles cannot be selected. Keep totals, other ballots, authors, and prompts hidden. Close when every player votes/abstains or 10 seconds expires; missing ballots add no votes.
 
 If a serious playback/content problem arises after voting opens, the host can abort the whole round unscored. Do not change candidates after ballots arrive.
 
 ### Results and replay
 
-Count votes once on the server. Reveal each eligible entry's author, prompt, and total; keep individual ballots private and excluded/rejected content hidden. Highest positive score wins; equal highest scores produce joint winners. No votes means no winner. Fewer than two eligible clips or an aborted round is unscored.
+Count votes once on the server. Keep the arena positions and reveal each eligible entry's author, prompt, and total alongside its tile; highlight all winning tiles. Keep individual ballots private and excluded/rejected content hidden. Highest positive score wins; equal highest scores produce joint winners. No votes means no winner. Fewer than two eligible clips or an aborted round is unscored.
 
 For four clips, scores of 2, 1, 1, 0 produce one winner; 2, 2, 0, 0 produce joint winners. There is no AI judge or cumulative leaderboard.
 
-Play again clears the finished round's prompts, ballots, and clips and returns the same players to topic selection. End room removes the room and its media. A new round always has a fresh ID and new ballots.
+Play again clears the finished round's prompts, ballots, clips, and topic selection/confirmation and returns the same players to the two topic modes. Any new LLM suggestion requires fresh host confirmation. End room removes the room and its media. A new round always has a fresh ID and new ballots.
 
 ## 5. Failure, privacy, and presentation
 
@@ -136,13 +149,15 @@ Keep Quiplash / Jackbox Games in About/Credits as inspiration, Reactor as the sc
 | Check | Required outcome |
 | --- | --- |
 | Full round | Three browsers complete join → prompt → generate → screen → vote → results, then Play again. |
+| Topic modes | The host can select a bundled topic or request an LLM suggestion labelled “Generated by an LLM.” Generated topics require host confirmation; Generate another clears it, stale confirmations cannot start a round, and replay requires a fresh selection. A failed suggestion leaves retry and host choice available. |
 | Four-player cap | Four can play after live validation; a fifth join and forged larger roster fail in both modes. |
-| Voting | Self/duplicate/changed/late votes are rejected; ties, abstention, and zero-vote outcomes are correct. |
-| Privacy | No other player's prompt/author or unrevealed clip can be fetched early; individual ballots never become public. |
+| Arena reveal | All eligible clips become accessible together at screening and play simultaneously in a 2×2 grid. Labels/positions match across players and stay fixed through results. Three/two clips leave empty tiles; exclusions show placeholders. Play arena, Pause all, and Replay all work on phones and projection, including after refresh. The host opens voting after the group watches every remaining clip. |
+| Voting | Voting closes after 10 seconds or earlier when everyone votes/abstains. Self/duplicate/changed/late votes are rejected; ties, abstention, and zero-vote outcomes are correct. |
+| Privacy | No other player's prompt/author can be fetched before results, and no contest clip can be fetched before arena screening; individual ballots never become public. |
 | Timing/failure | Partial generation failure, late completion, screening timeout, and host absence yield a clear outcome. |
 | Simple retry | A transient failure can recover once with unchanged inputs; no third creation attempt, deadline extension, or retry of rejected/unknown sessions. Reuse saved media for a preparation retry. |
 | Refresh/restart | Browser refresh restores state; process restart clears it and never restarts a paid request. |
-| Live media | A real five-second Reactor clip plays on phone Safari and Chrome; owned sessions terminate. |
+| Live media | Four real five-second Reactor clips play together in the arena on phone Safari and Chrome and the projected host screen; playback loading/failure controls work, and owned sessions terminate. |
 | Rehearsal | Complete a three-player and a four-player live round within the generation deadline; record time, failures, and cost. Recheck after a material integration change. |
 | Fallback/presenter | Fixture mode stays visibly labelled; missing VEED assets do not block the round. |
 

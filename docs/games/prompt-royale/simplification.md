@@ -8,7 +8,7 @@ The current [game specification](game-spec.md) and [technology stack](tech-stack
 
 ## Before and after
 
-| Area | Before: version 1.0 | After: demo version 1.2 | Tradeoff |
+| Area | Before: version 1.0 | After: demo version 1.4 | Tradeoff |
 | --- | --- | --- | --- |
 | Application | API, dispatcher, capture workers, media workers | One FastAPI process | A process restart ends the room. |
 | Room data | PostgreSQL, SQLAlchemy, psycopg, Alembic | In-memory objects and one lock | No durable history, migrations, or restart recovery. |
@@ -18,10 +18,11 @@ The current [game specification](game-spec.md) and [technology stack](tech-stack
 | Provider retries | Durable retry handling, up to two billed attempts per entry | One retry in the existing async task; at most two creation attempts, reusing captured media when possible | No queue/recovery service; retry must fit the original deadline and call allowance. |
 | Spending | Transactional reservations and price reconciliation | Per-round/per-run attempt limits and dashboard checks | Operator tracks remaining allowance across restarts. |
 | Roster | Ready checks, late-player lobby, removal, host transfer | 3–4 players, fixed host, join only between rounds | Host return or room reset replaces membership recovery. |
-| Timers | Prompt/vote extensions and per-clip watchdogs | Fixed prompt/vote timers and one screening deadline | Fewer settings and transition cases. |
-| Topics | Curated or custom | Small bundled list | Less setup and input validation. |
-| Display | Separate pairing/session/permissions | Phones; project the ordinary public screening/results screen | No dedicated spectator experience. |
-| Output handling | Required but unselected automatic review adapter | Provider input checks plus host Skip/Abort in supervised play | No automated output-safety claim; revisit for public play. |
+| Timers | Prompt/vote extensions and per-clip watchdogs | 60-second prompting, 10-second voting, and one 180-second screening deadline | Fewer settings and transition cases. |
+| Topics | Curated or custom | Host chooses from a bundled list, or an LLM suggests a topic for host confirmation or regeneration | Adds a topic LLM integration; the host checks for topics the group has played before. |
+| Reveal | Host advances through individual clips | All clips play together in a 2×2 arena; fixed anonymous positions, shared playback controls, host opens voting | Four simultaneous video decoders need phone rehearsal; looping lets players compare clips. |
+| Display | Separate pairing/session/permissions | Phones; project the ordinary public arena/results screen | No dedicated spectator experience. |
+| Output handling | Required but unselected automatic review adapter | Provider input checks plus host Exclude clip/Abort in supervised play | No automated output-safety claim; revisit for public play. |
 | VEED | Optional library and preparation workflow | Optional intro/celebration prepared once | No new runtime provider dependency; the core game works without it. |
 | Checks | Broad tooling, distributed failure suite, ten-room load target | Focused rule/API checks, one browser flow, live rehearsals | Validates demo behavior rather than production recovery/scaling. |
 | Retention | Automated expiry service with monitoring | Delete on replay/end/startup; operator purge after demo | No monitored deletion guarantee while the server is down. |
@@ -35,7 +36,7 @@ Reactor remains the main live integration risk. The simplification removes infra
 
 ## Stack after the change
 
-React + TypeScript + Vite; CSS Modules; fetch polling; Python + FastAPI/Pydantic/Uvicorn; in-memory state and asyncio; Reactor SDK and HTTPX; model-compatible tokenizer; FFmpeg/ffprobe; local files; Caddy. Node/npm and uv manage dependencies. pytest/Ruff, TypeScript/ESLint, and one Playwright flow provide focused checks. VEED/fal is optional asset preparation only.
+React + TypeScript + Vite; CSS Modules; fetch polling; Python + FastAPI/Pydantic/Uvicorn; in-memory state and asyncio; Reactor SDK and HTTPX; a topic LLM called from the backend (provider/model to be selected); model-compatible tokenizer; FFmpeg/ffprobe; local files; Caddy. Node/npm and uv manage dependencies. pytest/Ruff, TypeScript/ESLint, and one Playwright flow provide focused checks. VEED/fal is optional asset preparation only.
 
 The [stack usage map](tech-stack.md#how-the-stack-is-used) assigns each technology to its part of the round. The single retry lives in the existing asyncio task and adds no infrastructure or retry dependency. A second failure becomes unavailable; rejected or uncertain sessions are never blindly retried.
 
