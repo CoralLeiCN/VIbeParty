@@ -1,0 +1,57 @@
+{
+  "mode": "live",
+  "model": "reactor/fast-h3",
+  "sdk": "1.5.1",
+  "clips": [],
+  "steps": [
+    {
+      "index": 0,
+      "prompt_codepoints": 233,
+      "continued": false,
+      "enqueue_frames": 158,
+      "enqueue_ack_seconds": 0.196,
+      "generated_seconds": 4.449,
+      "generated_frames": 158,
+      "expected_frames": 158,
+      "received_frames": 157,
+      "first_frame_id": null,
+      "last_frame_id": null,
+      "first_timestamp_us": null,
+      "last_timestamp_us": null,
+      "metadata_missing_frames": 157,
+      "frame_id_gaps": null,
+      "queue_peak": 4,
+      "queue_peak_bytes": 16515072,
+      "queue_limit_frames": 32,
+      "queue_limit_bytes": 134217728,
+      "capture_error": null,
+      "start_event_to_first_frame_seconds": 0.243,
+      "start_event_to_finish_event_seconds": 6.502,
+      "finish_event_to_last_frame_seconds": 0.091,
+      "frame_delivery_seconds": 6.35,
+      "boundary_review": "required until the laptop capture gate passes",
+      "step_seconds": 30.009
+    }
+  ],
+  "closure_checks": [
+    {
+      "http_status": 200,
+      "state": "CLOSED"
+    }
+  ],
+  "phase": "capture",
+  "closed": true,
+  "token_http_status": 200,
+  "startup_seconds": 8.004,
+  "constraints": {
+    "max_sessions": 1,
+    "max_session_duration_seconds": 180
+  },
+  "cleanup_seconds": 0.635,
+  "total_seconds": 38.648,
+  "scenario_id": "WW-CAT-01",
+  "fixture_version": "categories-v1",
+  "flow": "one-player demo",
+  "overall": "fail",
+  "evidence_written_at_utc": "2026-09-12T17:26:55.553556+00:00"
+}
