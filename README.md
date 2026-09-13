@@ -7,20 +7,20 @@ Three video party games, one laptop, and your friends’ phones. React 19/TypeSc
 Install Node 22+, uv, FFmpeg and ffprobe (`brew install ffmpeg` on macOS), then:
 
 ```sh
-bash scripts/setup.sh
-bash scripts/demo.sh
+make setup
+make start
 ```
 
 Open `http://localhost:8000`. For phones set `PUBLIC_ORIGIN` and `BROWSER_ORIGIN` in private `.env` to `http://<laptop-LAN-IP>:8000`, then restart and use that address on every device on the same Wi-Fi/hotspot. The demo serves frontend and API from one worker on 0.0.0.0:8000. Server restarts lose rooms. Private clips stay outside the static frontend.
 
-For development run `bash scripts/dev.sh`: backend 8000, Vite 5173 with API proxy. Ports/origins/private paths are configurable; see [environment setup](docs/environment-setup.md).
+Running `make` also starts the app. For development run `make dev`: backend 8000, Vite 5173 with API proxy. Stop either mode with Ctrl+C. Ports/origins/private paths are configurable; see [environment setup](docs/environment-setup.md).
 
 Default play uses labelled fixtures/rehearsal. Live generation requires each game’s provider gates, bounded allowance and an exclusive trial slot. Setup installs public tokenizer/model assets but creates no paid provider session or quota. Remote deployment is deferred.
 
 ## Check and contribute
 
 ```sh
-bash scripts/check.sh
+make check
 npm --prefix frontend run test:portal  # combined demo must be running
 ```
 
