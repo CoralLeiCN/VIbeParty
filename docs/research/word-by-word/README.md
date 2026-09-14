@@ -2,6 +2,8 @@
 
 Researched: 12 September 2026. Scope: the [Consequences-inspired Word by Word game](consequences.md). This is a review of public vendor documentation and API schemas, not a completed integration or a measurement of generation quality. No authenticated generation, account quota check, or paid trial was performed.
 
+Later playback/capture guidance: [FastH3 with smoothing on](../../shared/fast-h3-smoothing.md) is the shared implementation guide. It links the subsequent live diagnostics and native experiments, and describes the proposed timestamp-aware replay path and remaining acceptance work.
+
 ## Recommendation
 
 **Evaluate Reactor for the evolving scene. Use VEED only where a narrator or finished-video editing adds value.** Reactor documents both continuous prompt steering through Helios and connected clips through FastH3. These support the continuous and segmented options evaluated here. VEED's Fabric API documents talking-character generation from an image and audio, while its Subtitles API processes an existing video. These are useful supporting roles; the reviewed VEED APIs do not establish arbitrary live additions to a shared scene. This recommendation is our assessment of the documented interfaces. [Helios](https://docs.reactor.inc/model-api-reference/helios/overview), [FastH3](https://docs.reactor.inc/model-api-reference/fast-h3/overview), [Fabric API](https://fal.ai/models/veed/fabric-1.0/api), [Subtitles API](https://fal.ai/models/veed/subtitles/api).
