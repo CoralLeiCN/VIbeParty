@@ -97,6 +97,8 @@ Phones do not play synchronized video. The host reveals each clip manually, and 
 
 ## 5. Reactor integration contract
 
+See the shared [FastH3 with smoothing on guide](../../shared/fast-h3-smoothing.md) for playback behavior and the proposed timestamp-aware capture lifecycle. Its replay-tolerance policy requires implementation and validation before replacing this game's current incomplete-capture rejection rule.
+
 Keep one direct implementation for FastH3. Its documented predecessor chaining fits the four additions, and its queued playback is consumed when played, which is why the demo still needs private capture for replay. Chaining is a capability to test, not a guarantee of visual preservation. [FastH3 API](https://www.reactor.inc/models/fast-h3/api).
 
 The entire provider experiment is small:

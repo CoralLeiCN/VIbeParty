@@ -228,3 +228,6 @@ node_modules/
 /.local/
 playwright-report/
 test-results/
+
+# Generated WebRTC experiment logs and measurement dumps
+/docs/research/word-by-word/experiments/
