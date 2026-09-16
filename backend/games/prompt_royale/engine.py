@@ -229,19 +229,22 @@ class Engine:
                 self._advance()
                 player = self._player(token)
                 return token, self.snapshot(player)
-            configured = self.context.settings.host_passcode
-            if not configured.strip() or configured.strip().lower() in {
-                "change-me",
-                "changeme",
-                "your-passcode",
-            }:
-                raise AppError(503, "host_not_configured", "Configure the host access code first.")
-            try:
-                matches = secrets.compare_digest(passcode.encode(), configured.encode())
-            except UnicodeEncodeError:
-                matches = False
-            if not matches:
-                raise AppError(403, "passcode", "Incorrect host access code.", "passcode")
+            if not self.context.settings.local_mode:
+                configured = self.context.settings.host_passcode
+                if not configured.strip() or configured.strip().lower() in {
+                    "change-me",
+                    "changeme",
+                    "your-passcode",
+                }:
+                    raise AppError(
+                        503, "host_not_configured", "Configure the host access code first."
+                    )
+                try:
+                    matches = secrets.compare_digest(passcode.encode(), configured.encode())
+                except UnicodeEncodeError:
+                    matches = False
+                if not matches:
+                    raise AppError(403, "passcode", "Incorrect host access code.", "passcode")
             name = normalized(name, 24, "name")
             player_count = self._player_count(player_count)
         async with self.context.parties.reserve(GAME_ID) as reservation:

@@ -20,6 +20,7 @@ async def game(tmp_path, request):
     context = GameContext(
         Settings(
             _env_file=None,
+            local_mode=False,
             media_root=tmp_path,
             host_passcode="test-code",
             generation_mode="fixture",

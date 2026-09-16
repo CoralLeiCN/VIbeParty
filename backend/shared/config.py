@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     browser_origin: str = "http://localhost:8000"
     additional_browser_origins: tuple[str, ...] = ()
     generation_mode: str = "fixture"
+    local_mode: bool = True
     host_passcode: str = "WMHACK"
     media_root: Path = Path(".local/vibeparty")
     reverse_prompt_quota_file: Path = Path(".local/vibeparty-persistent/reverse-prompt/quota.json")

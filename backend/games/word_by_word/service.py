@@ -122,13 +122,16 @@ class Game:
         return self.provider_closing or bool(self.task and not self.task.done())
 
     async def host(self, passcode: str, token: str | None) -> tuple[str, dict]:
-        configured = self.context.settings.host_passcode
-        if not configured or configured.lower() in {"change-me", "changeme", "your-passcode"}:
-            raise AppError(
-                503, "host_not_configured", "Ask the presenter to configure the host passcode."
-            )
-        if not secrets.compare_digest(passcode.encode(), configured.encode()):
-            raise AppError(403, "wrong_passcode", "That host passcode is incorrect.", "passcode")
+        if not self.context.settings.local_mode:
+            configured = self.context.settings.host_passcode
+            if not configured or configured.lower() in {"change-me", "changeme", "your-passcode"}:
+                raise AppError(
+                    503, "host_not_configured", "Ask the presenter to configure the host passcode."
+                )
+            if not secrets.compare_digest(passcode.encode(), configured.encode()):
+                raise AppError(
+                    403, "wrong_passcode", "That host passcode is incorrect.", "passcode"
+                )
         # Admission and game locks never nest with the shared coordinator lock.
         async with self.admission_lock:
             async with self.lock:

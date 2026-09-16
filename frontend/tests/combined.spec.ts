@@ -51,12 +51,13 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
     contexts.map((context) => context.newPage()),
   );
   try {
+    const localMode = (await read(host, "/api/config")).local_mode;
     expect((await read(host, "/api/session")).party).toBeNull();
     await host.goto("/");
     await host
       .getByRole("button", { name: "Host Word by Word", exact: true })
       .click();
-    await host.getByLabel("Host passcode").fill(hostCode);
+    if (!localMode) await host.getByLabel("Host passcode").fill(hostCode);
     await host
       .getByRole("button", { name: "Open host screen", exact: true })
       .click();
@@ -208,7 +209,8 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
       ).status(),
     ).toBe(404);
     await host.getByLabel("Your name", { exact: true }).fill("Alex");
-    await host.getByLabel("Organizer code", { exact: true }).fill(hostCode);
+    if (!localMode)
+      await host.getByLabel("Organizer code", { exact: true }).fill(hostCode);
     await host
       .getByRole("button", { name: "Create party as author A", exact: true })
       .click();
@@ -324,7 +326,7 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
       (await phones[0].request.get(origin + reverseClip)).status(),
     );
     await host.getByLabel("Your name", { exact: true }).fill("Alex");
-    await host.getByLabel("Host access code").fill(hostCode);
+    if (!localMode) await host.getByLabel("Host access code").fill(hostCode);
     await host
       .getByLabel("Number of players")
       .selectOption(String(phones.length + 1));

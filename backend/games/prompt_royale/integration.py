@@ -20,7 +20,7 @@ class Input(BaseModel):
 
 class Create(Input):
     name: str = Field(max_length=100)
-    passcode: str = Field(max_length=200)
+    passcode: str = Field(default="", max_length=200)
     player_count: int = Field(default=3, ge=1, le=4, strict=True)
 
 

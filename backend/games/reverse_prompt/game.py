@@ -173,23 +173,24 @@ class Game:
                 existing = None
             if existing:
                 return existing
-        expected = (
-            self.config.organizer_code.get_secret_value()
-            if self.config.organizer_code is not None
-            else self.context.settings.host_passcode
-        )
-        if not expected.strip() or expected.strip().lower() in {
-            "change-me",
-            "changeme",
-            "your-passcode",
-        }:
-            raise AppError(
-                503, "host_not_configured", "Ask the presenter to configure the organizer code."
+        if not self.context.settings.local_mode:
+            expected = (
+                self.config.organizer_code.get_secret_value()
+                if self.config.organizer_code is not None
+                else self.context.settings.host_passcode
             )
-        if not secrets.compare_digest(organizer_code.encode(), expected.encode()):
-            raise AppError(
-                403, "wrong_organizer_code", "Check the organizer code.", "organizer_code"
-            )
+            if not expected.strip() or expected.strip().lower() in {
+                "change-me",
+                "changeme",
+                "your-passcode",
+            }:
+                raise AppError(
+                    503, "host_not_configured", "Ask the presenter to configure the organizer code."
+                )
+            if not secrets.compare_digest(organizer_code.encode(), expected.encode()):
+                raise AppError(
+                    403, "wrong_organizer_code", "Check the organizer code.", "organizer_code"
+                )
         name = self.name(name)
         if mode == "live" and not self.config.reverse_prompt_live_enabled:
             raise AppError(

@@ -15,6 +15,8 @@ Open `http://localhost:8000`. For phones set `PUBLIC_ORIGIN` and `BROWSER_ORIGIN
 
 Running `make` also starts the app. For development run `make dev`: backend 8000, Vite 5173 with API proxy. Stop either mode with Ctrl+C. Ports/origins/private paths are configurable; see [environment setup](docs/environment-setup.md).
 
+Local mode is on by default: choose a game, create a room, and copy its join link for friends. Host passwords are optional in this mode; friends open the link and enter their names. Set `LOCAL_MODE=false` in `.env` and restart to require `HOST_PASSCODE` (or Reverse Prompt’s `ORGANIZER_CODE` override) when creating rooms.
+
 Default play uses labelled fixtures/rehearsal. Live generation requires each game’s provider gates, bounded allowance and an exclusive trial slot. Setup installs public tokenizer/model assets but creates no paid provider session or quota. Remote deployment is deferred.
 
 ## Check and contribute

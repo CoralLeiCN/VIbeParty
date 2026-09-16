@@ -38,7 +38,11 @@ test(`background host finishes a scored ${live ? "live" : "fixture"} round`, asy
   try {
     await host.goto(baseURL + "/games/prompt-royale/host");
     await host.getByLabel("Your name", { exact: true }).fill("Alex");
-    await host.getByLabel("Host access code").fill(passcode);
+    const config = await (
+      await host.request.get(baseURL + "/api/config")
+    ).json();
+    if (!config.local_mode)
+      await host.getByLabel("Host access code").fill(passcode);
     await host.getByLabel("Number of players").selectOption("3");
     await host
       .getByRole("button", { name: "Create party", exact: true })
