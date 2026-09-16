@@ -108,28 +108,38 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
           text: assignment.fixture_text,
         });
     }
+    await expect(host.getByLabel("Continuous story")).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(
+      host.getByRole("button", {
+        name: /Next addition|Play the first addition/,
+      }),
+    ).toHaveCount(0);
+    await expect
+      .poll(async () =>
+        host
+          .locator("video")
+          .evaluate((video) => (video as HTMLVideoElement).currentTime),
+      )
+      .toBeGreaterThan(0.2);
+    // One source remains attached across category updates and through completion.
+    const stream = (await read(host, word + "/state")).stream_url;
+    await host.reload();
+    await expect(host.getByLabel("Continuous story")).toBeVisible();
+    expect((await read(host, word + "/state")).stream_url).toBe(stream);
     await expect
       .poll(async () => (await read(host, word + "/state")).phase, {
-        timeout: 15000,
+        timeout: 40000,
       })
-      .toBe("REVEAL");
-    await host
-      .getByRole("button", { name: "Play the first addition", exact: true })
-      .click();
-    for (let i = 0; i < 3; i++)
-      await host
-        .getByRole("button", { name: "Next addition →", exact: true })
-        .click();
-    await host
-      .getByRole("button", { name: "Finish story →", exact: true })
-      .click();
+      .toBe("RESULTS");
     await expect(
       host.getByRole("heading", { name: "Made together", exact: true }),
     ).toBeVisible();
     const result = await read(host, word + "/state");
     expect(result.cards).toHaveLength(4);
     expect(result.live_attempts_left).toBe(lobby.live_attempts_left);
-    const oldClip = result.clips[0].url;
+    const oldClip = result.recording_url;
     await host
       .getByRole("button", { name: "Replay saved story ↻", exact: true })
       .click();

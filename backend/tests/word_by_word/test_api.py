@@ -62,7 +62,10 @@ def test_player_count_settings_permissions_validation_and_lifecycle(tmp_path):
         assert change(1, state["round_id"]).json()["player_count"] == 1
 
 
-def test_cookie_roles_origin_discovery_and_protected_ranges(tmp_path):
+def test_cookie_roles_origin_discovery_and_protected_ranges(tmp_path, monkeypatch):
+    from backend.tests.word_by_word.test_game import FakeProvider
+
+    monkeypatch.setattr(integration.Game, "default_provider", lambda *args: FakeProvider())
     settings = Settings(
         _env_file=None,
         media_root=tmp_path,
@@ -108,27 +111,25 @@ def test_cookie_roles_origin_discovery_and_protected_ranges(tmp_path):
         limit = time.monotonic() + 10
         while time.monotonic() < limit:
             snapshot = client.get(API + "/state").json()
-            if snapshot["phase"] == "REVEAL":
+            if snapshot["phase"] == "RESULTS":
                 break
             time.sleep(0.05)
-        assert snapshot["phase"] == "REVEAL"
-        assert all(text not in str(snapshot) for text in FIXTURE_TEXT)
-        url = f"{API}/clips/{rid}/0"
-        assert client.get(url, headers={"Range": "bytes=0-31"}).status_code == 404
-        response = client.post(
-            API + "/reveal/next", json={"round_id": rid, "expected_reveal_index": -1}
-        )
-        assert response.status_code == 200
-        response = client.get(url, headers={"Range": "bytes=0-31"})
-        assert response.status_code == 206 and len(response.content) == 32
+        assert snapshot["phase"] == "RESULTS"
+        assert len(snapshot["cards"]) == 4
+        url = snapshot["recording_url"]
+        assert client.get(f"{API}/media/{rid}/seed.png").status_code == 404
+        assert client.get(snapshot["stream_url"]).status_code == 200
+        assert client.post(API + "/reveal/next", json={"round_id": rid}).status_code in {404, 405}
+        response = client.get(url, headers={"Range": "bytes=0-7"})
+        assert response.status_code == 206 and len(response.content) == 8
         assert response.headers["cache-control"] == "no-store"
-        assert response.headers["content-range"].startswith("bytes 0-31/")
+        assert response.headers["content-range"].startswith("bytes 0-7/")
         client.cookies.clear()
         assert client.get(url).status_code == 401
         client.cookies.set("vp_prompt_royale", host_cookie)
         assert client.get(url).status_code == 401
         client.cookies.set(integration.COOKIE, players[0])
-        assert client.get(url, headers={"Range": "bytes=0-31"}).status_code == 403
+        assert client.get(url, headers={"Range": "bytes=0-7"}).status_code == 403
         assert client.post("/api/party/close", json={}).status_code == 403
         client.cookies.clear()
         client.cookies.set(integration.COOKIE, host_cookie)

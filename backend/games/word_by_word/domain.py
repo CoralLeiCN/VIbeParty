@@ -13,15 +13,15 @@ GAME_ID = "word-by-word"
 CATEGORIES = ("Place", "Character", "Action", "Consequence")
 QUESTIONS = (
     "Where does the story happen?",
-    "Who appears in the story?",
-    "What do they do?",
-    "What surprising thing happens next?",
+    "Who appears in the scene?",
+    "What does the character do?",
+    "What happens around them?",
 )
 FIXTURE_TEXT = (
-    "a moonlit forest",
-    "a fox in a tiny hat",
-    "They start breakdancing.",
-    "Confetti rains from the sky.",
+    "Enchanted forest",
+    "A fox wearing a crown",
+    "Dances ballet",
+    "Glowing snow begins falling",
 )
 # Unicode White_Space property, shared with the phone's counter (not normalization).
 WHITESPACE = (
@@ -82,7 +82,9 @@ class Round:
     phase: str = "LOBBY"
     mode: str = "fixture"
     slots: list[Slot] = field(default_factory=list)
-    clips: list[Clip] = field(default_factory=list)
+    recording: Clip | None = None
+    stream_ready: bool = False
+    timeline: list[float] = field(default_factory=list)
     disclosed: int = -1
     input_deadline: float | None = None
     generation_deadline: float | None = None
@@ -120,6 +122,7 @@ class Room:
             "category": CATEGORIES[slot.index],
             "text": slot.text,
             "contributor": player.name,
+            "at_seconds": self.round.timeline[slot.index],
         }
 
     def snapshot(
@@ -147,7 +150,7 @@ class Room:
             "player_count": self.player_count,
             "join_url": f"{public_origin}/games/word-by-word/join?code={self.code}",
             "collected": sum(slot.text is not None for slot in r.slots),
-            "saved_clips": len(r.clips),
+            "recording_ready": r.recording is not None,
             "disclosed_index": r.disclosed,
             "cards": [self.card(slot) for slot in r.slots[: r.disclosed + 1]],
             "input_deadline": r.input_deadline,
@@ -161,14 +164,12 @@ class Room:
             "live_unavailable_reason": live_reason,
         }
         if role == "host":
-            result["clips"] = [
-                {
-                    "index": index,
-                    "url": f"/api/games/{GAME_ID}/clips/{r.id}/{index}",
-                    "duration": clip.duration,
-                }
-                for index, clip in enumerate(r.clips[: r.disclosed + 1])
-            ]
+            result["stream_url"] = (
+                f"/api/games/{GAME_ID}/media/{r.id}/index.m3u8" if r.stream_ready else None
+            )
+            result["recording_url"] = (
+                f"/api/games/{GAME_ID}/media/{r.id}/story.mp4" if r.recording else None
+            )
         else:
             result["your_name"] = next(
                 player.name for player in self.players if player.token == token
