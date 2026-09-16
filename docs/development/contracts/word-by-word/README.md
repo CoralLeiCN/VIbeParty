@@ -4,7 +4,7 @@ Shared prefix: `/api/games/word-by-word`. `integration.py` exports the frozen sh
 
 | Method + suffix | Body / behavior |
 | --- | --- |
-| POST `/host` | `{passcode}`. Creates a separate host display; the same host cookie resumes. Another browser cannot take the existing host role. |
+| POST `/host` | `{}` in local mode; `{passcode}` when `LOCAL_MODE=false`. Creates a separate host display; the same host cookie resumes. Another browser cannot take the existing host role. |
 | POST `/join` | `{code,name}`. Accepts up to the host-selected 1–4 players, join order preserved. Existing player cookie resumes even when full. |
 | POST `/room/settings` | `{round_id,player_count}`. Host only, lobby only, strict integer 1–4 (default 3). Rejects a count below the joined roster, stale rounds, and pending cleanup. |
 | GET `/state` | Explicit role projection below. Does not update inactivity. |

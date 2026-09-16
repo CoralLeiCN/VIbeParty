@@ -3,6 +3,8 @@ import type { FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { apiPost, ApiError } from "../../shared/api";
 import { copyText } from "../../shared/clipboard";
+import { HostAccessField } from "../../shared/HostAccessField";
+import { useHostAccess } from "../../shared/useHostAccess";
 import {
   RoomCodeInput,
   normalizeRoomCode,
@@ -192,6 +194,7 @@ function Input({
 }
 function Entry({ entry, refresh }: GameEntryProps & { refresh: () => void }) {
   const [params] = useSearchParams();
+  const access = useHostAccess(entry === "host");
   const [name, setName] = useState("");
   const [code, setCode] = useState(params.get("code") ?? "");
   const [organizer, setOrganizer] = useState("");
@@ -200,6 +203,7 @@ function Entry({ entry, refresh }: GameEntryProps & { refresh: () => void }) {
   const [busy, setBusy] = useState(false);
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (!access.ready) return;
     const joinCode = entry === "join" ? normalizeRoomCode(code) : null;
     if (entry === "join" && joinCode === null) {
       setError(ROOM_CODE_FORMAT_MESSAGE);
@@ -215,7 +219,11 @@ function Entry({ entry, refresh }: GameEntryProps & { refresh: () => void }) {
       await apiPost(
         API + (entry === "host" ? "/room" : "/join"),
         entry === "host"
-          ? { name, organizer_code: organizer, mode }
+          ? {
+              name,
+              ...(!access.localMode ? { organizer_code: organizer } : {}),
+              mode,
+            }
           : { name, code: joinCode },
       );
       refresh();
@@ -245,14 +253,12 @@ function Entry({ entry, refresh }: GameEntryProps & { refresh: () => void }) {
         />
         {entry === "host" ? (
           <>
-            <label htmlFor="organizer-code">Organizer code</label>
-            <input
+            <HostAccessField
+              access={access}
               id="organizer-code"
-              type="password"
+              label="Organizer code"
               value={organizer}
-              onChange={(e) => setOrganizer(e.target.value)}
-              required
-              autoComplete="off"
+              onChange={setOrganizer}
             />
             <label htmlFor="game-mode">Play mode</label>
             <select
@@ -289,7 +295,7 @@ function Entry({ entry, refresh }: GameEntryProps & { refresh: () => void }) {
             {error}
           </p>
         )}
-        <button disabled={busy}>
+        <button disabled={busy || !access.ready}>
           {busy
             ? "Joining…"
             : entry === "host"

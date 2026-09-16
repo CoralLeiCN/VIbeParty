@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ApiError, apiFetch, apiPost } from "../../shared/api";
 import { copyText } from "../../shared/clipboard";
+import { HostAccessField } from "../../shared/HostAccessField";
+import { useHostAccess } from "../../shared/useHostAccess";
 import {
   RoomCodeInput,
   normalizeRoomCode,
@@ -26,6 +28,7 @@ const phases: Record<string, string> = {
 
 export function GameRoute({ entry }: GameEntryProps) {
   const [params] = useSearchParams();
+  const access = useHostAccess(entry === "host");
   // Room polling is also the presence heartbeat, including while viewing another tab.
   const poll = usePolling<Snapshot>(API + "/room", 1000, {
     pollWhenHidden: true,
@@ -119,6 +122,7 @@ export function GameRoute({ entry }: GameEntryProps) {
   }
 
   async function enter() {
+    if (!access.ready) return;
     const normalizedCode = normalizeRoomCode(code);
     if (entry === "join" && normalizedCode === null) {
       setError(ROOM_CODE_FORMAT_MESSAGE);
@@ -131,7 +135,11 @@ export function GameRoute({ entry }: GameEntryProps) {
         await apiPost<Snapshot>(
           API + (entry === "host" ? "/room" : "/room/join"),
           entry === "host"
-            ? { name, passcode, player_count: playerCount }
+            ? {
+                name,
+                ...(!access.localMode ? { passcode } : {}),
+                player_count: playerCount,
+              }
             : { name, code: normalizedCode },
         ),
       );
@@ -252,13 +260,12 @@ export function GameRoute({ entry }: GameEntryProps) {
             />
             {entry === "host" ? (
               <>
-                <label htmlFor="royale-passcode">Host access code</label>
-                <input
+                <HostAccessField
+                  access={access}
                   id="royale-passcode"
-                  type="password"
+                  label="Host access code"
                   value={passcode}
-                  onChange={(e) => setPasscode(e.target.value)}
-                  required
+                  onChange={setPasscode}
                 />
                 <label htmlFor="royale-player-count">Number of players</label>
                 <select
@@ -289,7 +296,7 @@ export function GameRoute({ entry }: GameEntryProps) {
                 />
               </>
             )}
-            <button disabled={busy || poll.loading}>
+            <button disabled={busy || poll.loading || !access.ready}>
               {busy
                 ? "Joining…"
                 : entry === "host"

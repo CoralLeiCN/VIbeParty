@@ -41,9 +41,13 @@ test("three and four directors: both topics, refresh, coordinated arena, vote, r
       await host.goto(baseURL + "/games/prompt-royale/host");
       await host.getByLabel("Your name", { exact: true }).fill("Director 1");
       await host.getByLabel("Number of players").selectOption(String(size));
-      await host
-        .getByLabel("Host access code")
-        .fill(env.HOST_PASSCODE || "WMHACK");
+      const config = await (
+        await host.request.get(baseURL + "/api/config")
+      ).json();
+      if (!config.local_mode)
+        await host
+          .getByLabel("Host access code")
+          .fill(env.HOST_PASSCODE || "WMHACK");
       await host
         .getByRole("button", { name: "Create party", exact: true })
         .click();

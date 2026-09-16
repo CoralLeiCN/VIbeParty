@@ -14,6 +14,7 @@ ORIGIN = "http://testserver"
 def test_player_count_settings_permissions_validation_and_lifecycle(tmp_path):
     settings = Settings(
         _env_file=None,
+        local_mode=False,
         media_root=tmp_path,
         host_passcode="test-pass",
         browser_origin=ORIGIN,
@@ -65,6 +66,7 @@ def test_player_count_settings_permissions_validation_and_lifecycle(tmp_path):
 def test_cookie_roles_origin_discovery_and_protected_ranges(tmp_path):
     settings = Settings(
         _env_file=None,
+        local_mode=False,
         media_root=tmp_path,
         host_passcode="test-pass",
         browser_origin=ORIGIN,
@@ -152,6 +154,7 @@ def test_four_digit_code_validation_and_lifecycle(tmp_path, monkeypatch):
     monkeypatch.setattr(room_codes.secrets, "randbelow", lambda _: next(draws))
     settings = Settings(
         _env_file=None,
+        local_mode=False,
         media_root=tmp_path,
         host_passcode="test-pass",
         browser_origin=ORIGIN,

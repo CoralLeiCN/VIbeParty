@@ -34,6 +34,7 @@ Persistent unresolved provider state found at startup must call `set_blocker(gam
 
 ## Shared APIs and examples
 
+- GET `/api/config`: `{local_mode:boolean}`. Public admission setting only; no credentials. Defaults to true. In local mode all three games accept creation without a host/organizer code. With `LOCAL_MODE=false`, their existing credential checks apply. Host forms load this setting before enabling creation. Session ownership, Origin checks, admission limits, and generation gates apply in both modes.
 - GET `/api/games`: `{games:[{id,available}]}`. Unready modules stay routable but unavailable for hosting.
 - GET `/api/session`: authorized summary only, no roster/private text/media. Failure is an HTTP/network error, never anonymous success.
 - POST `/api/party/resolve` with `{code}`: rate limit 20 attempts/minute/client IP including invalid formats, trim then require exactly four ASCII digits as a string; response `{game_id,join_url}` only. Malformed or missing code returns422 invalid_room_code; a valid but missing/closing room returns404 party_unavailable. No membership granted.
@@ -66,7 +67,7 @@ Additional game routes stay namespaced and are recorded in game API examples. Ex
 
 ## Frontend exports
 
-Each `frontend/src/games/<hyphen-id>/index.tsx` exports `GameRoute({entry}: GameEntryProps)` with `entry: 'host'|'join'`. GameRoute renders its own passcode/name admission, authorized current phase, lobby/replay and game errors. Query code comes from React Router's useSearchParams. Use `GameShell({title,children})` or provide a visible React Router Link to `/` labelled Back to games. No portal visit resets a party or generates media.
+Each `frontend/src/games/<hyphen-id>/index.tsx` exports `GameRoute({entry}: GameEntryProps)` with `entry: 'host'|'join'`. GameRoute renders its own name admission and the shared mode-aware host access field, authorized current phase, lobby/replay and game errors. Query code comes from React Router's useSearchParams. Use `GameShell({title,children})` or provide a visible React Router Link to `/` labelled Back to games. No portal visit resets a party or generates media.
 
 Routes: `/`, `/join`, `/games/<id>/host`, `/games/<id>/join?code=…`; `/host` redirects to Word by Word host, `/join?code=…` resolves legacy code-only links. Same frontend shell is served for direct loads/refresh.
 

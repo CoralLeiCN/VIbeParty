@@ -67,6 +67,7 @@ class Provider:
 async def clients(tmp_path):
     settings = Settings(
         _env_file=None,
+        local_mode=False,
         public_origin="http://test",
         browser_origin="http://test",
         media_root=tmp_path / "media",

@@ -3,7 +3,7 @@
 Base `/api/games/prompt-royale`; foundation shared.md defines HTTP origin, JSON, error,
 party admission and HttpOnly cookie contracts. Cookie `vp_prompt_royale`, Path=/, SameSite=Lax.
 
-Create: `POST /room` with `{name,passcode,player_count}`; `player_count` is an integer from 1–4, defaults to 3, and includes the host. Join: `POST /room/join` with `{name,code}`.
+Create: `POST /room` with `{name,passcode,player_count}`; `player_count` is an integer from 1–4, defaults to 3, and includes the host. `passcode` can be omitted in local mode and is required when `LOCAL_MODE=false`. Join: `POST /room/join` with `{name,code}`.
 Both return an authorized snapshot and opaque cookie. Snapshot: `GET /room`.
 Names and room codes never authorize private state or media. Host is also a player.
 Room codes follow the shared standard: exactly four ASCII digits as strings, including `0042`.

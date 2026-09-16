@@ -3,6 +3,8 @@ import type { FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ApiError, apiPost } from "../../shared/api";
 import { copyText } from "../../shared/clipboard";
+import { HostAccessField } from "../../shared/HostAccessField";
+import { useHostAccess } from "../../shared/useHostAccess";
 import {
   RoomCodeInput,
   normalizeRoomCode,
@@ -170,12 +172,14 @@ function Admission({
   clearError: () => void;
 }) {
   const [params] = useSearchParams();
+  const access = useHostAccess(entry === "host");
   const [code, setCode] = useState(params.get("code") || "");
   const [name, setName] = useState("");
   const [passcode, setPasscode] = useState("");
   const [entryError, setEntryError] = useState("");
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (!access.ready) return;
     setEntryError("");
     clearError();
     const normalized = normalizeRoomCode(code);
@@ -192,7 +196,11 @@ function Admission({
     }
     void act(
       entry === "host" ? "/host" : "/join",
-      entry === "host" ? { passcode } : { code: normalized, name },
+      entry === "host"
+        ? access.localMode
+          ? {}
+          : { passcode }
+        : { code: normalized, name },
     );
   };
   return (
@@ -224,16 +232,13 @@ function Admission({
           </p>
         )}
         {entry === "host" ? (
-          <label>
-            Host passcode
-            <input
-              autoComplete="current-password"
-              type="password"
-              value={passcode}
-              onChange={(e) => setPasscode(e.target.value)}
-              required
-            />
-          </label>
+          <HostAccessField
+            access={access}
+            id="wbw-passcode"
+            label="Host passcode"
+            value={passcode}
+            onChange={setPasscode}
+          />
         ) : (
           <>
             <label>
@@ -259,7 +264,7 @@ function Admission({
             </label>
           </>
         )}
-        <button className="wbw-primary" disabled={pending}>
+        <button className="wbw-primary" disabled={pending || !access.ready}>
           {pending
             ? "Opening…"
             : entry === "host"

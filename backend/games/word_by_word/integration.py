@@ -19,7 +19,7 @@ COOKIE = cookie_name(GAME_ID)
 
 
 class HostBody(BaseModel):
-    passcode: str = Field(max_length=200)
+    passcode: str = Field(default="", max_length=200)
 
 
 class JoinBody(BaseModel):

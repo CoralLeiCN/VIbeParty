@@ -21,7 +21,7 @@ COOKIE = cookie_name(GAME)
 
 
 class CreateBody(BaseModel):
-    organizer_code: str = Field(max_length=200)
+    organizer_code: str = Field(default="", max_length=200)
     name: str = Field(max_length=100)
     mode: Literal["rehearsal", "live"] = "rehearsal"
 

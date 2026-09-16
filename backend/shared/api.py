@@ -34,6 +34,11 @@ class AttemptLimiter:
         bucket.append(now)
 
 
+@router.get("/config")
+async def config(request: Request):
+    return {"local_mode": request.app.state.settings.local_mode}
+
+
 @router.get("/session")
 async def session(request: Request):
     party = await request.app.state.parties.public_state()

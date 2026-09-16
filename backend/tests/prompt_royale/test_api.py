@@ -15,6 +15,7 @@ def test_http_cookie_origin_role_private_range_and_session_discovery(tmp_path):
     app = create_app(
         Settings(
             _env_file=None,
+            local_mode=False,
             media_root=tmp_path,
             host_passcode="test-code",
             public_origin="http://testserver",
