@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import logging
+import re
 import secrets
 import shutil
 import time
@@ -22,7 +23,7 @@ from .domain import (
     identifier,
     validate_text,
 )
-from .live import FastH3Provider, LiveSettings
+from .live import LingBotProvider, LiveSettings
 from .providers import FixtureProvider, Provider
 
 log = logging.getLogger(__name__)
@@ -36,8 +37,7 @@ class Game:
         provider_factory: Callable[[str], Provider] | None = None,
         clock: Callable[[], float] = time.time,
         input_seconds: float = 45,
-        total_seconds: float = 120,
-        step_seconds: float = 30,
+        total_seconds: float = 180,
         expiry_seconds: float = 1800,
         attempt_limit: int = 3,
     ):
@@ -58,7 +58,6 @@ class Game:
         self.attempt_limit = attempt_limit
         self.input_seconds = input_seconds
         self.total_seconds = total_seconds
-        self.step_seconds = step_seconds
         self.expiry_seconds = expiry_seconds
         self.media = context.settings.media_dir(GAME_ID)
         self.factory = provider_factory or self.default_provider
@@ -71,8 +70,8 @@ class Game:
             return FixtureProvider()
         if self.live_reason:
             raise AppError(503, "live_unavailable", self.live_reason)
-        return FastH3Provider(
-            self.live_settings.reactor_api_key.get_secret_value(),
+        return LingBotProvider(
+            self.live_settings,
             evidence_path=self.media.parent / "live-evidence" / f"{identifier()}.json",
         )
 
@@ -303,27 +302,30 @@ class Game:
                     self.provider_closing = True
                     provider = self.factory(r.mode)
                     self.provider = provider
-                await provider.open()
-                texts = [slot.text for slot in r.slots]
-                for index in range(4):
-                    started = time.monotonic()
-                    destination = self.media / r.id / f"{index}.mp4"
-                    async with asyncio.timeout(self.step_seconds):
-                        clip = await provider.segment(texts, index, destination)
+
+                async def update(index: int, at_seconds: float):
                     async with self.lock:
-                        current = self.room is room and room.round is r and r.phase == "GENERATING"
-                        if current:
-                            r.clips.append(clip)
-                            room.revision += 1
-                    if not current:
-                        await asyncio.to_thread(destination.unlink, missing_ok=True)
-                        break
-                    log.info(
-                        "word_by_word round=%s step=%s seconds=%.3f",
-                        r.id,
-                        index,
-                        time.monotonic() - started,
-                    )
+                        if (
+                            self.room is not room
+                            or room.round is not r
+                            or r.phase
+                            not in {
+                                "GENERATING",
+                                "STREAMING",
+                            }
+                        ):
+                            raise asyncio.CancelledError
+                        if index != r.disclosed + 1:
+                            raise RuntimeError("invalid_category_order")
+                        r.disclosed = index
+                        r.timeline.append(at_seconds)
+                        r.stream_ready = True
+                        r.phase = "STREAMING"
+                        room.touch(self.clock())
+
+                r.recording = await provider.run(
+                    [slot.text for slot in r.slots], self.media / r.id, update
+                )
         except asyncio.CancelledError:
             cancelled = True
         except Exception as error:
@@ -331,20 +333,25 @@ class Game:
             log.warning("word_by_word round=%s failure=%s attempt=%s", r.id, failure, self.attempts)
         finally:
             async with self.lock:
-                if self.room is room and room.round is r and r.phase == "GENERATING":
-                    r.result = (
-                        "complete" if len(r.clips) == 4 else "partial" if r.clips else "failed"
-                    )
-                    r.message = (
-                        "Your story is ready."
-                        if r.result == "complete"
-                        else "Partial story. Generation stopped; the saved beginning is ready."
-                        if r.clips
-                        else "Generation timed out. Try another round after cleanup."
-                        if failure == "timeout"
-                        else "No usable video was saved. Try another round after cleanup."
-                    )
-                    r.phase = "REVEAL" if r.clips and not cancelled else "RESULTS"
+                if self.room is room and room.round is r:
+                    if provider and provider.recording and r.stream_ready:
+                        r.recording = provider.recording
+                    if r.phase in {"GENERATING", "STREAMING"}:
+                        r.result = (
+                            "complete"
+                            if not failure and not cancelled and r.recording
+                            else "partial"
+                            if r.stream_ready
+                            else "failed"
+                        )
+                        r.message = (
+                            "Your story is complete. Replay it anytime."
+                            if r.result == "complete"
+                            else "The stream stopped. Your revealed ideas are kept below."
+                            if r.stream_ready
+                            else "The story could not start. Try another round after cleanup."
+                        )
+                        r.phase = "RESULTS"
                     room.revision += 1
                 if provider is not None:
                     self.cleanup_task = asyncio.create_task(self.cleanup(provider))
@@ -371,21 +378,6 @@ class Game:
                 raise AppError(409, "generation_active", "End the round before retrying cleanup.")
             if self.provider and (not self.cleanup_task or self.cleanup_task.done()):
                 self.cleanup_task = asyncio.create_task(self.cleanup(self.provider))
-            return self.snapshot(token)
-
-    async def reveal(self, token: str, round_id: str, expected: int) -> dict:
-        async with self.lock:
-            room = self.round_for(token, round_id)
-            r = room.round
-            if r.phase != "REVEAL" or r.disclosed != expected:
-                raise AppError(
-                    409, "reveal_changed", "The reveal moved on. Your screen will catch up."
-                )
-            if r.disclosed + 1 < len(r.clips):
-                r.disclosed += 1
-            else:
-                r.phase = "RESULTS"
-            room.touch(self.clock())
             return self.snapshot(token)
 
     async def end(self, token: str, round_id: str) -> dict:
@@ -433,21 +425,20 @@ class Game:
             async with self.lock:
                 return self.snapshot(token)
 
-    async def clip_path(self, token: str | None, round_id: str, index: int) -> Path:
+    async def media_path(self, token: str | None, round_id: str, filename: str) -> Path:
         async with self.lock:
             room = self.authenticate(token, host=True)
             r = room.round
-            if (
-                room.maintenance
-                or r.id != round_id
-                or index < 0
-                or index > r.disclosed
-                or index >= len(r.clips)
-            ):
-                raise AppError(404, "clip_unavailable", "That clip is not available.")
-            path = r.clips[index].path
+            allowed = filename == "index.m3u8" or bool(
+                re.fullmatch(r"segment[0-9]{4}\.ts", filename)
+            )
+            if filename == "story.mp4":
+                allowed = r.recording is not None
+            if room.maintenance or r.id != round_id or not r.stream_ready or not allowed:
+                raise AppError(404, "media_unavailable", "That story is not available.")
+            path = self.media / r.id / filename
         if not await asyncio.to_thread(path.is_file):
-            raise AppError(404, "clip_unavailable", "This replay is no longer available.")
+            raise AppError(404, "media_unavailable", "That story is not available yet.")
         return path
 
     async def close(self, token: str | None = None, *, expired: bool = False) -> bool:

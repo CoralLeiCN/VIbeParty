@@ -1,5 +1,7 @@
 # Word by Word: hackathon simplification
 
+> Historical design note. Superseded on 16 September 2026 by the [continuous LingBot World 2 specification](game-spec.md). The current game applies four timed inputs to one running stream and saves one recording.
+
 [All docs](../../README.md) · [Game spec](game-spec.md) · [Technical stack](tech-stack.md) · [Research](../../research/word-by-word/README.md)
 
 Decision: 12 September 2026, following the instruction to prioritize a hackathon demonstration. The earlier specification planned a broader multiplayer MVP. The revised [game spec](game-spec.md) and [technical stack](tech-stack.md) now target one presenter running a short room successfully.

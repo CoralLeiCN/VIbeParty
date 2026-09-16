@@ -1,0 +1,49 @@
+{
+  "model": "reactor/lingbot-world-2",
+  "steps": [
+    {
+      "index": 0,
+      "at_seconds": 0
+    },
+    {
+      "index": 1,
+      "at_seconds": 6.416666666666667
+    },
+    {
+      "index": 2,
+      "at_seconds": 12.625
+    },
+    {
+      "index": 3,
+      "at_seconds": 18.916666666666668
+    }
+  ],
+  "closed": true,
+  "seed_source": "built-in imagegen, Place only; configured image override",
+  "stage": "generation_completed",
+  "finished_at": 1789520616.8372412,
+  "scenario_id": "WW-CAT-01",
+  "flow": "one-player demo, four slots",
+  "mode": "live",
+  "visual_quality": "not evaluated, per user instruction",
+  "video": "2026-09-16-lingbot-ww-cat-01.mp4",
+  "video_sha256": "6705a1faa06220e97263368f32055d177e93cd0e49b0418efaaad29e8e81ff92",
+  "seed_image": "2026-09-16-lingbot-seed.png",
+  "seed_sha256": "71833f5ebd138553e81fc6d6b8e02008010e2afec2a6971acab33d5a58938893",
+  "category_answers": [
+    "Enchanted forest",
+    "A fox wearing a crown",
+    "Dances ballet",
+    "Glowing snow begins falling"
+  ],
+  "browser_replay": {
+    "duration_seconds": 25.125,
+    "ready_state": 4,
+    "paused": false,
+    "media_error": null,
+    "after_refresh_and_closure": true
+  },
+  "trial_count": 2,
+  "both_sessions_closed": true,
+  "account_spend": "not measured"
+}

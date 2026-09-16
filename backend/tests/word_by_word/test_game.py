@@ -4,7 +4,7 @@ import json
 import pytest
 
 from backend.games.word_by_word.domain import FIXTURE_TEXT, Clip, validate_text
-from backend.games.word_by_word.providers import FixtureProvider, scene_prompt
+from backend.games.word_by_word.providers import probe_recording, scene_prompt
 from backend.games.word_by_word.service import Game
 from backend.shared.config import Settings
 from backend.shared.contracts import GameContext
@@ -22,19 +22,27 @@ class FakeProvider:
         self.hold_at = hold_at
         self.entered = asyncio.Event()
 
-    async def open(self):
-        self.opens += 1
+    recording = None
 
-    async def segment(self, texts, index, destination):
-        self.calls.append(scene_prompt(texts, index))
-        self.entered.set()
-        if index == self.hold_at:
-            await asyncio.sleep(60)
-        if index == self.fail_at:
-            raise TimeoutError
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(b"saved-private-clip")
-        return Clip(destination, 6, 640, 360)
+    async def run(self, texts, directory, update):
+        self.opens += 1
+        directory.mkdir(parents=True, exist_ok=True)
+        self.recording = None
+        for index in range(4):
+            self.calls.append(scene_prompt(texts, index))
+            self.entered.set()
+            if index == self.hold_at:
+                await asyncio.sleep(60)
+            if index == self.fail_at:
+                raise TimeoutError
+            (directory / "index.m3u8").write_text("#EXTM3U\n")
+            (directory / f"segment{index:04d}.ts").write_bytes(b"stream")
+            await update(index, index * 6)
+            destination = directory / "story.mp4"
+            destination.write_bytes(b"saved-private-story")
+            self.recording = Clip(destination, (index + 1) * 6, 640, 360)
+            await asyncio.sleep(0)
+        return self.recording
 
     async def close(self):
         self.closes += 1
@@ -112,25 +120,19 @@ async def test_assignments_ownership_duplicates_and_privacy(setup_game):
     await game.task
     await game.cleanup_task
     assert provider.opens == 1
-    assert game.snapshot(host)["cards"] == []
-    assert game.snapshot(host)["clips"] == []
+    assert len(game.snapshot(host)["cards"]) == 4
+    assert game.snapshot(host)["phase"] == "RESULTS"
     assert len(provider.calls) == 4
     for index, prompt in enumerate(provider.calls):
         assert all(text not in prompt for text in FIXTURE_TEXT[index + 1 :])
+    assert await game.media_path(host, rid, "story.mp4")
+    for filename in ["seed.png", "../story.mp4", "segment9999.ts", "0.mp4"]:
+        with pytest.raises(AppError):
+            await game.media_path(host, rid, filename)
     with pytest.raises(AppError):
-        await game.clip_path(host, rid, 0)
+        await game.media_path(players[0], rid, "index.m3u8")
     with pytest.raises(AppError):
         await game.start(players[0], rid, "fixture")
-    first = await game.reveal(host, rid, -1)
-    assert first["cards"][0]["text"] == FIXTURE_TEXT[0]
-    with pytest.raises(AppError):
-        await game.reveal(host, rid, -1)
-    assert game.room.round.disclosed == 0
-    assert await game.clip_path(host, rid, 0)
-    with pytest.raises(AppError):
-        await game.clip_path(host, rid, 1)
-    with pytest.raises(AppError):
-        await game.clip_path(players[0], rid, 0)
 
 
 async def test_four_players_frozen_roster_and_same_roster_rematch(setup_game):
@@ -144,11 +146,8 @@ async def test_four_players_frozen_roster_and_same_roster_rematch(setup_game):
         await game.join(game.room.code, "Fifth", None)
     restored, _ = await game.join(game.room.code, "Changed name", player)
     assert restored == player
-    for expected in range(-1, 4):
-        await game.reveal(host, rid, expected)
     assert game.room.round.phase == "RESULTS"
-    for i in range(4):
-        assert await game.clip_path(host, rid, i)
+    assert await game.media_path(host, rid, "story.mp4")
     assert provider.opens == 1  # replay has no provider path
     state = await game.new_round(host, rid)
     assert state["round_id"] != rid
@@ -199,8 +198,7 @@ async def test_selected_player_count_shares_all_four_contributions(setup_game, p
     await game.task
     await game.cleanup_task
     assert provider.opens == 1 and len(provider.calls) == 4 and provider.closes == 1
-    for expected in range(-1, 4):
-        state = await game.reveal(host, rid, expected)
+    state = game.snapshot(host)
     assert [card["text"] for card in state["cards"]] == list(texts)
     assert [card["contributor"] for card in state["cards"]] == [
         f"Player {index % player_count + 1}" for index in range(4)
@@ -235,12 +233,11 @@ async def test_partial_prefix_and_closure_guard(setup_game):
     provider.closed = False
     rid = await start_and_submit(game, host, players)
     state = game.snapshot(host)
-    assert state["phase"] == "REVEAL" and state["result"] == "partial"
-    assert state["saved_clips"] == 2 and state["provider_closing"]
-    await game.reveal(host, rid, -1)
-    assert await game.clip_path(host, rid, 0)
+    assert state["phase"] == "RESULTS" and state["result"] == "partial"
+    assert len(state["cards"]) == 2 and state["provider_closing"]
+    assert await game.media_path(host, rid, "story.mp4")
     await game.end(host, rid)
-    assert len(game.snapshot(host)["cards"]) == 1
+    assert len(game.snapshot(host)["cards"]) == 2
     with pytest.raises(AppError):
         await game.new_round(host, rid)
     provider.closed = True
@@ -250,7 +247,7 @@ async def test_partial_prefix_and_closure_guard(setup_game):
     assert game.room.round.phase == "LOBBY"
 
 
-async def test_end_generation_cancels_and_never_discloses(setup_game):
+async def test_end_stream_cancels_and_keeps_only_disclosed_categories(setup_game):
     game, provider, host, players = setup_game
     provider.hold_at = 1
     rid = game.room.round.id
@@ -264,20 +261,19 @@ async def test_end_generation_cancels_and_never_discloses(setup_game):
     await game.cleanup_task
     assert len(provider.calls) == 2
     assert game.room.round.phase == "RESULTS"
-    assert game.snapshot(host)["cards"] == []
-    with pytest.raises(AppError):
-        await game.clip_path(host, rid, 0)
+    assert len(game.snapshot(host)["cards"]) == 1
+    assert await game.media_path(host, rid, "index.m3u8")
     await game.new_round(host, rid)
-    assert game.room.round.clips == []
+    assert game.room.round.recording is None
 
 
-async def test_bounded_step_timeout(setup_game):
+async def test_bounded_story_timeout(setup_game):
     game, provider, host, players = setup_game
-    game.step_seconds = 0.02
+    game.total_seconds = 0.02
     provider.hold_at = 1
     await asyncio.wait_for(start_and_submit(game, host, players), 1)
     assert game.room.round.result == "partial"
-    assert len(game.room.round.clips) == 1
+    assert game.room.round.disclosed == 0
     assert provider.closes == 1
 
 
@@ -337,10 +333,52 @@ async def test_fixture_rejects_arbitrary_contribution(setup_game):
     assert game.room.round.slots[0].text is None
 
 
-async def test_fixture_files_decode_and_match_fixed_sequence(tmp_path):
+async def test_single_fixture_recording_decodes():
+    from pathlib import Path
+
+    path = Path("backend/games/word_by_word/fixtures/story.mp4")
+    clip = await probe_recording(path)
+    assert clip.duration == 24 and (clip.width, clip.height) == (640, 360)
+
+
+async def test_stream_updates_survive_refresh_without_restarting(setup_game):
+    game, provider, host, players = setup_game
+    provider.hold_at = 2
+    rid = game.room.round.id
+    await game.start(host, rid, "fixture")
+    for i, text in enumerate(FIXTURE_TEXT):
+        await game.contribute(players[i % 3], rid, i, text)
+    while len(provider.calls) < 3:
+        await asyncio.sleep(0.001)
+    for _ in range(3):
+        state = game.snapshot(host)
+        assert state["phase"] == "STREAMING"
+        assert len(state["cards"]) == 2
+        assert FIXTURE_TEXT[2] not in json.dumps(state)
+        assert FIXTURE_TEXT[3] not in json.dumps(state)
+        assert state["stream_url"].endswith("index.m3u8")
+    assert provider.opens == 1
+    await game.end(host, rid)
+    await game.task
+    await game.cleanup_task
+
+
+async def test_interrupted_fixture_finalizes_only_streamed_prefix(tmp_path):
+    from backend.games.word_by_word.providers import FixtureProvider
+
     provider = FixtureProvider()
-    for i in range(4):
-        clip = await provider.segment(list(FIXTURE_TEXT), i, tmp_path / f"{i}.mp4")
-        assert clip.duration == 6 and (clip.width, clip.height) == (640, 360)
-    with pytest.raises(ValueError):
-        await provider.segment(["arbitrary"] * 4, 0, tmp_path / "bad.mp4")
+    started = asyncio.Event()
+
+    async def update(index, timestamp):
+        assert index == 0
+        started.set()
+
+    task = asyncio.create_task(provider.run(list(FIXTURE_TEXT), tmp_path, update))
+    await asyncio.wait_for(started.wait(), 5)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert provider.recording is not None
+    assert 0 < provider.recording.duration < 6
+    assert provider.process.returncode is not None
+    assert "#EXT-X-ENDLIST" in (tmp_path / "index.m3u8").read_text()

@@ -38,12 +38,16 @@ def main():
     class TestProvider(FixtureProvider):
         close_calls = 0
 
-        async def segment(self, texts, index, destination):
-            if args.scenario == "partial" and index == 2:
-                raise TimeoutError("internal fake timeout")
-            return await super().segment(list(FIXTURE_TEXT), index, destination)
+        async def run(self, texts, directory, update):
+            async def reveal(index, timestamp):
+                if args.scenario == "partial" and index == 2:
+                    raise TimeoutError("internal fake timeout")
+                await update(index, timestamp)
+
+            return await super().run(list(FIXTURE_TEXT), directory, reveal)
 
         async def close(self):
+            await super().close()
             self.close_calls += 1
             return args.scenario == "full" or self.close_calls > 1
 

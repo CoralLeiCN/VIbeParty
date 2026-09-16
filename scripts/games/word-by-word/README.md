@@ -1,6 +1,6 @@
 # Word by Word local checks
 
-Run from the repository root with the shared locked environment. Normal app development uses backend 8011 and Vite 5174, HTTP, and `GENERATION_MODE=fixture`. Copy the integration environment setup and keep credentials private. `API_PROXY_TARGET=http://127.0.0.1:8011`; `BROWSER_ORIGIN` must match the frontend; `PUBLIC_ORIGIN` is the laptop's actual LAN address for join links. Separate browser identities require separate hostnames/profiles because cookies are not isolated by port.
+Run from the repository root with the locked environment and FFmpeg installed:
 
 ```sh
 .venv/bin/pytest backend/tests/word_by_word backend/tests/shared -q
@@ -9,13 +9,29 @@ npm --prefix frontend run build
 npm --prefix frontend run lint
 ```
 
-`make_fixtures.py` regenerates the original deterministic H.264 example assets using FFmpeg. The normal fixture game accepts only their matching fixed contributions.
+Use the normal app in Fixture rehearsal mode for `WW-CAT-01`. `make_fixtures.py` creates its single scripted 24-second video. The game automatically plays the stream, introduces all four categories, and saves one replay. Fixture media is labelled and is not model output.
 
-`rehearsal_server.py --scenario partial` runs the built frontend on `http://localhost:8011` with an obvious INTERNAL TEST FAKE banner. Stop the ordinary backend first. It exercises arbitrary input, two saved clips, a synthetic step failure, and unresolved cleanup that succeeds on Retry cleanup. `--scenario full` saves all four. Add `--code-0042` for controlled leading-zero join/lifecycle checks; it replaces only this rehearsal process’s initial random draw and leaves shared admission/rotation in place. It never constructs a Reactor provider. Stop it after checking and restore the ordinary backend. Its private media uses a separate disposable directory.
+`rehearsal_server.py --scenario partial` starts an explicitly labelled internal fake at localhost:8011. It accepts arbitrary input, interrupts after two categories, and simulates unresolved closure that succeeds on Retry cleanup. `--scenario full` completes all four categories. Add `--code-0042` for a controlled leading-zero code. It never constructs a Reactor provider and uses its own disposable media directory. Because cookies are not isolated by port, use separate hostnames or browser profiles for independent players.
 
-## Coordinated paid spike
+## Live play
 
-Do not run this command until integration has allocated this exact trial. A new process does not grant another allowance. No paid command is part of setup or tests.
+Set these in private `.env` and restart:
+
+```dotenv
+WORD_BY_WORD_LIVE_ENABLED=true
+REACTOR_API_KEY=...
+OPENAI_API_KEY=...
+WORD_BY_WORD_IMAGE_MODEL=gpt-image-2.5-flare
+WORD_BY_WORD_CATEGORY_SECONDS=6
+```
+
+OPENAI_API_KEY generates the starting image from Place only. For development with a known setting, configure WORD_BY_WORD_SEED_IMAGE to an existing matching image instead. The host selects Live LingBot World 2. Four private answers trigger one session and automatic prompt updates; no manual video advancement or visual-quality approval is required.
+
+The app enforces three live attempts per process, one task/session at a time, a 180-second deadline, private media, cancellation, and independent session-closure confirmation. No paid retries happen automatically. Private protocol evidence records safe timing and closure fields without credentials or submitted text.
+
+## Optional coordinated protocol spike
+
+The standalone spike consumes a live session. Run it only as part of an allocated live trial:
 
 ```sh
 .venv/bin/python scripts/games/word-by-word/spike.py \
@@ -23,20 +39,4 @@ Do not run this command until integration has allocated this exact trial. A new 
   --slot ALLOCATED-TRIAL-ID --previous-session-closed
 ```
 
-The output directory must be new. One invocation makes at most one constrained session and four enqueues, with 120 seconds overall and 30 seconds per step. Default text is the documented forest/fox/dance/confetti example. For the group-selected trial, pass `--contributions-json /private/path/four-texts.json` (an array of four accepted strings). This never logs their contents. The evidence file records safe timing/frame metrics and independent closure; inspect all clips, boundaries, continuity, and saved replay, and record measured account spend separately. A failed/ambiguous request is not retried. Never transfer the slot until closure is confirmed.
-
-The user explicitly directed the first trial to use the existing API key without dashboard account prechecks. For that allocated trial, replace `--previous-session-closed` with `--account-precheck-waived`; private evidence records the waiver without claiming prior closure was verified. The API establishes credential/funding validity. This does not waive exclusive allocation, attempt limits, or independent closure of any session created by the trial. Account spend can remain unmeasured if the dashboard is unavailable.
-
-## Enable live play
-
-Set `WORD_BY_WORD_LIVE_ENABLED=true` in the root private `.env`, configure
-`REACTOR_API_KEY`, and restart the server. The host can then select **Live FastH3**
-in the lobby. Generation begins only after all four contributions are accepted.
-
-The presenter's live setting replaces the earlier capture/prompt verification and
-trial-slot configuration gates. Enabling it does not establish capture quality,
-continuity, or maximum Unicode token fit; the earlier failed capture remains in
-the [trial evidence](../../../docs/research/word-by-word/laptop-gate-2026-09-12.md).
-Keep credentials private; never put them in URLs or browser code.
-
-The app separately enforces three live session attempts per process, one generation task, deadlines, ownership, disclosure, and unresolved-cleanup guards. Live evidence is stored privately beside the game's clips under `live-evidence/`; it survives round/file cleanup. Neither fixture checks nor mocked captures satisfy live acceptance.
+The output directory must be new. It runs `WW-CAT-01` by default: one seed image, one LingBot session, four cumulative prompts, one MP4, and verified cleanup. An optional `--contributions-json` supplies four different accepted strings. `--account-precheck-waived` is retained for an explicitly authorized coordinated trial. Setup and ordinary tests make no paid requests. The spike records protocol behavior; visual model evaluation is not required.

@@ -1,4 +1,4 @@
-"""Render original, deterministic six-second rehearsal clips. No provider calls."""
+"""Render one deterministic WW-CAT-01 rehearsal story. No provider calls."""
 
 import math
 import subprocess
@@ -45,14 +45,14 @@ def frame(step, t):
         triangle(p, x, y + 45, 145, 145, (35, 78, 78))
     ellipse(p, 320, 300, 180, 34, (79, 101, 88))
     if step >= 1:
-        bob = math.sin(t * 5) * 10 if step >= 2 else math.sin(t * 2) * 2
-        x = 320 + (math.sin(t * 3) * 25 if step >= 2 else 0)
+        bob = math.sin(t * 2) * 6 if step >= 2 else math.sin(t * 2) * 2
+        x = 320 + (math.sin(t * 1.5) * 25 if step >= 2 else 0)
         y = 233 + bob
         ellipse(p, x - 39, y + 20, 44, 20, (226, 122, 67))
         ellipse(p, x - 72, y + 20, 17, 14, (249, 231, 197))
         ellipse(p, x, y + 15, 23, 38, (226, 122, 67))
         ellipse(p, x + 4, y + 16, 13, 26, (253, 221, 173))
-        stride = math.sin(t * 8) * 19 if step >= 2 else 7
+        stride = math.sin(t * 2) * 19 if step >= 2 else 7
         rect(p, x - 16 - stride, y + 42, 13, 21, (57, 40, 46))
         rect(p, x + 6 + stride, y + 42, 13, 21, (57, 40, 46))
         ellipse(p, x, y - 29, 31, 27, (235, 136, 76))
@@ -64,14 +64,17 @@ def frame(step, t):
         ellipse(p, x, y - 23, 5, 4, (44, 37, 53))
         ellipse(p, x - 12, y - 35, 3, 4, (44, 37, 53))
         ellipse(p, x + 12, y - 35, 3, 4, (44, 37, 53))
-        rect(p, x - 20, y - 59, 40, 5, (54, 39, 74))
-        rect(p, x - 12, y - 77, 24, 19, (101, 75, 128))
+        rect(p, x - 20, y - 59, 40, 8, (250, 198, 54))
+        for point in [-15, 0, 15]:
+            triangle(p, x + point, int(y - 78), 15, 20, (250, 198, 54))
+        if step >= 2:
+            ellipse(p, x, y + 34, 36, 8, (239, 172, 206))
     if step >= 3:
-        colors = [(255, 211, 110), (246, 131, 149), (160, 193, 245), (147, 219, 179)]
+        colors = [(215, 246, 255), (255, 255, 255), (191, 229, 253), (222, 255, 242)]
         for i in range(90):
             x = (i * 103 + math.sin(t * 2 + i) * 22) % W
             y = (i * 41 + t * 58) % H
-            rect(p, x, y, 5 if i % 2 else 9, 8 if i % 2 else 4, colors[i % 4])
+            ellipse(p, x, y, 3, 3, colors[i % 4])
     # The UI supplies the accessible label. The coral band identifies these scripted assets.
     rect(p, 0, 350, W, 10, (220, 122, 98))
     return p
@@ -84,8 +87,8 @@ def main():
     ap.add_argument("output", type=Path)
     args = ap.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
-    for step in range(4):
-        path = args.output / f"{step}.mp4"
+    for filename in ["story.mp4"]:
+        path = args.output / filename
         proc = subprocess.Popen(
             [
                 "ffmpeg",
@@ -111,14 +114,18 @@ def main():
                 "23",
                 "-pix_fmt",
                 "yuv420p",
+                "-g",
+                str(FPS),
+                "-sc_threshold",
+                "0",
                 "-movflags",
                 "+faststart",
                 str(path),
             ],
             stdin=subprocess.PIPE,
         )
-        for n in range(FPS * 6):
-            proc.stdin.write(frame(step, n / FPS))
+        for n in range(FPS * 24):
+            proc.stdin.write(frame(n // (FPS * 6), n / FPS))
         proc.stdin.close()
         if proc.wait():
             raise RuntimeError("FFmpeg failed")

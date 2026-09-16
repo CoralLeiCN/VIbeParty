@@ -1,5 +1,9 @@
 # Word by Word handoff
 
+## Current implementation — 16 September 2026
+
+Word by Word now uses LingBot World 2 with automatic Place → Character → Action → Consequence updates in one session. The host plays one HLS stream and replays one MP4. No manual four-video flow or visual-quality approval gate remains. See the [current spec](../../games/word-by-word/game-spec.md) and [technical stack](../../games/word-by-word/tech-stack.md) for configuration. Live play requires a starting image: OPENAI_API_KEY generates it from Place, or WORD_BY_WORD_SEED_IMAGE supplies a local development image. Online verification and the saved video are in the [LingBot test record](../../research/word-by-word/2026-09-16-lingbot-continuous-flow.md). Earlier FastH3 notes below are historical.
+
 Owner: Session B, branch `codex/word-by-word`, worktree `/Users/coral/.codex/worktrees/651c/VIbeParty`.
 Foundation: `eb831d80310ae548374143f236c90caf73a90c00`.
 Development: API 8011, frontend 5174. Private `.env` defaults to fixture, browser origin `http://localhost:5174`, public/LAN join origin `http://10.0.100.107:5174`, proxy `http://127.0.0.1:8011`. Additional trusted local aliases support independent rehearsal cookies. One backend worker, no reload.
