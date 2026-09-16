@@ -1,5 +1,6 @@
 import asyncio
 import json
+import math
 from pathlib import Path
 
 
@@ -33,8 +34,11 @@ async def prepare(source: Path, target: Path, ffmpeg: str, ffprobe: str) -> None
             raise ValueError("Source exceeds limit")
         info = await probe(source, ffprobe)
         videos = [s for s in info["streams"] if s["codec_type"] == "video"]
-        if not videos or float(videos[0].get("duration", info["format"].get("duration", 0))) < 4.96:
-            raise ValueError("Recording is shorter than five seconds")
+        duration = (
+            float(videos[0].get("duration", info["format"].get("duration", 0))) if videos else 0
+        )
+        if not math.isfinite(duration) or duration <= 0:
+            raise ValueError("Recording has no playable video")
         await command(
             ffmpeg,
             "-y",
@@ -48,7 +52,10 @@ async def prepare(source: Path, target: Path, ffmpeg: str, ffprobe: str) -> None
             "5",
             "-an",
             "-vf",
-            "setpts=PTS-STARTPTS,scale=1280:768,setsar=1",
+            # setpts can leave the encoder without an output frame rate. Fix the
+            # cadence so the MP4 retains its last frame's duration and a normal
+            # H.264 level instead of inheriting the input timestamp timebase.
+            "setpts=PTS-STARTPTS,fps=24,scale=1280:768,setsar=1",
             "-c:v",
             "libx264",
             "-preset",
@@ -67,7 +74,7 @@ async def prepare(source: Path, target: Path, ffmpeg: str, ffprobe: str) -> None
             or video["pix_fmt"] != "yuv420p"
             or video["width"] != 1280
             or video["height"] != 768
-            or not 4.96 <= float(info["format"]["duration"]) <= 5.08
+            or not 0 < float(info["format"]["duration"]) <= 5.08
             or target.stat().st_size > 20 * 1024 * 1024
         ):
             target.unlink(missing_ok=True)

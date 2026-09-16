@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "./api";
 
-export function usePolling<T>(url: string | null, intervalMs = 1000) {
+export function usePolling<T>(
+  url: string | null,
+  intervalMs = 1000,
+  { pollWhenHidden = false }: { pollWhenHidden?: boolean } = {},
+) {
   const [state, setState] = useState<{
     data?: T;
     error?: Error;
@@ -23,7 +27,7 @@ export function usePolling<T>(url: string | null, intervalMs = 1000) {
     lastUrl.current = url;
     const poll = async () => {
       if (stopped || busy) return;
-      if (document.hidden) {
+      if (document.hidden && !pollWhenHidden) {
         timer = setTimeout(poll, intervalMs);
         return;
       }
@@ -48,7 +52,7 @@ export function usePolling<T>(url: string | null, intervalMs = 1000) {
       }
     };
     const wake = () => {
-      if (!document.hidden) void poll();
+      if (!document.hidden || pollWhenHidden) void poll();
     };
     void poll();
     window.addEventListener("online", wake);
@@ -62,6 +66,6 @@ export function usePolling<T>(url: string | null, intervalMs = 1000) {
       window.removeEventListener("focus", wake);
       document.removeEventListener("visibilitychange", wake);
     };
-  }, [url, intervalMs, revision]);
+  }, [url, intervalMs, revision, pollWhenHidden]);
   return { ...state, retry };
 }

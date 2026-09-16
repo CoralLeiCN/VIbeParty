@@ -6,13 +6,13 @@ import httpx
 import pytest
 
 from backend.games.prompt_royale.config import RoyaleSettings
-from backend.games.prompt_royale.helios import (
+from backend.games.prompt_royale.providers import FIXTURES, ProviderFailure, Topics
+from backend.games.prompt_royale.reactor_video import (
     OwnedSession,
     SavedRecording,
     confirm_closed,
     download_recording,
 )
-from backend.games.prompt_royale.providers import FIXTURES, ProviderFailure, Topics
 from backend.tests.prompt_royale.test_rules import start
 
 

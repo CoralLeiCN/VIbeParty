@@ -15,9 +15,6 @@ def main():
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
         raise SystemExit("Install FFmpeg and ffprobe first (macOS: brew install ffmpeg).")
     settings = Settings()
-    tokenizer = ROOT / "scripts/games/prompt-royale/prepare_tokenizer.py"
-    if tokenizer.is_file():
-        run(tokenizer)
     model_setup = ROOT / "scripts/games/reverse-prompt/model_setup.py"
     if model_setup.is_file():
         model = settings.embedding_model_path

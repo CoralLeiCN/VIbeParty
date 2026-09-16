@@ -26,7 +26,10 @@ const phases: Record<string, string> = {
 
 export function GameRoute({ entry }: GameEntryProps) {
   const [params] = useSearchParams();
-  const poll = usePolling<Snapshot>(API + "/room");
+  // Room polling is also the presence heartbeat, including while viewing another tab.
+  const poll = usePolling<Snapshot>(API + "/room", 1000, {
+    pollWhenHidden: true,
+  });
   const [state, setState] = useState<Snapshot>();
   const latest = useRef<Snapshot | undefined>(undefined);
   const [error, setError] = useState("");
@@ -180,7 +183,7 @@ export function GameRoute({ entry }: GameEntryProps) {
           {state
             ? state.mode === "fixture"
               ? "FIXTURE MODE"
-              : "LIVE · REACTOR"
+              : "LIVE · FASTH3"
             : "1–4 PLAYERS · HOST PLAYS TOO"}
         </span>
       </div>
@@ -368,12 +371,12 @@ export function GameRoute({ entry }: GameEntryProps) {
                   {copied ? "Link copied ✓" : "Copy link"}
                 </button>
                 <p>
-                  60 seconds to write. Five seconds on screen. Ten seconds to
-                  vote.
+                  60 seconds to write. Up to five seconds on screen. Ten seconds
+                  to vote.
                 </p>
                 <p className={styles.hint}>
-                  Keep the host’s tab foreground. After 30 seconds away, an
-                  active round ends unscored.
+                  Keep the host’s game open and connected. If its connection is
+                  lost for 30 seconds, an active round ends unscored.
                 </p>
               </section>
               <section className={styles.card}>
@@ -399,7 +402,7 @@ export function GameRoute({ entry }: GameEntryProps) {
                         value="live"
                         disabled={!!lobby.live_unavailable_reason}
                       >
-                        Real generation · Reactor
+                        Real generation · FastH3
                       </option>
                     </select>
                     <p id="royale-generation-mode-hint" className={styles.hint}>
@@ -615,7 +618,7 @@ export function GameRoute({ entry }: GameEntryProps) {
                 </p>
                 <small>
                   Keep private prompts off the projected screen. The full scene
-                  and topic must fit 500 model tokens.
+                  and topic must fit 800 characters.
                 </small>
               </form>
             </section>

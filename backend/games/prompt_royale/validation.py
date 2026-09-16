@@ -19,7 +19,7 @@ def rendered(topic: str, prompt: str) -> str:
     return f"Topic: {topic}\nScene description: {prompt}\nRender one continuous shot of this scene."
 
 
-class PromptValidator:
+class HeliosPromptValidator:
     def __init__(self, path: Path):
         self.tokenizer = None
         if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == TOKENIZER_SHA:
@@ -38,6 +38,22 @@ class PromptValidator:
                 422,
                 "prompt_tokens",
                 "Scene and topic exceed 500 model tokens. Shorten your scene.",
+                "prompt",
+            )
+        return prompt, count
+
+
+class PromptValidator:
+    """FastH3 limits the full wire prompt to 800 characters."""
+
+    def validate(self, topic: str, value: str) -> tuple[str, int]:
+        prompt = normalized(value, 500, "prompt")
+        count = len(rendered(topic, prompt))
+        if count > 800:
+            raise AppError(
+                422,
+                "prompt_size",
+                "Scene and topic exceed FastH3's 800-character limit. Shorten your scene.",
                 "prompt",
             )
         return prompt, count

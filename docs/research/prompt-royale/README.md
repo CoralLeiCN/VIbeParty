@@ -1,5 +1,30 @@
 # Prompt Royale: Reactor and VEED integration research
 
+**16 September complete live round:** Three real FastH3 clips played and looped,
+all three votes counted, and room 8121 reached a scored winner. Hidden-host presence,
+rematch setup, room cleanup and independent closure of all three sessions passed.
+See the [live rehearsal and saved evidence](end-to-end-2026-09-16.md).
+
+The [FastH3 flush behavior reference](../../games/prompt-royale/fast-h3-flush-behavior.md)
+documents `set_flush_on_clip_end`, its defaults and lifecycle behavior, command/state
+verification, live observations and the current game's capture policy.
+
+**16 September flush comparison:** Four hosted sessions delivered 155/156 non-black callbacks with flush enabled and 158/158 with it disabled, including four late callbacks in each disabled run. All sampled video loss counters were zero. Recording downloads still remained HTTP 202. See the [comparison and limits](flush-control-live-test-2026-09-16.md); the game setting has not changed.
+
+**16 September repeated-download test:** Three attempts to download one fixed recording all remained HTTP 202, so no files could be compared. The hosted model also advertises `set_flush_on_clip_end`, correcting the earlier claim that no client control existed. See the [test and corrections](repeat-download-2026-09-16.md).
+
+**16 September change:** Shorter clips are now accepted without padding. Each received frame is saved once at 24 fps, capped at five seconds. Capture regressions and a three-browser round with mixed clip lengths passed; see the [implementation and verification](shorter-clips-2026-09-16.md).
+
+**15 September live hypothesis test:** Waiting two seconds after `clip_finished` recovered one content frame in two of three trials, and none in a run that delivered only 53 content frames. It did not recover complete video. All sessions closed; see the [live comparison and evidence](frame-drop-live-test-2026-09-15.md).
+
+**15 September investigation:** An offline reproduction of the published FastH3 server dropped its final two frames on flush; draining output preserved all 158. This is separate from the substantial packet loss measured earlier. See the [frame-loss findings and fixes](frame-drop-root-cause-2026-09-15.md).
+
+**15 September fix:** Prompt Royale now accepts choppy video by holding images across missing frames. Sparse-frame regressions and a three-player live round passed. See the [capture fix and verification](tolerant-capture-2026-09-15.md).
+
+**Earlier 15 September retest:** Fixture and portal checks passed, but live Prompt Royale failed with incomplete video capture and measured packet loss. See the [failure report](retest-2026-09-15.md).
+
+**14 September update:** The game now uses FastH3. A standalone capture and a full three-player live round passed; see the [migration and rehearsal report](fast-h3-2026-09-14.md). The research below records the original Helios selection.
+
 Researched: 12 September 2026. Scope: [Prompt Royale](../../games/prompt-royale/game-spec.md), with the proposed [Python backend](../../backend-spec.md). This is documentation research using public vendor sources, including a live read of Reactor's public pricing endpoint. No authenticated generation, SDK installation, or performance benchmark was run. Recommendations below are design proposals, not implemented features.
 
 Implementation decision following this research, updated after hackathon simplification: **3–4 players, one room, one FastAPI process, in-memory state, asyncio tasks, polling, and private local clips**. Allow one retry for a confirmed transient failure, with at most two creation attempts per entry and no deadline extension. The [demo stack](../../games/prompt-royale/tech-stack.md) is authoritative; the [before-and-after comparison](../../games/prompt-royale/simplification.md) records the removed infrastructure. Larger-group comparisons below are future exploration, not enabled capacity. See the [dedicated game limitations](../../games/prompt-royale/game-spec.md#hackathon-limitations-and-future-exploration).
