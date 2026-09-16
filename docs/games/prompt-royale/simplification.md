@@ -30,7 +30,7 @@ The current [game specification](game-spec.md) and [technology stack](tech-stack
 
 ## What stays
 
-Keep the selectable one-to-four-player count, four-player hard cap, one round at a time, private prompts, identical clip settings, five-second videos, anonymous screening, one server-counted vote, no self-voting, shared winners for ties, bounded provider lifetime, and clearly labelled fixture mode. Keep Quiplash / Jackbox Games credited in the rationale and credits UI.
+Keep the selectable one-to-four-player count, four-player hard cap, one round at a time, private prompts, identical clip settings, videos capped at five seconds, anonymous screening, one server-counted vote, no self-voting, shared winners for ties, bounded provider lifetime, and clearly labelled fixture mode. Keep Quiplash / Jackbox Games credited in the rationale and credits UI.
 
 Reactor remains the main live integration risk. The simplification removes infrastructure work; it does not establish capture reliability or guarantee that four clips finish within 180 seconds. Keep FFmpeg and the live rehearsal.
 

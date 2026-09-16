@@ -3,7 +3,7 @@ import asyncio
 import pytest
 
 from backend.games.prompt_royale.engine import uid
-from backend.games.prompt_royale.helios import HeliosVideo
+from backend.games.prompt_royale.fast_h3 import FastH3Video
 from backend.shared.errors import AppError
 from backend.tests.prompt_royale.test_providers import ScriptedVideo
 from backend.tests.prompt_royale.test_rules import host_action, screen, start
@@ -20,7 +20,7 @@ def enable_live(engine):
 async def test_switch_routes_rounds_to_selected_provider_and_preserves_allowance(game):
     engine, tokens, _ = game
     # Live is available independently of the server's fixture default.
-    assert isinstance(engine.live_video, HeliosVideo)
+    assert isinstance(engine.live_video, FastH3Video)
     enable_live(engine)
     live = engine.live_video = ScriptedVideo(["success"])
     engine.settings.prompt_royale_live_session_starts = 2

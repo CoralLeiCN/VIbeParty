@@ -41,11 +41,11 @@ After the hackathon, explore five-to-eight-player groups, simultaneous rooms, pe
 | Players | Selectable 1–4, including the host; one room on the local server. |
 | Name | 1–24 Unicode code points after trimming and NFC normalization; suffix duplicate names. |
 | Topic | Before starting, choose Host chooses or Auto-generated topic. The host selects from a small bundled list or confirms an LLM-generated suggestion, with an option to generate another. |
-| Prompt | 1–500 code points after trimming and NFC normalization; entire rendered model input must also fit the 500-token application limit. |
+| Prompt | 1–500 code points after trimming and NFC normalization; entire rendered model input must also fit FastH3's 800-character API limit. |
 | Prompting | 60 seconds; close early when everyone submits. No extension. |
 | Generation | 180 seconds total, including queueing, capture, and preparation. |
 | Retry | One recovery pass per entry for confirmed transient failures; unchanged inputs, original deadline, and at most two creation attempts. |
-| Clip | Five-second silent landscape MP4; same preset and capture policy for everyone. |
+| Clip | Silent landscape MP4, up to five seconds; same preset and capture policy for everyone. Encode received frames once at 24 fps, accepting shorter clips without padding. Require completed playback and at least two received frames. |
 | Screening | Reveal all eligible clips together in a 2×2 arena grid, playing simultaneously on repeat. The host opens voting after the group has watched; 180 seconds for the entire screening phase. |
 | Voting | 10 seconds; close early when everyone votes or abstains. No extension. |
 | Host absence | No successful host poll/command for 30 seconds ends an active round unscored. |
@@ -103,11 +103,11 @@ Reveal every completed eligible clip together in a **2×2 arena grid**. Shuffle 
 | --- | --- |
 | Clip 3 | Clip 4 |
 
-All four five-second silent videos play **at the same time** and repeat together so players can compare them. Show the topic above the arena. Load the eligible videos before playback, then provide one “Play arena” action to start all videos on that screen together, plus Pause all and Replay all. Keep all four tiles visible on phones and the projected screen. Playback is coordinated within each screen; browsers can start after their own tap, without requiring frame-perfect synchronization across devices.
+All four silent videos, each up to five seconds, start **at the same time** and repeat together so players can compare them. A shorter clip finishes and waits on its final image until every eligible clip has ended, then the group restarts. Show the topic above the arena. Load the eligible videos before playback, then provide one “Play arena” action to start all videos on that screen together, plus Pause all and Replay all. Keep all four tiles visible on phones and the projected screen. Playback is coordinated within each screen; browsers can start after their own tap, without requiring frame-perfect synchronization across devices.
 
 With three eligible clips, leave the fourth tile empty with “No entry”; with two, show two clips and two empty tiles. Empty tiles are not candidates. If a clip cannot load or play, show the affected tile's status and allow playback retry within the screening deadline. The host can use **Exclude clip** on any tile before voting, with a public reason; replace it with a neutral excluded placeholder and keep other positions fixed. Exclusion does not regenerate a clip. No separate reporting queue or automated output-review service is required for this supervised demo. Provider input moderation is not a guarantee about every generated frame.
 
-The host can project the normal arena during screening/results. A separate spectator identity or paired-display route is deferred. Keep private prompt entry and voting off the projected screen, and keep the host's game tab foreground during play so polling continues.
+The host can project the normal arena during screening/results. A separate spectator identity or paired-display route is deferred. Keep private prompt entry and voting off the projected screen. Presence polling continues while the game tab is hidden; keep the host's browser open and connected. A suspended browser or lost connection can still trigger the 30-second host timeout.
 
 The host selects **Open voting** to confirm that the group has watched at least one full playback of every remaining clip. Freeze the ballot and begin the 10-second vote, keeping the arena visible. If fewer than two clips remain, finish unscored. If the host does not open voting within the original 180-second screening deadline, finish unscored with “Arena screening was not completed.” Loading, replays, and exclusions do not extend that deadline.
 
@@ -159,7 +159,7 @@ Keep Quiplash / Jackbox Games in About/Credits as inspiration, Reactor as the sc
 | Timing/failure | Partial generation failure, late completion, screening timeout, and host absence yield a clear outcome. |
 | Simple retry | A transient failure can recover once with unchanged inputs; no third creation attempt, deadline extension, or retry of rejected/unknown sessions. Reuse saved media for a preparation retry. |
 | Refresh/restart | Browser refresh restores state; process restart clears it and never restarts a paid request. |
-| Live media | Four real five-second Reactor clips play together in the arena on phone Safari and Chrome and the projected host screen; playback loading/failure controls work, and owned sessions terminate. |
+| Live media | Four real Reactor clips, including shorter clips when fewer frames arrive, play together in the arena on phone Safari and Chrome and the projected host screen; playback loading/failure controls work, and owned sessions terminate. |
 | Rehearsal | Complete a three-player and a four-player live round within the generation deadline; record time, failures, and cost. Recheck after a material integration change. |
 | Fallback/presenter | Fixture mode stays visibly labelled; missing VEED assets do not block the round. |
 

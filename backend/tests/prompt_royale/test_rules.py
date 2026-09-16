@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from backend.games.prompt_royale.config import TOPICS, RoyaleSettings
+from backend.games.prompt_royale.config import TOPICS
 from backend.games.prompt_royale.engine import uid
 from backend.games.prompt_royale.providers import ProviderFailure
 from backend.games.prompt_royale.validation import PromptValidator
@@ -156,12 +156,12 @@ async def test_stale_topic_completion_cannot_replace_bundled_choice(game):
     await host_action(e, tokens, "start")
 
 
-async def test_locked_submission_and_token_rejection(game):
+async def test_locked_submission_and_character_rejection(game):
     e, tokens, _ = game
     r = await start(e, tokens)
     with pytest.raises(AppError) as error:
-        await e.mutate(tokens[0], "submission", {"round_id": r.id, "prompt": "é" * 500})
-    assert error.value.code == "prompt_tokens"
+        await e.mutate(tokens[0], "submission", {"round_id": r.id, "prompt": "é" * 501})
+    assert error.value.code == "invalid_length"
     data = {"round_id": r.id, "prompt": "  Cafe\u0301 penguin  "}
     await e.mutate(tokens[0], "submission", data)
     await e.mutate(tokens[0], "submission", data)
@@ -250,7 +250,7 @@ async def test_deadlines_host_absence_missing_entries_and_inactivity(game):
     r = await start(e, tokens)
     e.room.players[e.room.host].seen = clock.now - 30
     await e.tick()
-    assert r.phase == "results" and "host was away" in r.reason
+    assert r.phase == "results" and "host connection was lost" in r.reason
     await e.again(tokens[0], {"round_id": r.id, "expected_version": e.room.version})
     r = await start(e, tokens)
     await e.mutate(tokens[0], "submission", {"round_id": r.id, "prompt": "Single scene"})
@@ -332,16 +332,16 @@ async def test_player_count_changes_require_host_and_enough_players(game):
     await start(e, tokens)
 
 
-def test_pinned_tokenizer_full_template_and_missing_asset(tmp_path):
-    validator = PromptValidator(RoyaleSettings(_env_file=None).prompt_royale_tokenizer)
-    assert validator.tokenizer is not None, "Run scripts/games/prompt-royale/prepare_tokenizer.py"
-    _, count = validator.validate(TOPICS[4], "A penguin dances on the moon.")
-    assert count == 32
-    with pytest.raises(AppError):
-        validator.validate(TOPICS[4], "🤹" * 500)
+def test_fast_h3_full_prompt_limit_and_unicode():
+    validator = PromptValidator()
+    # Characters that consumed multiple Helios tokens are valid within FastH3's limit.
+    prompt, count = validator.validate(TOPICS[4], "🤹" * 500)
+    assert len(prompt) == 500 and count <= 800
+    prompt, count = validator.validate("x" * 231, "y" * 500)
+    assert count == 800
     with pytest.raises(AppError) as error:
-        PromptValidator(tmp_path / "missing.json").validate(TOPICS[0], "A scene")
-    assert error.value.code == "tokenizer_missing"
+        validator.validate("x" * 232, "y" * 500)
+    assert error.value.code == "prompt_size"
 
 
 @pytest.mark.parametrize("game", [1, 2, 3], indirect=True)

@@ -364,7 +364,7 @@ test("room code correction and code-only links preserve leading zeros", async ({
     await guest
       .getByRole("button", { name: "Join party", exact: true })
       .click();
-    await expect(guest.getByText("2/4", { exact: true })).toBeVisible();
+    await expect(guest.getByText("2/3", { exact: true })).toBeVisible();
     const linked = await contexts[2].newPage();
     await linked.goto(baseURL + "/join?code=" + state.code);
     await expect(linked).toHaveURL(state.join_url);

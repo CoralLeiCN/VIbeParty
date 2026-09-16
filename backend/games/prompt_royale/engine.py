@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from backend.games.prompt_royale.config import TOPICS, RoyaleSettings
-from backend.games.prompt_royale.helios import HeliosVideo
+from backend.games.prompt_royale.fast_h3 import FastH3Video
 from backend.games.prompt_royale.providers import FixtureVideo, ProviderFailure, Topics
 from backend.games.prompt_royale.validation import PromptValidator, normalized, rendered
 from backend.shared.contracts import GameContext
@@ -118,11 +118,11 @@ class Engine:
         self.generation_tasks: set[asyncio.Task] = set()
         self.housekeeper: asyncio.Task | None = None
         self.root = context.settings.media_dir(GAME_ID)
-        self.validator = validator or PromptValidator(self.settings.prompt_royale_tokenizer)
+        self.validator = validator or PromptValidator()
         self.journal = self.root.parent / "unresolved-provider.json"
         self.fixture_video = video if video is not None and not video.live else FixtureVideo()
         self.live_video = (
-            video if video is not None and video.live else HeliosVideo(self.settings, self.journal)
+            video if video is not None and video.live else FastH3Video(self.settings, self.journal)
         )
         self.video = (
             self.live_video if context.settings.generation_mode == "live" else self.fixture_video
@@ -296,8 +296,6 @@ class Engine:
             return "Real generation needs a Reactor API key on the server."
         if not self.live_video.live:
             return "The live video provider is unavailable."
-        if self.validator.tokenizer is None:
-            return "Install the verified Helios tokenizer before using real generation."
         return None
 
     async def join(self, token, name, code, ip):
@@ -456,10 +454,6 @@ class Engine:
                         409,
                         "topic_unconfirmed",
                         "Choose a topic or confirm the current LLM suggestion.",
-                    )
-                if self.validator.tokenizer is None:
-                    raise AppError(
-                        503, "tokenizer_missing", "Install the verified Helios tokenizer first."
                     )
                 if room.mode == "live":
                     if (
@@ -740,7 +734,7 @@ class Engine:
         if not r or r.phase not in ACTIVE:
             return
         if now - room.players[room.host].seen >= 30:
-            self._end(r, "The host was away for 30 seconds. This round is unscored.")
+            self._end(r, "The host connection was lost for 30 seconds. This round is unscored.")
         elif now >= r.deadline:
             if r.phase == "prompting":
                 self._begin_generation(r)
