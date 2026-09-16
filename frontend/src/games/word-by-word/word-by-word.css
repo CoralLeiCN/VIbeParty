@@ -577,3 +577,21 @@
     line-height: 1.7;
   }
 }
+.wbw-image-choice {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #d9d4c7;
+}
+
+.wbw-image-preview img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: 12px;
+  margin-top: 1rem;
+}
+
+.wbw-image-choice input[type="file"] {
+  max-width: 100%;
+}

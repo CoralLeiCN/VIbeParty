@@ -1,0 +1,18 @@
+{
+  "scenario": "WW-CAT-01",
+  "source": "codex",
+  "seconds": 49.0,
+  "bytes": 3065380,
+  "image_path": ".local/wbw-verification/seed.png",
+  "image_sha256": "74504d6fd415e49e3dd7f120cd60f4c707b837505422a8f70d8442e93ebc6b90",
+  "dimensions": [
+    1536,
+    1024
+  ],
+  "codex_cli": "0.153.4",
+  "auth": "existing ChatGPT login",
+  "model_call": "built-in image generation via codex exec",
+  "prompt_scope": "fixed scene instructions plus Place: Enchanted forest only",
+  "reactor_online": "not run",
+  "visual_observation": "Illustrated forest clearing; no fox, ballet, or falling snow."
+}

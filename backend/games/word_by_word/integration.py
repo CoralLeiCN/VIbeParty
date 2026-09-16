@@ -36,6 +36,10 @@ class StartBody(RoundBody):
     mode: str = "fixture"
 
 
+class ImageSourceBody(RoundBody):
+    image_source: str = Field(max_length=32)
+
+
 class PlayerCountBody(RoundBody):
     player_count: int = Field(strict=True, ge=1, le=4)
 
@@ -125,6 +129,29 @@ async def start(body: StartBody, request: Request):
 @router.post("/room/settings")
 async def room_settings(body: PlayerCountBody, request: Request):
     return await game.set_player_count(token(request), body.round_id, body.player_count)
+
+
+@router.post("/round/image-source")
+async def image_source(body: ImageSourceBody, request: Request):
+    return await game.set_image_source(token(request), body.round_id, body.image_source)
+
+
+@router.post("/round/check-codex")
+async def check_codex(body: RoundBody, request: Request):
+    limit(request, "check-codex")
+    return await game.check_codex(token(request), body.round_id)
+
+
+@router.put("/round/{round_id}/starting-image")
+async def upload_image(round_id: str, request: Request):
+    limit(request, "upload-image")
+    return await game.upload_image(token(request), round_id, await request.body())
+
+
+@router.get("/round/{round_id}/starting-image")
+async def uploaded_image(round_id: str, request: Request):
+    path = await game.uploaded_image_path(token(request), round_id)
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
 @router.post("/contribution")

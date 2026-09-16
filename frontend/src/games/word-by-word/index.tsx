@@ -2,7 +2,7 @@ import Hls from "hls.js";
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ApiError, apiPost } from "../../shared/api";
+import { ApiError, apiFetch, apiPost } from "../../shared/api";
 import { copyText } from "../../shared/clipboard";
 import { HostAccessField } from "../../shared/HostAccessField";
 import { useHostAccess } from "../../shared/useHostAccess";
@@ -59,10 +59,18 @@ type Snapshot = {
   busy: boolean;
   live_attempts_left: number;
   live_unavailable_reason: string | null;
+  image_source?: string;
+  uploaded_image_url?: string | null;
+  image_sources?: {
+    id: string;
+    label: string;
+    unavailable_reason: string | null;
+  }[];
 };
 type Action = (
   suffix: string,
   fields?: Record<string, unknown>,
+  file?: File,
 ) => Promise<boolean>;
 
 const phaseLabels = {
@@ -81,16 +89,29 @@ export function GameRoute({ entry }: GameEntryProps) {
   const expired =
     error instanceof ApiError && (error.status === 401 || error.status === 404);
   const state = expired ? undefined : data;
-  const act: Action = async (suffix, fields = {}) => {
+  const act: Action = async (suffix, fields = {}, file) => {
     if (actionLock.current) return false;
     actionLock.current = true;
     setPending(true);
     setActionError("");
     try {
-      await apiPost(`${API}${suffix}`, {
-        ...(state ? { round_id: state.round_id } : {}),
-        ...fields,
-      });
+      if (file) {
+        if (file.size > 10 * 1024 * 1024)
+          throw new Error("Choose an image smaller than 10 MB.");
+        if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+          throw new Error("Choose a PNG, JPEG, or WebP image.");
+        }
+        await apiFetch(`${API}${suffix}`, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type },
+        });
+      } else {
+        await apiPost(`${API}${suffix}`, {
+          ...(state ? { round_id: state.round_id } : {}),
+          ...fields,
+        });
+      }
       retry();
       return true;
     } catch (failure) {
@@ -326,6 +347,15 @@ function Party({
   const blocked = pending || s.provider_closing || s.busy || s.closing;
   const phase = s.phase;
   const waitingPlayers = s.player_count - s.players.length;
+  const imageSource = s.image_sources?.find(
+    (source) => source.id === s.image_source,
+  );
+  const liveBlocked =
+    mode === "live" &&
+    (!!s.live_unavailable_reason ||
+      !s.live_attempts_left ||
+      !imageSource ||
+      !!imageSource.unavailable_reason);
   const assignmentSummary = [
     "",
     "One player writes all four contributions.",
@@ -420,6 +450,7 @@ function Party({
                   Round mode
                   <select
                     value={mode}
+                    disabled={blocked}
                     onChange={(e) =>
                       setMode(e.target.value as "fixture" | "live")
                     }
@@ -437,6 +468,104 @@ function Party({
                 </label>
                 {s.live_unavailable_reason && (
                   <p className="wbw-muted">{s.live_unavailable_reason}</p>
+                )}
+                {!s.live_attempts_left && (
+                  <p className="wbw-muted">
+                    The live session limit for this server run is reached.
+                  </p>
+                )}
+                {mode === "live" && (
+                  <div className="wbw-image-choice">
+                    <label>
+                      Starting image
+                      <select
+                        value={s.image_source}
+                        disabled={blocked}
+                        onChange={(event) =>
+                          void act("/round/image-source", {
+                            image_source: event.target.value,
+                          })
+                        }
+                      >
+                        {s.image_sources?.map((source) => (
+                          <option key={source.id} value={source.id}>
+                            {source.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {s.image_source === "upload" ? (
+                      <>
+                        <p className="wbw-muted">
+                          Choose the starting scene for this round. Use an image
+                          of the place, leaving the character and events for the
+                          players.
+                        </p>
+                        <label>
+                          Upload starting image
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            disabled={blocked}
+                            onChange={(event) => {
+                              const file = event.target.files?.[0];
+                              if (file)
+                                void act(
+                                  `/round/${s.round_id}/starting-image`,
+                                  {},
+                                  file,
+                                );
+                              event.target.value = "";
+                            }}
+                          />
+                        </label>
+                        <p className="wbw-muted">
+                          PNG, JPEG, or WebP · up to 10 MB and 16 megapixels.
+                        </p>
+                        {s.uploaded_image_url && (
+                          <div className="wbw-image-preview">
+                            <img
+                              src={s.uploaded_image_url}
+                              alt="Uploaded starting scene for this round"
+                            />
+                            <p role="status">Image ready for this round.</p>
+                          </div>
+                        )}
+                      </>
+                    ) : s.image_source === "configured" ? (
+                      <p className="wbw-muted">
+                        Use the image configured on the host. It should match
+                        the place for this round.
+                      </p>
+                    ) : (
+                      <p className="wbw-muted">
+                        After everyone answers, create one image from the first
+                        player’s Place answer only.
+                        {s.image_source === "codex" &&
+                          " Uses the host computer’s Codex login and included usage."}
+                      </p>
+                    )}
+                    {imageSource?.unavailable_reason && (
+                      <p className="wbw-notice" role="status">
+                        {imageSource.unavailable_reason}
+                      </p>
+                    )}
+                    {s.image_source === "codex" && (
+                      <>
+                        {!imageSource?.unavailable_reason && (
+                          <p className="wbw-muted">
+                            Codex is signed in and image generation is enabled.
+                          </p>
+                        )}
+                        <button
+                          disabled={blocked}
+                          onClick={() => void act("/round/check-codex")}
+                        >
+                          Check Codex again
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
               </>
             )}
@@ -498,7 +627,7 @@ function Party({
             {host && (
               <button
                 className="wbw-primary"
-                disabled={blocked || waitingPlayers !== 0}
+                disabled={blocked || waitingPlayers !== 0 || liveBlocked}
                 onClick={() => void act("/round/start", { mode })}
               >
                 Start round →
@@ -547,8 +676,11 @@ function Party({
               : "Preparing your story."}
           </h3>
           <p>
-            Creating the starting scene. Your story will play automatically,
-            adding each idea as the video continues.
+            {s.image_source === "upload" || s.image_source === "configured"
+              ? "Preparing the selected starting image."
+              : "Creating the starting scene."}{" "}
+            Your story will play automatically, adding each idea as the video
+            continues.
           </p>
           {s.generation_deadline && (
             <p className="wbw-muted">

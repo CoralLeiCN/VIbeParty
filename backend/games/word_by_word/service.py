@@ -23,6 +23,7 @@ from .domain import (
     identifier,
     validate_text,
 )
+from .images import SOURCES, ImagePreparationError, codex_unavailable_reason, validated_image
 from .live import LingBotProvider, LiveSettings
 from .providers import FixtureProvider, Provider
 
@@ -63,6 +64,7 @@ class Game:
         self.factory = provider_factory or self.default_provider
         self.live_settings = LiveSettings()
         self.live_reason = self.live_settings.unavailable_reason()
+        self.codex_reason = "Check Codex on the host computer before starting."
         self.disallowed = DEFAULT_DISALLOWED
 
     def default_provider(self, mode: str) -> Provider:
@@ -73,11 +75,16 @@ class Game:
         return LingBotProvider(
             self.live_settings,
             evidence_path=self.media.parent / "live-evidence" / f"{identifier()}.json",
+            image_source=self.room.round.image_source,
+            uploaded_image=self.media / self.room.round.id / "upload.png",
         )
 
     async def startup(self) -> None:
         # Only this game's disposable directory. Fixture source assets live elsewhere.
         await asyncio.to_thread(self.clear_files)
+        self.codex_reason = await codex_unavailable_reason(
+            self.live_settings.word_by_word_codex_command
+        )
         self.deadline_task = asyncio.create_task(self.deadlines())
 
     def clear_files(self) -> None:
@@ -109,7 +116,7 @@ class Game:
 
     def snapshot(self, token: str) -> dict:
         room = self.authenticate(token)
-        return room.snapshot(
+        result = room.snapshot(
             token,
             self.clock(),
             self.context.settings.public_origin,
@@ -117,6 +124,94 @@ class Game:
             max(0, self.attempt_limit - self.attempts),
             self.live_reason,
         )
+        if room.role(token) == "host":
+            result["image_sources"] = self.image_sources(room.round)
+        return result
+
+    def image_sources(self, r: Round) -> list[dict]:
+        seed = self.live_settings.seed_path()
+        return [
+            {
+                "id": "codex",
+                "label": "Generate with Codex",
+                "unavailable_reason": self.codex_reason,
+            },
+            {
+                "id": "upload",
+                "label": "Upload an image",
+                "unavailable_reason": None
+                if r.uploaded_image
+                else "Upload a starting image for this round.",
+            },
+            {
+                "id": "api",
+                "label": "Generate with OpenAI API",
+                "unavailable_reason": None
+                if self.live_settings.openai_api_key.get_secret_value()
+                else "Configure OPENAI_API_KEY on the host to use API generation.",
+            },
+            {
+                "id": "configured",
+                "label": "Configured server image",
+                "unavailable_reason": None
+                if seed and seed.is_file()
+                else "Configure WORD_BY_WORD_SEED_IMAGE with an existing image on the host.",
+            },
+        ]
+
+    def image_lobby(self, token: str, round_id: str) -> Room:
+        room = self.round_for(token, round_id)
+        if room.round.phase != "LOBBY":
+            raise AppError(409, "round_started", "Choose the starting image in the lobby.")
+        if self.busy():
+            raise AppError(409, "cleanup_pending", "Finishing the previous session.")
+        return room
+
+    async def set_image_source(self, token: str, round_id: str, source: str) -> dict:
+        async with self.lock:
+            room = self.image_lobby(token, round_id)
+            if source not in SOURCES:
+                raise AppError(422, "invalid_image_source", "Choose a starting image source.")
+            room.round.image_source = source
+            room.touch(self.clock())
+            return self.snapshot(token)
+
+    async def check_codex(self, token: str, round_id: str) -> dict:
+        async with self.lock:
+            self.image_lobby(token, round_id)
+        reason = await codex_unavailable_reason(self.live_settings.word_by_word_codex_command)
+        async with self.lock:
+            room = self.image_lobby(token, round_id)
+            self.codex_reason = reason
+            room.touch(self.clock())
+            return self.snapshot(token)
+
+    async def upload_image(self, token: str, round_id: str, data: bytes) -> dict:
+        async with self.lock:
+            self.image_lobby(token, round_id)
+        try:
+            image = await asyncio.to_thread(validated_image, data)
+        except ImagePreparationError as error:
+            raise AppError(422, "invalid_image", str(error)) from error
+        async with self.lock:
+            room = self.image_lobby(token, round_id)
+            directory = self.media / round_id
+            directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+            temporary = directory / "upload.tmp"
+            temporary.write_bytes(image)
+            temporary.replace(directory / "upload.png")
+            room.round.uploaded_image = True
+            room.round.image_revision += 1
+            room.round.image_source = "upload"
+            room.touch(self.clock())
+            return self.snapshot(token)
+
+    async def uploaded_image_path(self, token: str, round_id: str) -> Path:
+        async with self.lock:
+            room = self.round_for(token, round_id)
+            if not room.round.uploaded_image:
+                raise AppError(404, "image_unavailable", "Upload a starting image first.")
+            return self.media / round_id / "upload.png"
 
     def busy(self) -> bool:
         return self.provider_closing or bool(self.task and not self.task.done())
@@ -231,6 +326,11 @@ class Game:
             if mode == "live":
                 if self.live_reason:
                     raise AppError(503, "live_unavailable", self.live_reason)
+                source = next(
+                    item for item in self.image_sources(r) if item["id"] == r.image_source
+                )
+                if source["unavailable_reason"]:
+                    raise AppError(503, "image_source_unavailable", source["unavailable_reason"])
                 if self.attempts >= self.attempt_limit:
                     raise AppError(
                         409,
@@ -293,6 +393,7 @@ class Game:
         provider = None
         cancelled = False
         failure = None
+        image_error = None
         try:
             async with asyncio.timeout(self.total_seconds):
                 async with self.lock:
@@ -332,6 +433,8 @@ class Game:
         except asyncio.CancelledError:
             cancelled = True
         except Exception as error:
+            if isinstance(error, ImagePreparationError):
+                image_error = str(error)
             failure = "timeout" if isinstance(error, TimeoutError) else "generation_failed"
             log.warning("word_by_word round=%s failure=%s attempt=%s", r.id, failure, self.attempts)
         finally:
@@ -352,7 +455,8 @@ class Game:
                             if r.result == "complete"
                             else "The stream stopped. Your revealed ideas are kept below."
                             if r.stream_ready
-                            else "The story could not start. Try another round after cleanup."
+                            else image_error
+                            or "The story could not start. Try another round after cleanup."
                         )
                         r.phase = "RESULTS"
                     room.revision += 1

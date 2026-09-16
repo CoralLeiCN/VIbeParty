@@ -17,13 +17,23 @@ FFmpeg atomically publishes transport fragments and the playlist inside the priv
 ```dotenv
 REACTOR_API_KEY=...
 WORD_BY_WORD_LIVE_ENABLED=true
+# Only for the API image source:
 OPENAI_API_KEY=...
+WORD_BY_WORD_CODEX_COMMAND=codex
+WORD_BY_WORD_CODEX_TIMEOUT=150
 WORD_BY_WORD_IMAGE_MODEL=gpt-image-2.5-flare
 WORD_BY_WORD_CATEGORY_SECONDS=6
 ```
 
-The OpenAI Images API produces one PNG from Place alone before opening Reactor. No later answers enter that request. Generation uses low quality, landscape dimensions, and no automatic retries. For a known development setting, `WORD_BY_WORD_SEED_IMAGE` can instead point to an existing image matching Place; relative paths resolve against this worktree. Do not include future contributions in that image. The live option reports missing configuration in the lobby.
+The host selects the source in the lobby for each round. Codex and API generation use only the accepted Place answer, after all four answers arrive. Upload and the configured server image supply the starting scene directly. `WORD_BY_WORD_SEED_IMAGE` is an explicit source option; it cannot override a chosen generation source.
 
+Codex uses `codex exec --ignore-user-config --ephemeral` with saved ChatGPT authentication. CLI/login/image-feature checks run at startup and can be refreshed from the lobby. The child runs outside the repository, with a read-only sandbox, shell, apps, plugins, browser, computer, hooks, and agent delegation disabled. It receives only fixed image instructions and the Place answer encoded as scene data. Reactor and API credentials are excluded from its environment. A schema supplies the result path; only an image inside that invocation's generated-images directory is accepted. The backend validates and copies it into the private round directory, then removes the invocation's generated files. Timeout or cancellation terminates the process group; no application retry or API fallback runs.
+
+The API source produces one PNG at low quality and landscape dimensions. Both generated and uploaded images are decoded using Pillow, limited to 16 megapixels, oriented, stripped of metadata, scaled to at most 2048 pixels per edge, and stored as PNG. Upload bodies are capped at 10 MiB, including chunked requests. Only the host can upload or preview an image, and only in the current round. Upload/source changes are limited to the lobby. Rematch, reset, expiry and close clear round images with the other private media.
+
+The lobby separates Reactor readiness from image-source readiness. Upload and Codex require no OpenAI API key. Codex errors become actionable round messages without exposing raw process output. The selected source is recorded in private protocol evidence.
+
+Official references: [Codex noninteractive execution](https://learn.chatgpt.com/docs/non-interactive-mode) and [image generation](https://learn.chatgpt.com/docs/image-generation).
 Keep credentials on the backend. No new user permission or visual-approval step is part of the game.
 
 ## Provider sequence
@@ -50,12 +60,15 @@ The prompt builder uses only accepted answers through the current category, fixe
 | `POST /host`, `/join` | Cookie-backed admission. |
 | `GET /state` | Role-specific state, disclosed cards, and host playback URLs. |
 | `POST /room/settings`, `/round/start` | Player count and round start. |
+| `POST /round/image-source`, `/round/check-codex` | Host source choice and local Codex readiness refresh. |
+| `PUT /round/{round_id}/starting-image` | Bounded raw PNG/JPEG/WebP upload; host and current lobby only. |
+| `GET /round/{round_id}/starting-image` | Private host preview of the uploaded image. |
 | `POST /contribution` | Private, owned, idempotent contribution submission. |
 | `POST /round/end`, `/round/new`, `/room/reset` | Cancel, rematch, and reset. |
 | `POST /provider/cleanup` | Retry independent closure confirmation. |
 | `GET /media/{round_id}/{filename}` | Host-only playlist, published HLS fragments, or finalized MP4. |
 
-The `/reveal/next` and per-clip endpoints are removed. Media filenames are allowlisted; seed images, temporary files, obsolete round IDs, traversal paths, and missing/future fragments cannot be fetched. Media routes preserve Range support and no-store caching. There is no static media mount.
+The `/reveal/next` and per-clip endpoints are removed. Media filenames are allowlisted; generated seed images, temporary files, obsolete round IDs, traversal paths, and missing/future fragments cannot be fetched. The uploaded preview has its separate host-only endpoint. Media routes preserve Range support and no-store caching. There is no static media mount.
 
 ## Verification
 

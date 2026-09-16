@@ -31,6 +31,10 @@ async def main():
         help="Only with the user's explicit direction to proceed without account prechecks",
     )
     parser.add_argument("--contributions-json", type=Path, help="JSON array of four accepted texts")
+    parser.add_argument(
+        "--image-source", choices=["codex", "upload", "api", "configured"], required=True
+    )
+    parser.add_argument("--uploaded-image", type=Path, help="Image file for the upload source")
     args = parser.parse_args()
     for executable in ("ffmpeg", "ffprobe"):
         if not shutil.which(executable):
@@ -52,7 +56,12 @@ async def main():
     out = Path(args.output)
     # Never overwrite a prior trial or its closure evidence.
     out.mkdir(parents=True, mode=0o700, exist_ok=False)
-    provider = LingBotProvider(settings, evidence_path=out / "evidence.json")
+    provider = LingBotProvider(
+        settings,
+        evidence_path=out / "evidence.json",
+        image_source=args.image_source,
+        uploaded_image=args.uploaded_image,
+    )
     provider.evidence["slot"] = args.slot
     provider.evidence["started_utc"] = datetime.now(UTC).isoformat()
     provider.evidence["session_attempts"] = 1
