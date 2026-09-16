@@ -45,10 +45,6 @@ class ContributionBody(RoundBody):
     text: str = Field(max_length=4096)
 
 
-class RevealBody(RoundBody):
-    expected_reveal_index: int = Field(ge=-1, le=3)
-
-
 def token(request: Request) -> str | None:
     return request.cookies.get(COOKIE)
 
@@ -137,11 +133,6 @@ async def contribution(body: ContributionBody, request: Request):
     return await game.contribute(token(request), body.round_id, body.slot_index, body.text)
 
 
-@router.post("/reveal/next")
-async def reveal(body: RevealBody, request: Request):
-    return await game.reveal(token(request), body.round_id, body.expected_reveal_index)
-
-
 @router.post("/round/end")
 async def end(body: RoundBody, request: Request):
     return await game.end(token(request), body.round_id)
@@ -162,7 +153,8 @@ async def cleanup(body: RoundBody, request: Request):
     return await game.retry_cleanup(token(request), body.round_id)
 
 
-@router.get("/clips/{round_id}/{index}")
-async def clip(round_id: str, index: int, request: Request):
-    path = await game.clip_path(token(request), round_id, index)
-    return FileResponse(path, media_type="video/mp4", headers={"Cache-Control": "no-store"})
+@router.get("/media/{round_id}/{filename}")
+async def media(round_id: str, filename: str, request: Request):
+    path = await game.media_path(token(request), round_id, filename)
+    mime = {".m3u8": "application/vnd.apple.mpegurl", ".ts": "video/mp2t", ".mp4": "video/mp4"}
+    return FileResponse(path, media_type=mime[path.suffix], headers={"Cache-Control": "no-store"})

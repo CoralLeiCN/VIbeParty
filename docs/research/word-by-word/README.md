@@ -1,5 +1,7 @@
 # Word by Word: Reactor and VEED research
 
+> Current choice (16 September 2026): [LingBot World 2 with one continuous stream](../../games/word-by-word/tech-stack.md). The FastH3 and Helios comparisons below document earlier research. Visual quality is trusted and is not an implementation gate. See the [online verification and saved video](2026-09-16-lingbot-continuous-flow.md).
+
 Researched: 12 September 2026. Scope: the [Consequences-inspired Word by Word game](consequences.md). This is a review of public vendor documentation and API schemas, not a completed integration or a measurement of generation quality. No authenticated generation, account quota check, or paid trial was performed.
 
 Later playback/capture guidance: [FastH3 with smoothing on](../../shared/fast-h3-smoothing.md) is the shared implementation guide. It links the subsequent live diagnostics and native experiments, and describes the proposed timestamp-aware replay path and remaining acceptance work.

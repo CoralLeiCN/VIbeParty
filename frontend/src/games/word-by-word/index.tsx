@@ -1,3 +1,4 @@
+import Hls from "hls.js";
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -20,6 +21,7 @@ type Card = {
   category: string;
   text: string;
   contributor: string;
+  at_seconds: number;
 };
 type Assignment = {
   index: number;
@@ -29,13 +31,12 @@ type Assignment = {
   accepted_text: string | null;
   fixture_text: string | null;
 };
-type Clip = { index: number; url: string; duration: number };
 type Snapshot = {
   role: "host" | "player";
   code: string;
   round_id: string;
   revision: number;
-  phase: "LOBBY" | "INPUT" | "GENERATING" | "REVEAL" | "RESULTS";
+  phase: "LOBBY" | "INPUT" | "GENERATING" | "STREAMING" | "RESULTS";
   mode: "fixture" | "live";
   players: string[];
   player_count: number;
@@ -44,12 +45,13 @@ type Snapshot = {
   input_deadline: number | null;
   generation_deadline: number | null;
   collected: number;
-  saved_clips: number;
+  recording_ready: boolean;
   disclosed_index: number;
   cards: Card[];
   assignments?: Assignment[];
   your_name?: string;
-  clips?: Clip[];
+  stream_url?: string | null;
+  recording_url?: string | null;
   result: string | null;
   message: string;
   provider_closing: boolean;
@@ -67,7 +69,7 @@ const phaseLabels = {
   LOBBY: "Gather your people",
   INPUT: "A little secret",
   GENERATING: "Preparing your story",
-  REVEAL: "One idea at a time",
+  STREAMING: "Your story is unfolding",
   RESULTS: "Made together",
 };
 
@@ -217,7 +219,7 @@ function Admission({
         <p>
           {entry === "host"
             ? "Open this screen on a laptop. Choose 1–4 players to join on their phones, then reveal your story together."
-            : "Join on your phone. Your ideas stay private until the host reveals them on the shared screen."}
+            : "Join on your phone. Your ideas stay private until they appear in the story on the shared screen."}
         </p>
         {expired && (
           <p className="wbw-notice">
@@ -337,8 +339,8 @@ function Party({
         <div className="wbw-fixture">
           <strong>FIXTURE REHEARSAL</strong>
           <span>
-            Fixed example contributions + prerecorded illustrated clips. No AI
-            generation.
+            WW-CAT-01 · Fixed example contributions and one scripted video. No
+            AI generation.
           </span>
         </div>
       )}
@@ -348,9 +350,9 @@ function Party({
           ROOM <strong>{s.code}</strong>
         </span>
       </div>
-      {s.provider_closing && phase !== "GENERATING" && (
+      {s.provider_closing && phase === "RESULTS" && (
         <p className="wbw-notice">
-          Finishing the previous session. Saved clips can still play; another
+          Finishing the previous session. Your story can still play; another
           round waits for confirmed cleanup.
           {host && phase === "RESULTS" && (
             <button
@@ -429,7 +431,7 @@ function Party({
                         !!s.live_unavailable_reason || !s.live_attempts_left
                       }
                     >
-                      Live FastH3
+                      Live LingBot World 2
                     </option>
                   </select>
                 </label>
@@ -541,14 +543,13 @@ function Party({
           </div>
           <h3>
             {s.mode === "fixture"
-              ? "Preparing the rehearsal clips."
+              ? "Preparing the rehearsal story."
               : "Preparing your story."}
           </h3>
           <p>
-            {s.saved_clips} of 4 clips saved. Each addition follows the one
-            before it.
+            Creating the starting scene. Your story will play automatically,
+            adding each idea as the video continues.
           </p>
-          <Progress count={s.saved_clips} />
           {s.generation_deadline && (
             <p className="wbw-muted">
               Time remaining{" "}
@@ -560,7 +561,7 @@ function Party({
           )}
         </section>
       )}
-      {(phase === "REVEAL" || phase === "RESULTS") && (
+      {(phase === "STREAMING" || phase === "RESULTS") && (
         <>
           {s.message && (
             <p
@@ -570,7 +571,7 @@ function Party({
             </p>
           )}
           {host ? (
-            <Playback state={s} act={act} pending={pending || s.closing} />
+            <Playback state={s} />
           ) : (
             <section className="wbw-panel wbw-phone-reveal">
               <p className="wbw-eyebrow">LOOK UP AT THE LAPTOP</p>
@@ -580,8 +581,8 @@ function Party({
                   : "Look what you made together."}
               </h3>
               <p>
-                {phase === "REVEAL"
-                  ? "The host will reveal each addition. Your phone follows along."
+                {phase === "STREAMING"
+                  ? "Each idea joins the same ongoing video. Your phone follows along."
                   : "The host can replay or start another round."}
               </p>
             </section>
@@ -621,7 +622,7 @@ function Party({
           )}
         </>
       )}
-      {host && ["INPUT", "GENERATING", "REVEAL"].includes(phase) && (
+      {host && ["INPUT", "GENERATING", "STREAMING"].includes(phase) && (
         <div className="wbw-bottom-actions">
           <button
             className="wbw-danger"
@@ -761,48 +762,84 @@ function Contribution({
   );
 }
 
-function Playback({
-  state: s,
-  act,
-  pending,
-}: {
-  state: Snapshot;
-  act: Action;
-  pending: boolean;
-}) {
-  const [replay, setReplay] = useState<number | null>(null);
-  const [hidden, setHidden] = useState(false);
-  const [playbackError, setPlaybackError] = useState(false);
+function Playback({ state: s }: { state: Snapshot }) {
   const video = useRef<HTMLVideoElement>(null);
-  const index = replay ?? s.disclosed_index;
-  const clip = s.clips?.find((c) => c.index === index);
-  const card = s.cards.find((c) => c.index === index);
-  const advance = async () => {
-    setHidden(false);
-    setPlaybackError(false);
-    setReplay(null);
-    await act("/reveal/next", { expected_reveal_index: s.disclosed_index });
+  const initialPosition = useRef(
+    s.phase === "STREAMING" ? (s.cards.at(-1)?.at_seconds ?? 0) : 0,
+  );
+  const [replaying, setReplaying] = useState(false);
+  const [playbackError, setPlaybackError] = useState(false);
+  const [needsPlay, setNeedsPlay] = useState(false);
+  const [reload, setReload] = useState(0);
+  const [position, setPosition] = useState(0);
+  // Keep the same stream attached when the round finishes; let its buffered tail play.
+  const source = replaying ? s.recording_url : s.stream_url;
+  const card = [...s.cards]
+    .reverse()
+    .find((item) => item.at_seconds <= position);
+
+  useEffect(() => {
+    const element = video.current;
+    if (!element || !source) return;
+    let disposed = false;
+    const play = () => {
+      void element.play().catch(() => {
+        if (!disposed) setNeedsPlay(true);
+      });
+    };
+    let hls: Hls | undefined;
+    if (source.endsWith(".m3u8") && Hls.isSupported()) {
+      hls = new Hls({
+        startPosition: initialPosition.current,
+        maxBufferLength: 30,
+      });
+      hls.loadSource(source);
+      hls.attachMedia(element);
+      hls.on(Hls.Events.MANIFEST_PARSED, play);
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal && !disposed) setPlaybackError(true);
+      });
+    } else if (
+      !source.endsWith(".m3u8") ||
+      element.canPlayType("application/vnd.apple.mpegurl")
+    ) {
+      element.src = source;
+      play();
+    } else {
+      // This callback runs after setup, matching media event error handling.
+      queueMicrotask(() => {
+        if (!disposed) setPlaybackError(true);
+      });
+    }
+    return () => {
+      disposed = true;
+      hls?.destroy();
+      element.pause();
+      element.removeAttribute("src");
+      element.load();
+    };
+  }, [source, reload]);
+
+  const resume = () => {
+    void video.current
+      ?.play()
+      .then(() => setNeedsPlay(false))
+      .catch(() => setNeedsPlay(true));
   };
   return (
     <section className="wbw-playback">
-      {clip && !hidden ? (
+      {source ? (
         <>
           <video
             ref={video}
-            key={clip.url}
-            src={clip.url}
-            controls
+            controls={replaying || s.phase === "RESULTS"}
             muted
             playsInline
             autoPlay
-            preload="metadata"
+            onTimeUpdate={() => setPosition(video.current?.currentTime ?? 0)}
+            onPlaying={() => setNeedsPlay(false)}
             onError={() => setPlaybackError(true)}
-            onEnded={() => {
-              if (replay !== null && replay < (s.clips?.length ?? 0) - 1)
-                setReplay(replay + 1);
-              else setReplay(null);
-            }}
-            aria-label={`Saved ${card?.category || "story"} clip`}
+            aria-label={replaying ? "Saved story" : "Continuous story"}
           />
           {card && (
             <div className="wbw-current-card">
@@ -816,81 +853,48 @@ function Playback({
       ) : (
         <div className="wbw-curtain">
           <span aria-hidden="true">✳</span>
-          <h3>
-            {hidden
-              ? "Video hidden."
-              : s.saved_clips
-                ? "Ready for the first surprise?"
-                : "The next story is waiting for you."}
-          </h3>
-          <p>
-            {hidden
-              ? "You can show this disclosed clip again or end the round."
-              : s.saved_clips
-                ? "Only Play will unfold the first contribution."
-                : "Start another round with your group."}
-          </p>
+          <h3>The next story is waiting for you.</h3>
+          <p>Start another round with your group.</p>
         </div>
+      )}
+      {s.phase === "STREAMING" && (
+        <p role="status">
+          One continuous story · {s.cards.length} of 4 ideas added
+        </p>
+      )}
+      {needsPlay && !playbackError && (
+        <button onClick={resume}>Resume story playback</button>
       )}
       {playbackError && (
         <p className="wbw-error" role="alert">
-          The saved video could not play.{" "}
+          Playback was interrupted. Your story keeps running.
           <button
             onClick={() => {
-              video.current?.load();
               setPlaybackError(false);
+              setReload((value) => value + 1);
             }}
           >
-            Reload saved clip
+            Reconnect video
           </button>
         </p>
       )}
-      <div className="wbw-video-actions">
-        {s.phase === "REVEAL" && (
-          <button
-            className="wbw-primary"
-            disabled={pending}
-            onClick={() => void advance()}
-          >
-            {s.disclosed_index < 0
-              ? "Play the first addition"
-              : s.disclosed_index + 1 < s.saved_clips
-                ? "Next addition →"
-                : "Finish story →"}
-          </button>
-        )}
-        {s.phase === "RESULTS" && (s.clips?.length ?? 0) > 0 && (
+      {s.phase === "RESULTS" && s.recording_url && (
+        <div className="wbw-video-actions">
           <button
             className="wbw-primary"
             onClick={() => {
-              setHidden(false);
               setPlaybackError(false);
-              setReplay(0);
-              if (index === 0 && video.current) {
+              setPosition(0);
+              if (replaying && video.current) {
                 video.current.currentTime = 0;
-                void video.current.play().catch(() => setPlaybackError(true));
-              }
+                resume();
+              } else setReplaying(true);
             }}
           >
             Replay saved story ↻
           </button>
-        )}
-        {clip && (
-          <button
-            onClick={() => {
-              video.current?.pause();
-              setHidden(!hidden);
-            }}
-          >
-            {hidden ? "Show video" : "Hide video"}
-          </button>
-        )}
-        {replay !== null && (
-          <span role="status">
-            Replaying {replay + 1} of {s.clips?.length}
-          </span>
-        )}
-      </div>
+        </div>
+      )}
     </section>
   );
 }

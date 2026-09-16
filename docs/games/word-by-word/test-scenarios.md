@@ -1,8 +1,8 @@
-# Word by Word: category examples for future tests
+# Word by Word: standard category scenarios
 
 [All docs](../../README.md) · [Game spec](game-spec.md) · [Technical stack](tech-stack.md) · [Research](../../research/word-by-word/README.md)
 
-Status: agreed test examples, 12 September 2026. Fixture version: `categories-v1`. These are intended results; no live output has been validated.
+Status: agreed test examples, 12 September 2026. Fixture version: `categories-v1`. These are intended visual results. The [16 September LingBot functional test](../../research/word-by-word/2026-09-16-lingbot-continuous-flow.md) passed online with visual quality excluded from acceptance.
 
 Use these categories, example answers, and expected additions for future Word by Word rehearsals, fixture preparation, and model evaluations. Keep the answers fixed when comparing runs. This document owns the test inputs and visual expectations; the [game specification](game-spec.md) owns the demo's slot assignments and reveal rules.
 
@@ -24,7 +24,7 @@ In the three-role example, rotate categories between players on successive round
 
 ## 2. Mapping to the current demo
 
-The current demo has four slots: **Place → Character → Action → Consequence**. To use these examples in that demo, submit the round theme as the Place answer and the Scene change answer as Consequence. The assigned tester enters the Place answer normally; do not autofill a live player's contribution. Reveal the place segment first, followed by the three additions. A separate model evaluation can establish the theme as its starting scene before applying the three additions.
+The current demo has four slots: **Place → Character → Action → Consequence**. To use these examples in that demo, submit the round theme as the Place answer and the Scene change answer as Consequence. The assigned tester enters the Place answer normally; do not autofill a live player's contribution. Establish Place first, then apply the three additions automatically to the same continuous stream. A separate model evaluation can establish the theme as its starting scene before applying the three additions.
 
 Keep the demo's existing join-order ownership when rehearsing its phone flow:
 
@@ -102,22 +102,22 @@ For `WW-CAT-01`, an illustrative sequence is:
 | Action | Theme: Enchanted forest. Character: A fox wearing a crown. Action: Dances ballet. The same crowned fox begins ballet movements in the clearing. Retain its appearance, the forest, illustrated style, and fixed wide shot. |
 | Scene change | Theme: Enchanted forest. Character: A fox wearing a crown. Action: Dances ballet. Scene change: Glowing snow begins falling. Add luminous falling snow around the same crowned fox as it continues dancing. Retain the forest, illustrated style, and fixed wide shot. |
 
-Future contributions must not enter an earlier step's prompt, starting image, generated asset, or public display. For model evaluations requiring an initial image, prepare it from the theme alone and record the image used. Wait until a change is visibly established before applying the next update in a continuous-stream evaluation. For the current demo, follow its private generation and manual reveal sequence.
+Future contributions must not enter an earlier step's prompt, starting image, generated asset, or public display. For model evaluations requiring an initial image, prepare it from the theme alone and record the image used. For an optional model evaluation, wait until a change is visibly established before the next update. The current demo advances prompts on a timer without a visual-quality gate, following private collection and automatic continuous playback.
 
 ## 5. How to use these in future tests
 
-Use `WW-CAT-01` twice and `WW-CAT-02` once for the demo's existing three-live-run acceptance check. These replace the earlier unstructured `forest → fox → dancing → confetti` baseline. `WW-CAT-03` and `WW-CAT-04` are named alternatives for targeted tests or an explicitly chosen variation; record any substitution. Respect the existing session-attempt and spending limits.
+For functional rehearsal, use `WW-CAT-01`. Visual model evaluation is optional and is not an acceptance gate for the LingBot World 2 implementation. If separately requested, use `WW-CAT-01` twice and `WW-CAT-02` once for a repeatable model evaluation. These replace the earlier unstructured `forest → fox → dancing → confetti` baseline. `WW-CAT-03` and `WW-CAT-04` are named alternatives for targeted tests or an explicitly chosen variation; record any substitution. Respect the existing session-attempt and spending limits.
 
 For every scenario run:
 
 1. **Category form:** verify the assigned category, instruction, and matching example answer are visible. Live answers remain editable until accepted; examples do not submit themselves. Apply the existing 1–120-code-point validation and ownership checks. Keep separate empty, over-limit, punctuation, and non-ASCII cases from the game specification.
 2. **Private collection:** have players submit independently, including in a different order from the reveal. Only participation progress is public during collection; accepted answers remain locked and private.
 3. **Ordered additions:** review Character, then Action, then Scene change after the theme is established. Each addition must become recognizable at its own reveal; later answers must not appear early.
-4. **Continuity:** check the setting, character identity, distinctive details, and action after every update. A missing crown, replacement character, lost action, or unrelated scene is a failed visual criterion even if the command succeeded. Intended changes such as floating furniture are allowed; earlier facts must remain recognizable where compatible.
-5. **Result and replay:** verify the exact accepted answers, categories, and contributors appear in order. For the current demo, replay all four saved segments after closing the provider session without generating again.
+4. **Optional visual evaluation:** when explicitly requested, check the setting, character identity, distinctive details, and action after every update. A missing crown, replacement character, lost action, or unrelated scene is a failed visual criterion even if the command succeeded. Intended changes such as floating furniture are allowed; earlier facts must remain recognizable where compatible.
+5. **Result and replay:** verify the exact accepted answers, categories, and contributors appear in order. For the current demo, verify automatic category progression and replay the one saved recording after closing the provider session without generating again.
 6. **Record evidence:** complete the record below with actual observations and media timestamps. A pending or failed scenario must not be presented as a verified success. A clearly labelled fixture rehearsal tests the app flow; only actual generated output can establish live visual quality.
 
-Keep the rest of the [demo acceptance checks](game-spec.md#8-demo-acceptance), including timeout, refresh, duplicate actions, hidden media, and cleanup. These scenarios supply repeatable story inputs for those checks.
+Keep the rest of the [demo acceptance checks](game-spec.md#6-acceptance), including timeout, refresh, duplicate actions, hidden media, and cleanup. These scenarios supply repeatable story inputs for those checks.
 
 ## 6. Reusable result record
 
