@@ -81,6 +81,9 @@ class Round:
     id: str = field(default_factory=identifier)
     phase: str = "LOBBY"
     mode: str = "fixture"
+    image_source: str = "codex"
+    uploaded_image: bool = False
+    image_revision: int = 0
     slots: list[Slot] = field(default_factory=list)
     recording: Clip | None = None
     stream_ready: bool = False
@@ -169,6 +172,12 @@ class Room:
             )
             result["recording_url"] = (
                 f"/api/games/{GAME_ID}/media/{r.id}/story.mp4" if r.recording else None
+            )
+            result["image_source"] = r.image_source
+            result["uploaded_image_url"] = (
+                f"/api/games/{GAME_ID}/round/{r.id}/starting-image?v={r.image_revision}"
+                if r.uploaded_image
+                else None
             )
         else:
             result["your_name"] = next(

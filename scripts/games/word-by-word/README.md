@@ -20,12 +20,15 @@ Set these in private `.env` and restart:
 ```dotenv
 WORD_BY_WORD_LIVE_ENABLED=true
 REACTOR_API_KEY=...
+WORD_BY_WORD_CODEX_COMMAND=codex
+WORD_BY_WORD_CODEX_TIMEOUT=150
+# Optional, only for the API image source:
 OPENAI_API_KEY=...
 WORD_BY_WORD_IMAGE_MODEL=gpt-image-2.5-flare
 WORD_BY_WORD_CATEGORY_SECONDS=6
 ```
 
-OPENAI_API_KEY generates the starting image from Place only. For development with a known setting, configure WORD_BY_WORD_SEED_IMAGE to an existing matching image instead. The host selects Live LingBot World 2. Four private answers trigger one session and automatic prompt updates; no manual video advancement or visual-quality approval is required.
+The host selects Live LingBot World 2 and a starting-image source for each round. Codex uses the host’s existing ChatGPT login through `codex exec` (run `codex login` on the host); upload accepts a still PNG/JPEG/WebP up to 10 MiB and 16 megapixels. Neither needs an OpenAI API key. The API option uses `OPENAI_API_KEY`; the configured-image option uses `WORD_BY_WORD_SEED_IMAGE`. Both generation options use Place only, after every answer is accepted. Uploaded images should depict the place without future characters/events. The configured image does not override another selected source. Four private answers trigger one session and automatic prompt updates; no manual video advancement or visual-quality approval is required.
 
 The app enforces three live attempts per process, one task/session at a time, a 180-second deadline, private media, cancellation, and independent session-closure confirmation. No paid retries happen automatically. Private protocol evidence records safe timing and closure fields without credentials or submitted text.
 
@@ -36,7 +39,7 @@ The standalone spike consumes a live session. Run it only as part of an allocate
 ```sh
 .venv/bin/python scripts/games/word-by-word/spike.py \
   --env-file .env --output .local/word-live/TRIAL-ID \
-  --slot ALLOCATED-TRIAL-ID --previous-session-closed
+  --slot ALLOCATED-TRIAL-ID --previous-session-closed --image-source codex
 ```
 
-The output directory must be new. It runs `WW-CAT-01` by default: one seed image, one LingBot session, four cumulative prompts, one MP4, and verified cleanup. An optional `--contributions-json` supplies four different accepted strings. `--account-precheck-waived` is retained for an explicitly authorized coordinated trial. Setup and ordinary tests make no paid requests. The spike records protocol behavior; visual model evaluation is not required.
+Choose `--image-source codex`, `api`, `configured`, or `upload`; upload also needs `--uploaded-image /path/to/image.png`. The output directory must be new. It runs `WW-CAT-01` by default: one seed image, one LingBot session, four cumulative prompts, one MP4, and verified cleanup. An optional `--contributions-json` supplies four different accepted strings. `--account-precheck-waived` is retained for an explicitly authorized coordinated trial. Setup and ordinary tests make no paid requests. The spike records protocol behavior; visual model evaluation is not required.

@@ -2,11 +2,13 @@
 
 import asyncio
 import base64
+import io
 import json
 from pathlib import Path
 
 import httpx
 import pytest
+from PIL import Image
 
 from backend.games.word_by_word.domain import FIXTURE_TEXT, Clip
 from backend.games.word_by_word.live import MODEL, LingBotProvider, LiveSettings
@@ -105,7 +107,7 @@ def adapter(tmp_path, states=None):
     requests = []
     states = iter(states or ["CLOSED"])
     seed = tmp_path / "seed.png"
-    seed.write_bytes(b"seed")
+    Image.new("RGB", (32, 32), "green").save(seed)
 
     def http(request):
         requests.append(request)
@@ -127,12 +129,16 @@ def adapter(tmp_path, states=None):
         reactor_factory=factory,
         capture_factory=FakeCapture,
         evidence_path=tmp_path / "evidence.json",
+        image_source="configured",
     )
     return provider, reactor, requests
 
 
-async def test_one_session_four_prompt_updates_and_one_recording(tmp_path):
+@pytest.mark.parametrize("source", ["configured", "upload"])
+async def test_one_session_four_prompt_updates_and_one_recording(tmp_path, source):
     provider, reactor, requests = adapter(tmp_path)
+    provider.image_source = source
+    provider.uploaded_image = tmp_path / "seed.png"
     updates = []
 
     async def update(index, timestamp):
@@ -197,16 +203,20 @@ async def test_cancellation_and_unresolved_closure_keep_guard(tmp_path):
 
 async def test_starting_image_uses_only_place_and_does_not_retry(tmp_path):
     requests = []
+    png = io.BytesIO()
+    Image.new("RGB", (32, 32), "green").save(png, format="PNG")
 
     def http(request):
         requests.append(request)
         return httpx.Response(
             200,
-            json={"data": [{"b64_json": base64.b64encode(b"\x89PNG\r\n\x1a\nexample").decode()}]},
+            json={"data": [{"b64_json": base64.b64encode(png.getvalue()).decode()}]},
         )
 
     provider = LingBotProvider(
-        LiveSettings(_env_file=None, openai_api_key="secret"),
+        LiveSettings(
+            _env_file=None, openai_api_key="secret", word_by_word_seed_image=tmp_path / "unused.png"
+        ),
         client_factory=lambda: httpx.AsyncClient(transport=httpx.MockTransport(http)),
     )
     path = await provider.starting_image(FIXTURE_TEXT[0], tmp_path)
@@ -232,11 +242,11 @@ async def test_real_capture_publishes_hls_and_one_decodable_replay(tmp_path):
     assert len(list(tmp_path.glob("*.mp4"))) == 1
 
 
-def test_live_configuration_requires_seed_source(tmp_path):
+def test_live_configuration_allows_upload_without_image_api_key(tmp_path):
     settings = LiveSettings(
         _env_file=None, word_by_word_live_enabled=True, reactor_api_key="rk_test"
     )
-    assert "OPENAI_API_KEY" in settings.unavailable_reason()
+    assert settings.unavailable_reason() is None
     settings = LiveSettings(
         _env_file=None,
         word_by_word_live_enabled=True,

@@ -1,3 +1,4 @@
+import re
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -8,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.games.prompt_royale import integration as prompt_royale
 from backend.games.reverse_prompt import integration as reverse_prompt
 from backend.games.word_by_word import integration as word_by_word
+from backend.games.word_by_word.images import MAX_UPLOAD_BYTES
 from backend.shared.api import AttemptLimiter, router
 from backend.shared.config import ROOT, Settings
 from backend.shared.contracts import GameContext
@@ -65,18 +67,35 @@ def create_app(settings: Settings | None = None, integrations=None) -> FastAPI:
                     },
                     status_code=403,
                 )
-            if request.headers.get("content-type", "").split(";")[0] != "application/json":
+            image_upload = request.method == "PUT" and re.fullmatch(
+                r"/api/games/word-by-word/round/[A-Za-z0-9_-]{1,100}/starting-image",
+                request.url.path,
+            )
+            content_types = (
+                {"image/png", "image/jpeg", "image/webp"} if image_upload else {"application/json"}
+            )
+            if request.headers.get("content-type", "").split(";")[0] not in content_types:
                 return JSONResponse(
-                    {"code": "json_required", "message": "Send this request as JSON."},
+                    {
+                        "code": "image_type_required" if image_upload else "json_required",
+                        "message": "Choose a PNG, JPEG, or WebP image."
+                        if image_upload
+                        else "Send this request as JSON.",
+                    },
                     status_code=415,
                 )
-            # Read the small command body once, with a bound even for chunked requests.
+            # The single upload route has its own cap; all other commands stay small JSON.
             body = bytearray()
             async for chunk in request.stream():
                 body.extend(chunk)
-                if len(body) > 65536:
+                if len(body) > (MAX_UPLOAD_BYTES if image_upload else 65536):
                     return JSONResponse(
-                        {"code": "request_too_large", "message": "That request is too large."},
+                        {
+                            "code": "request_too_large",
+                            "message": "Choose an image smaller than 10 MB."
+                            if image_upload
+                            else "That request is too large.",
+                        },
                         status_code=413,
                     )
             request._body = bytes(body)

@@ -50,7 +50,11 @@ class FakeProvider:
 
 
 @pytest.fixture
-async def setup_game(tmp_path):
+async def setup_game(tmp_path, monkeypatch):
+    async def ready(_):
+        return None
+
+    monkeypatch.setattr("backend.games.word_by_word.service.codex_unavailable_reason", ready)
     provider = FakeProvider()
     settings = Settings(_env_file=None, media_root=tmp_path, host_passcode="test-passcode")
     game = Game(GameContext(settings, PartyCoordinator()), provider_factory=lambda mode: provider)
@@ -275,6 +279,39 @@ async def test_bounded_story_timeout(setup_game):
     assert game.room.round.result == "partial"
     assert game.room.round.disclosed == 0
     assert provider.closes == 1
+
+
+async def test_codex_uses_place_after_out_of_order_answers_and_explains_failure(
+    setup_game, monkeypatch
+):
+    from backend.games.word_by_word.images import CodexImageGenerator, ImagePreparationError
+    from backend.games.word_by_word.live import LingBotProvider
+
+    game, _, host, players = setup_game
+    game.live_reason = None
+    game.factory = lambda _: LingBotProvider(game.live_settings, image_source="codex")
+    calls = []
+
+    async def unavailable(self, place, directory):
+        calls.append(place)
+        raise ImagePreparationError("Codex returned no usable image. Try uploading an image.")
+
+    monkeypatch.setattr(CodexImageGenerator, "generate", unavailable)
+    rid = game.room.round.id
+    await game.start(host, rid, "live")
+    for index in [3, 2, 1]:
+        await game.contribute(players[index % 3], rid, index, FIXTURE_TEXT[index])
+        assert not calls
+    await game.contribute(players[0], rid, 0, FIXTURE_TEXT[0])
+    await game.task
+    await game.cleanup_task
+    assert calls == [FIXTURE_TEXT[0]]
+    state = game.snapshot(host)
+    assert state["result"] == "failed" and state["cards"] == []
+    assert "Try uploading an image" in state["message"]
+    assert not state["provider_closing"]
+    assert game.attempts == 1
+    await game.new_round(host, rid)
 
 
 async def test_live_attempts_survive_reset_and_close(setup_game):

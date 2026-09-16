@@ -3,7 +3,7 @@ name = "vibeparty"
 version = "0.1.0"
 description = "Local multiplayer video party games"
 requires-python = ">=3.13,<3.14"
-dependencies = ["fastapi>=0.115,<1", "pydantic>=2.10,<3", "pydantic-settings>=2.7,<3", "uvicorn>=0.34,<1", "httpx>=0.28,<1"]
+dependencies = ["fastapi>=0.115,<1", "pydantic>=2.10,<3", "pydantic-settings>=2.7,<3", "uvicorn>=0.34,<1", "httpx>=0.28,<1", "pillow>=11,<13"]
 
 [project.optional-dependencies]
 live = [

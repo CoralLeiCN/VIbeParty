@@ -59,6 +59,7 @@ def main():
         async def start(self, token, round_id, mode):
             # Exercise arbitrary input through the real live validation path using
             # a hardcoded fake factory. No provider or gate override in the app.
+            self.codex_reason = None  # This server's hardcoded fixture never invokes Codex.
             return await super().start(token, round_id, "live")
 
         def snapshot(self, token):

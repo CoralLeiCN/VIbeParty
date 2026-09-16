@@ -15,6 +15,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from backend.shared.config import ROOT
 
 from .domain import Clip
+from .images import (
+    CodexImageGenerator,
+    ImagePreparationError,
+    image_prompt,
+    read_image,
+    validated_image,
+)
 from .providers import Update, scene_prompt
 from .stream import StreamCapture
 
@@ -31,6 +38,8 @@ class LiveSettings(BaseSettings):
     word_by_word_image_model: str = "gpt-image-2.5-flare"
     word_by_word_seed_image: Path | None = None
     word_by_word_category_seconds: float = Field(default=6, ge=3, le=15)
+    word_by_word_codex_command: str = "codex"
+    word_by_word_codex_timeout: float = Field(default=150, ge=10, le=150)
 
     def seed_path(self) -> Path | None:
         path = self.word_by_word_seed_image
@@ -41,11 +50,6 @@ class LiveSettings(BaseSettings):
             return "The presenter has not enabled live LingBot World 2 generation."
         if not self.reactor_api_key.get_secret_value().startswith("rk_"):
             return "The presenter must configure the Reactor credential before live play."
-        if self.seed_path():
-            if not self.seed_path().is_file():
-                return "The configured starting image could not be found."
-        elif not self.openai_api_key.get_secret_value():
-            return "Configure OPENAI_API_KEY to create the starting scene, or a local seed image."
         return None
 
 
@@ -58,12 +62,16 @@ class LingBotProvider:
         reactor_factory=None,
         capture_factory=StreamCapture,
         evidence_path: Path | None = None,
+        image_source: str = "api",
+        uploaded_image: Path | None = None,
     ):
         self.settings = settings
         self.client_factory = client_factory or (lambda: httpx.AsyncClient(timeout=10))
         self.reactor_factory = reactor_factory
         self.capture_factory = capture_factory
         self.evidence_path = evidence_path
+        self.image_source = image_source
+        self.uploaded_image = uploaded_image
         self.reactor = None
         self.capture = None
         self.recording: Clip | None = None
@@ -77,19 +85,25 @@ class LingBotProvider:
         self.evidence = {"model": MODEL, "steps": [], "closed": False}
 
     async def starting_image(self, place: str, directory: Path) -> Path:
-        configured = self.settings.seed_path()
-        if configured:
-            if not 0 < configured.stat().st_size <= 20 * 1024 * 1024:
-                raise ValueError("invalid_seed_image_size")
-            self.evidence["seed_source"] = "configured"
-            return configured
+        self.evidence["seed_source"] = self.image_source
+        if self.image_source in {"configured", "upload"}:
+            source = (
+                self.uploaded_image if self.image_source == "upload" else self.settings.seed_path()
+            )
+            if source is None:
+                raise ImagePreparationError("Choose a starting image before starting this round.")
+            data = read_image(source)
+            destination = directory / "seed.png"
+            destination.write_bytes(data)
+            return destination
+        if self.image_source == "codex":
+            return await CodexImageGenerator(
+                self.settings.word_by_word_codex_command, self.settings.word_by_word_codex_timeout
+            ).generate(place, directory)
+        if self.image_source != "api":
+            raise ImagePreparationError("Choose a starting image source for this round.")
         # Only Place enters image generation. No character, action or consequence leaks.
-        prompt = (
-            "Create a starting scene for an illustrated party story. Wide establishing shot, "
-            "playful illustration, room for a character to enter later. No text or captions. "
-            "Depict only this setting, without adding a main character or story event. "
-            f"Place: {place}"
-        )
+        prompt = image_prompt(place)
         async with self.client_factory() as client:
             async with client.stream(
                 "POST",
@@ -114,11 +128,9 @@ class LingBotProvider:
                     if len(payload) > 28 * 1024 * 1024:
                         raise ValueError("seed_response_too_large")
         data = base64.b64decode(json.loads(payload)["data"][0]["b64_json"], validate=True)
-        if not data.startswith(b"\x89PNG\r\n\x1a\n") or len(data) > 20 * 1024 * 1024:
-            raise ValueError("invalid_seed_image")
+        data = validated_image(data)
         destination = directory / "seed.png"
         await asyncio.to_thread(destination.write_bytes, data)
-        self.evidence["seed_source"] = "place_generated"
         return destination
 
     def session_changed(self, value):

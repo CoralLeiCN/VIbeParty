@@ -31,13 +31,13 @@ The fixture rehearsal uses the exact `WW-CAT-01` examples and one scripted 24-se
 
 ## 3. Play a round
 
-1. **Join:** the host opens the laptop screen using its passcode and chooses 1–4 players. Phones join with a name and the shared four-digit room code. Codes can start with zero. No late joins or waiting list.
-2. **Start:** when the selected number has joined, freeze the roster and assign the categories.
+1. **Join:** the host opens the laptop screen (with a passcode when required) and chooses 1–4 players. Phones join with a name and the shared four-digit room code. Codes can start with zero. No late joins or waiting list.
+2. **Start:** in live mode, the host chooses a starting-image source for this round: generate with Codex, upload an image, generate through the OpenAI API, or use the configured server image. Upload requires a valid still PNG, JPEG, or WebP up to 10 MiB and 16 megapixels; the host sees a private preview and ready status. When the selected number has joined and the source is ready, freeze the roster and assign the categories.
 3. **Write:** collect all four contributions privately within 45 seconds. The host sees only the count. Missing input ends the round without generation.
-4. **Prepare:** automatically create a seed image using only Place, then open a LingBot World 2 session. Show “Preparing your story.” The developer may configure a local seed image for a known setting.
+4. **Prepare:** after all four answers are accepted, use the selected image source, then open a LingBot World 2 session. Both generation sources use only the first joined player’s accepted Place answer, regardless of submission order. Codex uses the host’s saved ChatGPT login through `codex exec`; API generation requires `OPENAI_API_KEY`. An uploaded or configured image supplies the scene directly and should match Place. The configured file never overrides another selected source. Show “Preparing your story.”
 5. **Stream:** automatically play the video once it is available. Establish Place, then send cumulative prompts for Character, Action, and Consequence in the same running session. Apply the next prompt on a timer; no visual inspection or manual Next action is required. Show the submitted words and contributor names as their category is introduced. Phones follow the disclosed story.
 6. **Finish:** after the final category has run, stop generation, finish the single recording, and independently confirm provider closure. The browser finishes buffered video without changing its source.
-7. **Replay:** Replay plays the saved recording from the beginning, with no generation. Another round clears the recording and returns the same players to the lobby.
+7. **Replay:** Replay plays the saved recording from the beginning, with no generation. Another round clears the recording and uploaded/generated round images, resets the image choice to Codex, and returns the same players to the lobby.
 
 Refreshing the host screen reconnects to the current round's stream; it never creates another model session. Muted inline playback starts automatically where the browser permits it. A Resume control handles autoplay restrictions. Reconnect video retries playback only.
 
@@ -59,9 +59,9 @@ flowchart LR
     RESULTS --> LOBBY
 ```
 
-End round cancels new work and keeps only already disclosed contributions. A provider failure keeps the disclosed story and any recording that could be finalized. An early failure shows a retry message after cleanup. Never skip a failed category and apply later ones.
+End round cancels new work, terminates any Codex image process, and keeps only already disclosed contributions. A provider failure keeps the disclosed story and any recording that could be finalized. An early failure shows a retry message after cleanup. Never skip a failed category and apply later ones.
 
-The whole operation has a 180-second deadline, including image preparation and session startup. Image requests have a 60-second timeout; commands have a 15-second timeout. The Reactor token permits one LingBot session with a 180-second maximum. Keep the existing three-live-attempt allowance per server run, with no automatic paid retries. A failed image request also consumes the round attempt.
+The whole operation has a 180-second deadline, including image preparation and session startup. API image requests have a 60-second timeout; Codex image preparation has a configurable timeout up to 150 seconds within the same overall deadline; commands have a 15-second timeout. The Reactor token permits one LingBot session with a 180-second maximum. Keep the existing three-live-attempt allowance per server run, with no automatic paid retries. A failed image request also consumes the round attempt.
 
 Unconfirmed provider closure blocks another live session and party switching until cleanup is confirmed. Closing the party removes its media and cookies stop granting access. Polling does not extend the inactivity deadline. Reset party rotates the code and clears the roster; Another round retains the code and roster.
 
