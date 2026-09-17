@@ -4,6 +4,10 @@ Coordinator: Session A, codex/app-integration. Credentials remain in private .en
 
 ## Active allocation
 
+17 September 2026: the user's request to run an online test and then publish/merge on success authorizes `2026-09-17-host-recovery-001`: one LingBot World 2 session for PORTAL-001 with WW-CAT-01 inputs and the existing Place-only forest seed. No generation retry. Test host recovery during streaming, completion/replay, and close/switch to Prompt Royale. Confirm this session's terminal provider state before release. Earlier completed LingBot runs are recorded in [the 16 September verification](../research/word-by-word/2026-09-16-lingbot-continuous-flow.md). This allocation supersedes the historical stop below for this single test only. Status: complete and released. One session consumed; generation completed with all four steps, host access recovered during STREAMING, one 25.125-second replay saved, and provider closure independently confirmed at 20:00:58 UTC. Close/switch and Prompt Royale creation passed. No generation retry; actual spend was not measured. [Verification record](../research/word-by-word/2026-09-17-host-recovery.md#online-verification).
+
+### Historical allocations (12 September)
+
 Live-trial coordination and monitoring of other tasks are stopped at the user's instruction. No further paid sessions are authorized. Reverse slot 002 consumed only its first attempted generation, which failed in the browser; the remaining two allocations are cancelled. The canonical quota records two closed Reverse attempts, seven remaining and no unresolved session. A detailed owner report for slot 002 is not integrated in this checkpoint; this task is no longer waiting for it. All Word slots and Reverse slots 001/002 are closed.
 
 All three Word slots are closed and released; that batch is exhausted at 3/3 attempts. The user directed use of the existing API key and real verification without dashboard prechecks. The key worked in all three Word attempts; account balance and account-wide prior-session status remain unverified. Each trial's own session was independently confirmed closed.

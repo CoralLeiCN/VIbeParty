@@ -170,7 +170,9 @@ export function Portal() {
               )}
             </div>
           </aside>
-        ) : data?.status === "anonymous" && data.reason === "expired" ? (
+        ) : data?.status === "anonymous" &&
+          data.reason === "expired" &&
+          !party ? (
           <aside className="session-notice" role="status">
             <div>
               <strong>This party has ended</strong>
@@ -376,6 +378,8 @@ export function Portal() {
           error={closeError}
           onConfirm={() => void closeParty()}
           onDismiss={() => setDialog(undefined)}
+          recoveryAvailable={party?.game_id === "word-by-word"}
+          onRecovered={discovery.retry}
         />
       )}
     </div>

@@ -99,6 +99,8 @@ class Round:
 class Room:
     host: str
     code: str
+    recovery_id: str = field(default_factory=identifier)
+    recovery_code: str = field(default_factory=lambda: secrets.token_urlsafe(24))
     player_count: int = 3
     players: list[Player] = field(default_factory=list)
     round: Round = field(default_factory=Round)

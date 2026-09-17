@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import type { SessionSummary } from "../../shared/contracts";
+import { HostRecovery } from "../../shared/HostRecovery";
 export function SwitchDialog({
   currentTitle,
   nextTitle,
@@ -10,6 +11,8 @@ export function SwitchDialog({
   error,
   onConfirm,
   onDismiss,
+  recoveryAvailable,
+  onRecovered,
 }: {
   currentTitle: string;
   nextTitle?: string;
@@ -19,6 +22,8 @@ export function SwitchDialog({
   error: string;
   onConfirm: () => void;
   onDismiss: () => void;
+  recoveryAvailable: boolean;
+  onRecovered: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const opener = useRef<HTMLElement | null>(null);
@@ -67,6 +72,9 @@ export function SwitchDialog({
         <p className="form-error" role="alert">
           {error}
         </p>
+      )}
+      {!allowed && recoveryAvailable && (
+        <HostRecovery onRecovered={onRecovered} />
       )}
       <div className="dialog-actions">
         {allowed ? (

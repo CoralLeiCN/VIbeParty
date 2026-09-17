@@ -1,0 +1,34 @@
+.host-recovery {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid currentColor;
+  border-radius: 12px;
+  text-align: left;
+}
+.host-recovery form {
+  display: grid;
+  gap: 0.75rem;
+}
+.host-recovery p {
+  margin: 0;
+}
+.host-recovery > p {
+  margin-bottom: 0.75rem;
+}
+.wbw-entry > .host-recovery {
+  grid-column: 1 / -1;
+}
+.host-recovery input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.65rem;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  font: inherit;
+}
+.host-recovery code {
+  overflow-wrap: anywhere;
+}
+.host-recovery [role="alert"] {
+  color: #a12020;
+}

@@ -5,6 +5,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { ApiError, apiFetch, apiPost } from "../../shared/api";
 import { copyText } from "../../shared/clipboard";
 import { HostAccessField } from "../../shared/HostAccessField";
+import { HostRecovery } from "../../shared/HostRecovery";
 import { useHostAccess } from "../../shared/useHostAccess";
 import {
   RoomCodeInput,
@@ -168,11 +169,22 @@ export function GameRoute({ entry }: GameEntryProps) {
               act={act}
               pending={pending}
               clearError={() => setActionError("")}
+              onRecovered={retry}
             />
           )}
         </>
       ) : (
-        <Party key={state.round_id} state={state} act={act} pending={pending} />
+        <>
+          {entry === "host" && state.role !== "host" && (
+            <HostRecovery onRecovered={retry} />
+          )}
+          <Party
+            key={state.round_id}
+            state={state}
+            act={act}
+            pending={pending}
+          />
+        </>
       )}
       <footer className="wbw-footer">
         A shared screen. A few secret ideas. A story only your group could make.
@@ -187,12 +199,14 @@ function Admission({
   act,
   pending,
   clearError,
+  onRecovered,
 }: {
   entry: "host" | "join";
   expired: boolean;
   act: Action;
   pending: boolean;
   clearError: () => void;
+  onRecovered: () => void;
 }) {
   const [params] = useSearchParams();
   const access = useHostAccess(entry === "host");
@@ -242,7 +256,7 @@ function Admission({
             ? "Open this screen on a laptop. Choose 1–4 players to join on their phones, then reveal your story together."
             : "Join on your phone. Your ideas stay private until they appear in the story on the shared screen."}
         </p>
-        {expired && (
+        {expired && entry === "join" && (
           <p className="wbw-notice">
             This party has ended. Join again to play.
           </p>
@@ -295,6 +309,14 @@ function Admission({
               : "Join the story"}
         </button>
       </form>
+      {entry === "host" && (
+        <HostRecovery
+          onRecovered={() => {
+            clearError();
+            onRecovered();
+          }}
+        />
+      )}
     </section>
   );
 }

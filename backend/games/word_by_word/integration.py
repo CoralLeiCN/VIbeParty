@@ -22,6 +22,11 @@ class HostBody(BaseModel):
     passcode: str = Field(default="", max_length=200)
 
 
+class RecoveryBody(BaseModel):
+    party_id: str = Field(min_length=1, max_length=100)
+    credential: str = Field(max_length=200)
+
+
 class JoinBody(BaseModel):
     # Keep the raw value until the endpoint has counted this join attempt.
     code: object = None
@@ -57,8 +62,16 @@ def limit(request: Request, action: str) -> None:
     limiter.check(f"{action}:{request.client.host if request.client else 'local'}")
 
 
-def session_cookie(response: Response, value: str) -> None:
-    response.set_cookie(COOKIE, value, httponly=True, samesite="lax", secure=False, path="/")
+def session_cookie(response: Response, value: str, *, host: bool = False) -> None:
+    response.set_cookie(
+        COOKIE,
+        value,
+        httponly=True,
+        samesite="lax",
+        secure=False,
+        path="/",
+        max_age=7 * 24 * 60 * 60 if host else None,
+    )
 
 
 async def startup(context: GameContext) -> None:
@@ -102,15 +115,30 @@ async def close_party(request: Request) -> CloseResult:
 async def host(body: HostBody, request: Request, response: Response):
     limit(request, "host")
     value, snapshot = await game.host(body.passcode, token(request))
-    session_cookie(response, value)
+    session_cookie(response, value, host=True)
     return snapshot
+
+
+@router.get("/host/recovery")
+async def recovery_options():
+    return await game.recovery_options()
+
+
+@router.post("/host/recovery")
+async def recover_host(body: RecoveryBody, request: Request, response: Response):
+    # Include a global bucket so changing client addresses cannot bypass the bound.
+    limit(request, "recovery")
+    limiter.check("recovery:all")
+    value = await game.recover_host(body.party_id, body.credential)
+    session_cookie(response, value, host=True)
+    return {"status": "recovered"}
 
 
 @router.post("/join")
 async def join(body: JoinBody, request: Request, response: Response):
     limit(request, "join")
     value, snapshot = await game.join(body.code, body.name, token(request))
-    session_cookie(response, value)
+    session_cookie(response, value, host=snapshot["role"] == "host")
     return snapshot
 
 
