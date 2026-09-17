@@ -1,0 +1,83 @@
+.host-controls.host-controls {
+  margin-top: 28px;
+  padding: 20px;
+  border: 1px solid #d9dfd3;
+  border-radius: 14px;
+  background: #fcfaf4;
+  color: #263e3a;
+  font:
+    16px/1.5 "DM Sans Variable",
+    sans-serif;
+}
+.host-controls-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.host-controls.host-controls p {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: #53675e;
+}
+.host-confirm.host-confirm {
+  width: min(480px, calc(100% - 32px));
+  padding: 28px;
+  border: 1px solid #d9dfd3;
+  border-radius: 18px;
+  background: #fcfaf4;
+  color: #263e3a;
+  font:
+    16px/1.5 "DM Sans Variable",
+    sans-serif;
+}
+.host-confirm::backdrop {
+  background: #152b27a6;
+}
+.host-confirm h2 {
+  margin: 0;
+}
+.host-confirm [role="alert"] {
+  color: #a13728;
+}
+.host-controls.host-controls button,
+.host-confirm.host-confirm button {
+  min-height: 46px;
+  padding: 12px 19px;
+  border: 1px solid #526b5f;
+  border-radius: 9px;
+  background: #fcfaf4;
+  color: #263e3a;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transform: none;
+  filter: none;
+}
+.host-controls.host-controls .host-control-primary,
+.host-confirm.host-confirm .host-control-primary {
+  background: #263e3a;
+  color: white;
+}
+.host-controls.host-controls button:hover:not(:disabled),
+.host-confirm.host-confirm button:hover:not(:disabled) {
+  background: #e9efdf;
+  color: #263e3a;
+}
+.host-controls.host-controls button:disabled,
+.host-confirm.host-confirm button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.host-controls.host-controls button:focus-visible,
+.host-confirm.host-confirm button:focus-visible {
+  outline: 3px solid #b85536;
+  outline-offset: 4px;
+}
+@media (max-width: 600px) {
+  .host-controls-actions {
+    flex-direction: column;
+  }
+  .host-controls-actions button {
+    width: 100%;
+  }
+}

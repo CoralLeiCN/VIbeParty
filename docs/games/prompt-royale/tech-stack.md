@@ -75,11 +75,11 @@ This deliberately gives up durable execution: process failure loses the room and
 
 Keep one room containing participants, host ID, current round, last-seen times, and lobby topic state: choice mode, selected topic or pending suggestion, suggestion ID, request status, and confirmed suggestion ID. The round contains a frozen roster/topic/topic mode/preset/Live-or-Fixture mode, phase and version, deadlines, submissions by player ID, entry statuses, a fixed shuffled mapping of arena positions/labels to entry IDs, exclusions, ballots by player ID, and final result. Store task/session handles separately from the JSON views.
 
-Keep its room code as a string and follow the shared [four-digit room code standard](../../shared/room-code-spec.md) for generation, validation, join links, lifecycle, and implementation acceptance. **Play again** keeps the code; **End room** removes its lookup.
+Keep its room code as a string and follow the shared [four-digit room code standard](../../shared/room-code-spec.md) for generation, validation, join links, lifecycle, and implementation acceptance. **Start another round** keeps the code; **End game** removes its lookup.
 
 ```text
 lobby -> prompting -> generating -> screening -> voting -> results
-results -> lobby (Play again)
+results -> lobby (Start another round)
 any active phase -> results (unscored abort)
 ```
 
@@ -104,7 +104,7 @@ Use one lock for room admission and short state changes. Validate role, membersh
 
 Commands return a fresh snapshot; errors return a short code/message. Exact repeated accepted submissions/ballots return their confirmation; altered ones return conflict. Host mutations carry expected phase version and, for exclusions, the target entry ID. Exclusion and Open voting run under the room lock so the ballot freezes against a single eligible set. Repeated Open voting cannot restart the voting deadline, and exclusions after voting opens are rejected. A small in-memory cache of host command IDs/receipts per room handles lost responses; no generic persistent idempotency service is needed.
 
-Generate topic suggestions before Start through a tracked asynchronous LLM request, outside the room lock. Allow one pending request per room and deduplicate repeated command IDs. Recheck room, lobby, topic mode, and request ID before publishing a response so a stale completion cannot replace a later selection. Return pending suggestions and their confirmation controls to the host; reveal the frozen topic to every player when the round starts. Regeneration, mode changes, and Play again clear selection/confirmation. If the request fails, keep Start blocked until the host retries successfully and confirms, or selects a bundled topic. Keep provider credentials on the server; select and document the LLM model, request timeout, output length limit, and call allowance during integration. The LLM supplies a topic only; the host can recognize topics played before and request another.
+Generate topic suggestions before Start through a tracked asynchronous LLM request, outside the room lock. Allow one pending request per room and deduplicate repeated command IDs. Recheck room, lobby, topic mode, and request ID before publishing a response so a stale completion cannot replace a later selection. Return pending suggestions and their confirmation controls to the host; reveal the frozen topic to every player when the round starts. Regeneration, mode changes, and Start another round clear selection/confirmation. If the request fails, keep Start blocked until the host retries successfully and confirms, or selects a bundled topic. Keep provider credentials on the server; select and document the LLM model, request timeout, output length limit, and call allowance during integration. The LLM supplies a topic only; the host can recognize topics played before and request another.
 
 Use opaque random session cookies with HttpOnly and SameSite=Lax. Omit Secure for the trusted local HTTP demo so phones can send cookies to the laptop's LAN address. Require same-origin JSON mutations and check Origin against the configured browser origin; reject untrusted origins. Keep host access code and provider keys in environment variables. Limit join attempts and request sizes in the same process. No accounts/OAuth service is required.
 
@@ -199,7 +199,7 @@ Two entry slots mean four first attempts require two waves; retries may add work
 
 ### Simple call allowance
 
-Replace the financial reservation ledger with `MAX_GENERATION_ATTEMPTS_PER_ENTRY=2` (initial attempt plus one retry), at most eight creation attempts for a four-player round, and an initial `MAX_LIVE_SESSION_STARTS=16` per process run. Before Start, require remaining allowance of `2 * roster_size`, covering the initial attempts and possible replacements. Increment before every creation request, including retries; never refund unknown/failed attempts. Retrying an existing download/preparation does not consume a session start. Play again does not reset the counter. Changing the allowance belongs to local operator setup, not a player control.
+Replace the financial reservation ledger with `MAX_GENERATION_ATTEMPTS_PER_ENTRY=2` (initial attempt plus one retry), at most eight creation attempts for a four-player round, and an initial `MAX_LIVE_SESSION_STARTS=16` per process run. Before Start, require remaining allowance of `2 * roster_size`, covering the initial attempts and possible replacements. Increment before every creation request, including retries; never refund unknown/failed attempts. Retrying an existing download/preparation does not consume a session start. Start another round does not reset the counter. Changing the allowance belongs to local operator setup, not a player control.
 
 At the researched $0.0017 per billable second and a 60-second provider cap, first-attempt model exposure is $0.306 for three entries or $0.408 for four. Allowing one replacement for every entry raises those bounds to $0.612 and $0.816 respectively. The unchanged 16-start run limit represents $1.632, enough allowance for two four-player rounds if every entry uses a replacement. These are estimates for that observed rate, excluding other infrastructure, not current billing guarantees. Recheck price and balance in the provider dashboard before the demo. [Pricing endpoint](https://api.reactor.inc/pricing), [billing](https://docs.reactor.inc/resources/billing).
 
@@ -220,7 +220,7 @@ The counter is not durable and does not cap spending across process restarts or 
 | Lost browser response | Re-fetch state or return the existing accepted action; never create another generation. |
 | Process crash/restart | Discard the room, purge orphaned app files, require rejoin; provider lifetime caps bound already-created sessions. No job replay. |
 
-Delete round files on Play again/end/expiry, after cancelling their tasks; late writers remove their own files. Purge the demo-owned temporary directory on startup. Best-effort shutdown cleanup is helpful but not a crash guarantee. The operator purges remaining files after the event within 24 hours. No backup/history or automated retention SLA is promised. Provider retention remains separate.
+Delete round files on Start another round/end/expiry, after cancelling their tasks; late writers remove their own files. Purge the demo-owned temporary directory on startup. Best-effort shutdown cleanup is helpful but not a crash guarantee. The operator purges remaining files after the event within 24 hours. No backup/history or automated retention SLA is promised. Provider retention remains separate.
 
 Log concise phase/job timings, session IDs, status, retry reason/number, termination failures, and attempted-call count. Do not log prompts, raw tokens, or private ballots. Use ordinary logs and `/health`; a metrics stack and ten-room performance target are deferred.
 

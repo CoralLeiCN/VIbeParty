@@ -71,7 +71,7 @@ test(`background host finishes a scored ${live ? "live" : "fixture"} round`, asy
     }
     await expect(host.getByText("3/3", { exact: true })).toBeVisible();
     await host.getByLabel("Choose a topic").selectOption({ index: 1 });
-    await host.getByRole("button", { name: "Start round ↗" }).click();
+    await host.getByRole("button", { name: "Start round" }).click();
     await expect(host.getByLabel("Your private scene")).toBeVisible();
 
     // Exercise the actual visibility branch that previously stopped presence polling.
@@ -261,13 +261,19 @@ test(`background host finishes a scored ${live ? "live" : "fixture"} round`, asy
       body: await pages[1].screenshot({ fullPage: true }),
       contentType: "image/png",
     });
-    await host.getByRole("button", { name: "Play again", exact: true }).click();
+    await host
+      .getByRole("button", { name: "Start another round", exact: true })
+      .click();
     await expect(host.getByLabel("Invite your friends")).toHaveValue(joinURL);
     await expect(host.getByLabel("Choose a topic")).toHaveValue("");
-    await host.getByRole("button", { name: "End room", exact: true }).click();
+    await host.getByRole("button", { name: "End game", exact: true }).click();
+    await host
+      .getByRole("dialog")
+      .getByRole("button", { name: "End game", exact: true })
+      .click();
     ownsRoom = false;
     await expect(
-      host.getByRole("button", { name: "Create party", exact: true }),
+      host.getByRole("button", { name: "Host Prompt Royale", exact: true }),
     ).toBeVisible();
     const retired = await host.request.post(baseURL + "/api/party/resolve", {
       data: { code },

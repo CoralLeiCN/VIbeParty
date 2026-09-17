@@ -73,7 +73,7 @@ Use the [standard category scenarios](../games/word-by-word/test-scenarios.md) f
 2. Submit all four fixed examples through the visible phone controls. The current combined test submits these through API calls; the walkthrough must exercise the forms. Verify acceptance and locking, with only aggregate progress visible to the host before reveal.
 3. Reach the ready state. Confirm that future contributions and clips stay hidden until the host advances the reveal.
 4. Play each addition in order, watch the clip, and verify exact contribution text, contributor names, and the disclosed prefix on phones. Finish with four ordered cards.
-5. Replay saved clips, refresh the host and a phone, and use portal continuation. Another round retains the roster/code; Reset party clears the roster and changes the code.
+5. Replay saved clips, refresh the host and a phone, and use portal continuation. Start another round retains the roster/code; Reset party clears the roster and changes the code.
 6. Repeat the assignment check with four players. Exercise an early end and a controlled partial/failed round; results contain only the permitted disclosed history.
 
 Capture: lobby, private assignment, accepted contribution, ready state, every reveal addition, completed story, and rematch lobby. Include at least one player view. Check clip advancement and replay separately from the still images.
@@ -102,7 +102,7 @@ Source: [game rules and acceptance](../games/prompt-royale/game-spec.md).
 3. Reveal the eligible clips together in the arena. Verify that labels and positions match across participants and remain stable through voting and results. The unused tile in a three-player round is not a candidate.
 4. Use Play arena, Pause all, and Replay all. Observe every eligible clip through at least one full loop. Clips should play together within each screen; cross-device frame-perfect synchronization is not required.
 5. Open voting after viewing. Verify that self/excluded entries cannot be selected, accepted ballots lock, and totals/authors/prompts remain hidden until results. Complete the vote within the existing deadline.
-6. Check totals and the winner or tie against the submitted ballots. Individual ballots remain private. Play again retains the roster/code and clears the topic, prompts, ballots, and old media.
+6. Check totals and the winner or tie against the submitted ballots. Individual ballots remain private. Start another round retains the roster/code and clears the topic, prompts, ballots, and old media.
 
 Capture: lobby/topic confirmation, private submission, three- and four-entry arenas, playback controls, voting, results, and rematch. Arrange screenshots so capture does not cause an accidental vote timeout or host absence.
 

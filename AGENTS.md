@@ -1,5 +1,9 @@
 # Agent Instructions
 
+## Feature changes and specifications
+
+Keep feature behavior and its specifications aligned in the same change. Before implementing a feature change, read the relevant current specifications. When adding, changing, or removing behavior, update the specification that owns it, including affected user flows, labels, rules, and acceptance criteria. Follow the document ownership defined in [the app specification](docs/app-spec.md); put requirements shared across games in the shared standards and link them from the affected game specs. Before reporting completion, verify that the implementation and current specifications agree. Backlog updates and implementation notes supplement the specifications; they do not replace them.
+
 ## Testing
 
 Do not write tests for reversible, low-impact changes that mirror the implementation. If you do choose to verify your work with tests, make sure that the tests are meaningful and necessary to verify implementation.

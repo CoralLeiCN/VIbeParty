@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ApiError, apiFetch, apiPost } from "../../shared/api";
+import { ApiError, apiPost } from "../../shared/api";
+import { HostControls } from "../../shared/HostControls";
+import { randomPlayerName } from "../../shared/playerNames";
 import { copyText } from "../../shared/clipboard";
 import { HostAccessField } from "../../shared/HostAccessField";
 import { useHostAccess } from "../../shared/useHostAccess";
@@ -37,7 +39,7 @@ export function GameRoute({ entry }: GameEntryProps) {
   const latest = useRef<Snapshot | undefined>(undefined);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [name, setName] = useState("");
+  const [name, setName] = useState(randomPlayerName);
   const [passcode, setPasscode] = useState("");
   const [playerCount, setPlayerCount] = useState(3);
   const [code, setCode] = useState(params.get("code") || "");
@@ -145,26 +147,6 @@ export function GameRoute({ entry }: GameEntryProps) {
       );
       setPasscode("");
       poll.retry();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Please try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function close() {
-    setBusy(true);
-    setError("");
-    try {
-      const result = await apiFetch<{ status: string; message: string }>(
-        API + "/room",
-        { method: "DELETE", body: "{}" },
-      );
-      if (result.status === "closed") {
-        setState(undefined);
-        latest.current = undefined;
-        poll.retry();
-      } else setError(result.message);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Please try again.");
     } finally {
@@ -375,7 +357,7 @@ export function GameRoute({ entry }: GameEntryProps) {
                     }
                   }}
                 >
-                  {copied ? "Link copied ✓" : "Copy link"}
+                  {copied ? "Copied!" : "Copy join link"}
                 </button>
                 <p>
                   60 seconds to write. Up to five seconds on screen. Ten seconds
@@ -537,20 +519,6 @@ export function GameRoute({ entry }: GameEntryProps) {
                         </div>
                       </div>
                     )}
-                    <button
-                      className={styles.start}
-                      disabled={
-                        busy ||
-                        state.closing ||
-                        state.cleanup_pending ||
-                        state.players.length !== state.player_count ||
-                        !lobby.topic ||
-                        (lobby.mode === "llm" && !lobby.confirmed)
-                      }
-                      onClick={() => void act("/room/start")}
-                    >
-                      Start round ↗
-                    </button>
                     <p className={styles.hint}>
                       {state.players.length < state.player_count
                         ? `Waiting for ${state.player_count} players, including you.`
@@ -669,42 +637,40 @@ export function GameRoute({ entry }: GameEntryProps) {
             <Arena key={state.round_id} state={state} busy={busy} act={act} />
           )}
           {state.me.host && (
-            <footer className={styles.hostFooter}>
-              {state.phase === "results" && (
-                <button
-                  disabled={busy || state.cleanup_pending || state.closing}
-                  onClick={() => void act("/round/again")}
-                >
-                  Play again
-                </button>
-              )}
-              {["prompting", "generating", "screening", "voting"].includes(
-                state.phase,
-              ) && (
-                <button
-                  className={styles.quiet}
-                  disabled={busy}
-                  onClick={() => void act("/round/abort")}
-                >
-                  Abort round · unscored
-                </button>
-              )}
-              {["lobby", "results"].includes(state.phase) && (
-                <>
-                  <button
-                    className={styles.quiet}
-                    disabled={busy}
-                    onClick={() => void close()}
-                  >
-                    End room
-                  </button>
-                  <small>
-                    Clears this party and its media. Everyone will need to
-                    rejoin.
-                  </small>
-                </>
-              )}
-            </footer>
+            <HostControls
+              gameId="prompt-royale"
+              busy={busy}
+              closing={state.closing}
+              start={
+                state.phase === "lobby"
+                  ? {
+                      run: () => void act("/room/start"),
+                      disabled:
+                        state.cleanup_pending ||
+                        state.players.length !== state.player_count ||
+                        !lobby?.topic ||
+                        (lobby.mode === "llm" && !lobby.confirmed),
+                    }
+                  : undefined
+              }
+              again={
+                state.phase === "results"
+                  ? {
+                      run: () => void act("/round/again"),
+                      disabled: state.cleanup_pending,
+                    }
+                  : undefined
+              }
+              stop={
+                ["prompting", "generating", "screening", "voting"].includes(
+                  state.phase,
+                )
+                  ? {
+                      run: () => void act("/round/abort"),
+                    }
+                  : undefined
+              }
+            />
           )}
         </>
       )}

@@ -11,7 +11,7 @@ Creation consumes atomic `reservation.code` and calls `activate()` without an ov
 Join throttling runs before `normalize_room_code`, so invalid/non-string attempts also count;
 format errors return 422 with the shared message. The shared numeric-keyboard text input
 preserves editable raw input, then normalization trims surrounding whitespace before POST.
-Refresh, continuation and Play again retain code, roster, and selected player count. Joins are capped at the selected count. Solo rounds finish as unscored showcases after screening. End room/expiry retire lookup
+Refresh, continuation and Start another round retain code, roster, and selected player count. Joins are capped at the selected count. Solo rounds finish as unscored showcases after screening. End game/expiry retire lookup
 and sessions after cleanup. This game has no separate roster-clearing reset; a new party
 receives a new allocation, and retirement permits code reuse without restoring membership.
 

@@ -55,7 +55,7 @@ Suggested files are sufficient: `frontend/src/App.tsx`, `api.ts`, `components/`,
 
 Keep one `Room` containing its random internal ID, a separate four-digit room code string, three player records, host ID, and current `Round`. Each player has a server-issued random guest token. A round holds its ID, phase, step index, three immutable prompts, three local media descriptors, two guesses, final scores/outcome, and submission receipts. No history survives reset or restart.
 
-Follow the shared [room code standard](../../shared/room-code-spec.md) for generation, validation, join links, lifecycle, and implementation acceptance. The round **Reset** keeps the roster and code; a server restart removes the room lookup and requires everyone to join a newly created room.
+Follow the shared [room code standard](../../shared/room-code-spec.md) for generation, validation, join links, lifecycle, and implementation acceptance. **Start another round** and the unfinished-round reset keep the roster and code; a server restart removes the room lookup and requires everyone to join a newly created room.
 
 ```text
 lobby → author_input → generating(0) → relay_input(1)

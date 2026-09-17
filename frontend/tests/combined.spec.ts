@@ -35,7 +35,7 @@ async function returnAndContinue(page: Page, path: string) {
 // Real local game APIs and browser forms. Fixture submissions use their supplied examples.
 test("complete all three games with continuation, cleanup, and fresh joins", async ({
   browser,
-}) => {
+}, testInfo) => {
   const contexts = await Promise.all(
     [0, 1, 2, 3].map((index) =>
       browser.newContext({
@@ -50,6 +50,46 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
   const [host, ...phones] = await Promise.all(
     contexts.map((context) => context.newPage()),
   );
+  async function checkHostControls(game: string) {
+    const controls = host.getByRole("group", { name: "Host controls" });
+    await expect(controls.getByRole("button")).toHaveText([
+      "Start another round",
+      "End game",
+    ]);
+    for (const width of [1360, 390]) {
+      await host.setViewportSize({ width, height: 900 });
+      await host.mouse.move(0, 0);
+      const buttons = controls.getByRole("button");
+      for (const button of await buttons.all()) {
+        const box = await button.boundingBox();
+        expect(box).not.toBeNull();
+        expect(box!.x).toBeGreaterThanOrEqual(0);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+        expect(box!.height).toBeGreaterThanOrEqual(46);
+      }
+      await expect(buttons.first()).toHaveCSS(
+        "background-color",
+        "rgb(38, 62, 58)",
+      );
+      await controls.screenshot({
+        path: testInfo.outputPath(`${game}-controls-${width}.png`),
+      });
+    }
+    await controls
+      .getByRole("button", { name: "End game", exact: true })
+      .click();
+    await expect(host.getByRole("dialog")).toHaveAccessibleName(
+      "End this game?",
+    );
+    await host.getByRole("dialog").screenshot({
+      path: testInfo.outputPath(`${game}-end-confirmation.png`),
+    });
+    await host
+      .getByRole("dialog")
+      .getByRole("button", { name: "Keep playing" })
+      .click();
+    await host.setViewportSize({ width: 1360, height: 1000 });
+  }
   try {
     const localMode = (await read(host, "/api/config")).local_mode;
     expect((await read(host, "/api/session")).party).toBeNull();
@@ -59,7 +99,7 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
       .click();
     if (!localMode) await host.getByLabel("Host passcode").fill(hostCode);
     await host
-      .getByRole("button", { name: "Open host screen", exact: true })
+      .getByRole("button", { name: "Create party", exact: true })
       .click();
     await expect(
       host.getByText("FIXTURE REHEARSAL", { exact: true }),
@@ -138,6 +178,8 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
       host.getByRole("heading", { name: "Made together", exact: true }),
     ).toBeVisible();
     const result = await read(host, word + "/state");
+    await checkHostControls("word-by-word");
+
     expect(result.cards).toHaveLength(4);
     expect(result.live_attempts_left).toBe(lobby.live_attempts_left);
     const oldClip = result.recording_url;
@@ -152,7 +194,7 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
       )
       .toBeGreaterThan(0.2);
     await host.screenshot({
-      path: "../docs/development/evidence/portal/word-connected.png",
+      path: testInfo.outputPath("word-connected.png"),
       fullPage: true,
     });
     await returnAndContinue(host, "/games/word-by-word/host");
@@ -163,7 +205,7 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
     expect((await read(phones[0], word + "/state")).cards).toHaveLength(4);
     await host
       .getByRole("button", {
-        name: "Another round · same players →",
+        name: "Start another round",
         exact: true,
       })
       .click();
@@ -171,6 +213,7 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
       .poll(async () => (await read(host, word + "/state")).phase)
       .toBe("LOBBY");
     expect((await read(host, word + "/state")).code).toBe(lobby.code);
+    expect((await read(host, word + "/state")).players).toEqual(result.players);
     await host
       .getByRole("button", { name: "Reset party", exact: true })
       .click();
@@ -212,7 +255,7 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
     if (!localMode)
       await host.getByLabel("Organizer code", { exact: true }).fill(hostCode);
     await host
-      .getByRole("button", { name: "Create party as author A", exact: true })
+      .getByRole("button", { name: "Create party", exact: true })
       .click();
     await expect
       .poll(async () => (await read(host, reverse + "/state")).role)
@@ -256,6 +299,8 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
       })
       .toBe("reveal");
     const reverseResult = await read(host, reverse + "/state");
+    await checkHostControls("reverse-prompt");
+
     expect(
       reverseResult.results.map((row: { points: number }) => row.points),
     ).toEqual([88, 46]);
@@ -263,7 +308,7 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
       host.getByRole("heading", { name: "The whole story", exact: true }),
     ).toBeVisible();
     await host.screenshot({
-      path: "../docs/development/evidence/portal/reverse-connected.png",
+      path: testInfo.outputPath("reverse-connected.png"),
       fullPage: true,
     });
     await returnAndContinue(host, "/games/reverse-prompt/host");
@@ -290,23 +335,23 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
         elements.forEach((element) => (element as HTMLVideoElement).pause()),
       );
     await phones[0].screenshot({
-      path: "../docs/development/evidence/portal/reverse-phone-connected.png",
+      path: testInfo.outputPath("reverse-phone-connected.png"),
       fullPage: true,
     });
     const reverseClip = reverseResult.chain[0].media.url;
     await host
       .getByRole("button", {
-        name: "Another round · return to lobby",
+        name: "Start another round",
         exact: true,
       })
-      .click();
-    await host
-      .getByRole("button", { name: "Confirm reset to lobby", exact: true })
       .click();
     await expect
       .poll(async () => (await read(host, reverse + "/state")).phase)
       .toBe("lobby");
     expect((await read(host, reverse + "/state")).code).toBe(reverseLobby.code);
+    expect((await read(host, reverse + "/state")).players).toEqual(
+      reverseResult.players,
+    );
     await host.goto("/");
     await host
       .getByRole("button", { name: "Host Prompt Royale", exact: true })
@@ -362,7 +407,7 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
     }
     await expect(host.getByText("4/4", { exact: true })).toBeVisible();
     await host.getByLabel("Choose a topic").selectOption({ index: 1 });
-    await host.getByRole("button", { name: "Start round ↗" }).click();
+    await host.getByRole("button", { name: "Start round" }).click();
     for (const [i, page] of [host, ...phones].entries()) {
       await page
         .getByLabel("Your private scene")
@@ -392,11 +437,11 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
         .toBeTruthy();
     }
     await host.screenshot({
-      path: "../docs/development/evidence/portal/royale-connected.png",
+      path: testInfo.outputPath("royale-connected.png"),
       fullPage: true,
     });
     await phones[0].screenshot({
-      path: "../docs/development/evidence/portal/royale-phone-connected.png",
+      path: testInfo.outputPath("royale-phone-connected.png"),
       fullPage: true,
     });
     const royaleArena = await read(host, royale + "/room");
@@ -420,24 +465,31 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
       host.getByText(/We have a winner!|A shared crown!/),
     ).toBeVisible();
     await host.screenshot({
-      path: "../docs/development/evidence/portal/royale-results-connected.png",
+      path: testInfo.outputPath("royale-results-connected.png"),
       fullPage: true,
     });
-    await host.getByRole("button", { name: "Play again", exact: true }).click();
+
+    await checkHostControls("prompt-royale");
+    await host
+      .getByRole("button", { name: "Start another round", exact: true })
+      .click();
     await expect(host.getByLabel("Choose a topic")).toHaveValue("");
     expect(
       new URL(
         await host.getByLabel("Invite your friends").inputValue(),
       ).searchParams.get("code"),
     ).toBe(new URL(royaleJoin).searchParams.get("code"));
-    await host.goto("/");
-    await host
-      .getByRole("button", { name: "Close party", exact: true })
-      .click();
+    expect(
+      (await read(host, royale + "/room")).players.map(
+        (p: { id: string }) => p.id,
+      ),
+    ).toEqual(royaleArena.players.map((p: { id: string }) => p.id));
+    await host.getByRole("button", { name: "End game", exact: true }).click();
     await host
       .getByRole("dialog")
-      .getByRole("button", { name: "Close party", exact: true })
+      .getByRole("button", { name: "End game", exact: true })
       .click();
+    await expect(host).toHaveURL(origin + "/");
     await expect
       .poll(async () => (await read(host, "/api/session")).party)
       .toBeNull();

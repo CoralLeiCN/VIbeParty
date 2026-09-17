@@ -1,3 +1,4 @@
+import { PENDING_SWITCH_KEY } from "../../shared/hostActions";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { catalog } from "../catalog";
@@ -12,7 +13,7 @@ import { Brand } from "./Brand";
 import { GameArt } from "./GameArt";
 import { SwitchDialog } from "./SwitchDialog";
 
-const intentKey = "vibeparty.pending-switch";
+const intentKey = PENDING_SWITCH_KEY;
 function pendingTarget(): GameId | undefined {
   const value = sessionStorage.getItem(intentKey);
   return catalog.some((game) => game.id === value)
@@ -165,7 +166,7 @@ export function Portal() {
                     setDialog({ source: party?.game_id });
                   }}
                 >
-                  {closing ? "Check cleanup" : "Close party"}
+                  {closing ? "Check cleanup" : "End game"}
                 </button>
               )}
             </div>

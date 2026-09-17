@@ -74,6 +74,7 @@ Additional references:
 ## Shared standards and plans
 
 - [Room code standard](shared/room-code-spec.md): four-digit room entry shared by the portal and every game. Shared standards live in `shared/`.
+- [Host controls and player names](shared/host-controls-and-names.md): consistent host actions, end-game confirmation, and editable random name prefills.
 - [FastH3 with smoothing on](shared/fast-h3-smoothing.md): shared playback guidance, proposed timestamp-aware replay capture, quality checks, and validation requirements.
 - [App specification](app-spec.md): product purpose, app boundaries, and ownership of requirements across the portal and games.
 - [Backend specification](backend-spec.md): broader backend proposal; its database/queue architecture is deferred for all three dedicated game demos.
@@ -89,6 +90,7 @@ docs/
   hackathon.md
   shared/                # Standards used by the portal and every game
     room-code-spec.md
+    host-controls-and-names.md
     fast-h3-smoothing.md
   games/<game>/
     game-spec.md

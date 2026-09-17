@@ -153,7 +153,7 @@ test("authorized continuation survives refresh; player cannot close or switch", 
     page.getByRole("link", { name: /Continue party/ }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Close party", exact: true }),
+    page.getByRole("button", { name: "End game", exact: true }),
   ).toHaveCount(0);
   await page
     .getByRole("button", { name: "Host Prompt Royale", exact: true })

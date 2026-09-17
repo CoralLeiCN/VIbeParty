@@ -124,7 +124,7 @@ test("direct host entry offers recovery for a stale host cookie", async ({
   await expect(page.getByLabel("Phone join link")).toBeVisible();
   await page.getByRole("link", { name: /Back to games/ }).click();
   await expect(
-    page.getByRole("button", { name: "Close party", exact: true }),
+    page.getByRole("button", { name: "End game", exact: true }),
   ).toBeVisible();
   await page.request.post("/api/party/close", {
     data: { game_id: "word-by-word" },
@@ -152,7 +152,7 @@ test("same browser tabs and restart retain host; alternate hostname does not", a
     let page = await context.newPage();
     await page.goto(origin + "/#games");
     await expect(
-      page.getByRole("button", { name: "Close party", exact: true }),
+      page.getByRole("button", { name: "End game", exact: true }),
     ).toBeVisible();
     await context.close();
     context = await playwright.chromium.launchPersistentContext(profile, {
@@ -161,14 +161,14 @@ test("same browser tabs and restart retain host; alternate hostname does not", a
     page = await context.newPage();
     await page.goto(origin + "/#games");
     await expect(
-      page.getByRole("button", { name: "Close party", exact: true }),
+      page.getByRole("button", { name: "End game", exact: true }),
     ).toBeVisible();
     const alternate = new URL(origin);
     alternate.hostname =
       alternate.hostname === "localhost" ? "127.0.0.1" : "localhost";
     await page.goto(alternate.origin + "/#games");
     await expect(
-      page.getByRole("button", { name: "Close party", exact: true }),
+      page.getByRole("button", { name: "End game", exact: true }),
     ).toHaveCount(0);
     await page
       .getByRole("button", { name: "Host Prompt Royale", exact: true })
