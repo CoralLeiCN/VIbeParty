@@ -322,10 +322,13 @@ async def test_live_attempts_survive_reset_and_close(setup_game):
         await game.end(host, rid)
         if i < 2:
             await game.new_round(host, rid)
+    state = await game.new_round(host, rid)
+    assert state["phase"] == "LOBBY"
+    assert state["players"] == ["Ada", "Bo", "Cy"]
     with pytest.raises(AppError) as error:
-        await game.new_round(host, rid)
+        await game.start(host, state["round_id"], "live")
     assert error.value.code == "attempts_exhausted"
-    await game.new_round(host, rid, reset=True)
+    await game.new_round(host, state["round_id"], reset=True)
     assert game.attempts == 3 and provider.opens == 3
     assert await game.close(host)
     assert game.attempts == 3

@@ -561,12 +561,6 @@ class Game:
                     raise AppError(409, "finish_round", "End this round first.")
                 if self.busy():
                     raise AppError(409, "cleanup_pending", "Finishing the previous session.")
-                if room.round.mode == "live" and self.attempts >= self.attempt_limit and not reset:
-                    raise AppError(
-                        409,
-                        "attempts_exhausted",
-                        "The live session limit for this server run is reached.",
-                    )
                 room.maintenance = True
             try:
                 await asyncio.to_thread(self.clear_files)

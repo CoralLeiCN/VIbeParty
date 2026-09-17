@@ -286,10 +286,6 @@
   align-items: center;
   gap: 10px;
 }
-.start {
-  width: 100%;
-  margin-top: 26px !important;
-}
 .topic {
   background: linear-gradient(100deg, #383047, #292230);
   padding: 24px 30px;
@@ -506,16 +502,6 @@
 }
 .result p {
   color: #c3b9d1;
-}
-.hostFooter {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  align-items: center;
-  padding: 28px 0;
-}
-.hostFooter small {
-  color: var(--muted);
 }
 .credits {
   color: #938b9e;

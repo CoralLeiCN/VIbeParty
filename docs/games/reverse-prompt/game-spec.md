@@ -1,6 +1,6 @@
 # Reverse Prompt: hackathon game specification
 
-[All docs](../../README.md) · [Technical stack](tech-stack.md) · [Simplification](simplification.md) · [Research](../../research/reverse-prompt/README.md)
+[All docs](../../README.md) · [Technical stack](tech-stack.md) · [Simplification](simplification.md) · [Research](../../research/reverse-prompt/README.md) · [Shared controls and names](../../shared/host-controls-and-names.md)
 
 Version: 2.2 demo scope. Updated: 12 September 2026. Status: implemented with one FastH3 session per round and 30-second relay turns; full live relay and physical-phone acceptance remain open.
 
@@ -36,13 +36,13 @@ These are demo defaults, not provider speed promises. Target a roughly three-to-
 
 ## 3. Complete player flow
 
-1. **Join.** The presenter creates a room using the configured organizer code and a display name. Two guests enter the displayed four-digit room code following the [shared standard](../../shared/room-code-spec.md), including leading zeros, and names at the laptop's LAN URL. The lobby lists A, B, and C. Names are 1–24 characters; duplicate names receive visible suffixes. Start is enabled with three registered players, available generation capacity, and the local scoring model loaded. The presenter confirms everyone is looking at their phone; no player readiness system is needed.
+1. **Join.** The presenter creates a room using the configured organizer code and a display name. Two guests enter the displayed four-digit room code following the [shared standard](../../shared/room-code-spec.md), including leading zeros, and names at the laptop's LAN URL. The lobby lists A, B, and C. Host and guest name fields start with a random valid name that can be kept or edited; preserve edits while completing the form and correcting errors. Names are 1–24 characters; duplicate names receive visible suffixes. Start is enabled with three registered players, available generation capacity, and the local scoring model loaded. The presenter confirms everyone is looking at their phone; no player readiness system is needed.
 2. **Original.** A writes `P0`, for example “A tiny astronaut pours tea for a giant frog.” B and C see whose turn it is. A successful submission is final. Generate `V0` using only `P0` and the fixed rendering instruction.
 3. **First interpretation.** Only B can retrieve and replay `V0`. B has 30 seconds from publication of the clue to watch and submit `P1`. Generate `V1` using only `P1` and the same instruction in the retained provider session, omitting continuation and starting-frame inputs.
 4. **Second interpretation.** Only C can retrieve and replay `V1`. C has a new 30-second turn to watch and submit `P2`. Generate `V2` independently from `P2` in the same session. Close and independently verify the session before publishing `V2` for guessing.
 5. **Guess.** All three see `V2`. B and C each submit a separate final guess of `P0`. C may copy their own interpretation into the guess field, but must explicitly submit it. A sees “Author — unscored.” Guesses stay private until both are accepted.
 6. **Score and reveal.** Compare both guesses with the exact accepted original prompt. Display the original, three ordered prompt/video cards with player names, both final guesses, scores, and the winner or tie. Reveal cards can be replayed individually; no exported recap video is required.
-7. **Reset.** Host returns to the lobby after results or stops an incomplete round. Reset clears round content and files after active work stops. It keeps the roster and roles, and never replenishes the session quota. A server restart creates a fresh lobby and requires everyone to join again.
+7. **Start another round.** After results or a stopped round, the host returns to setup with the same room, players, and roles. An incomplete round has a separate confirmed Stop & reset round action. Reset clears round content and files after active work stops. It keeps the roster and roles, and never replenishes the session quota. **End game** asks for confirmation, requests party closure, and returns the host to the portal to track any pending cleanup. Completed closure clears the party and its media. A server restart creates a fresh lobby and requires everyone to join again.
 
 ## 4. Screens and privacy
 
@@ -57,7 +57,7 @@ Use one responsive page that renders the current phase. Large buttons, labelled 
 | Guessing | B/C: final clip and guess editor; A: final clip | Submission counts, never another guess |
 | Scoring | Final clip and “Comparing guesses” | Same |
 | Reveal | Entire ordered chain, guesses, scores | Same |
-| Error | Plain failure message; host Reset | Same, with no hidden chain automatically revealed |
+| Error | Plain failure message; host Start another round when cleanup permits, or End game | Same, with no hidden chain automatically revealed |
 
 Before reveal, snapshots contain only public progress, the requesting player's own accepted text, and their currently permitted media reference. During relay input, only its assigned interpreter can fetch the clue. When that turn ends, that permission ends. During guessing/scoring, everyone can fetch only `V2`. Reveal permits all three clips. The host has no extra content access. Enforce this on the server, including video range requests; hiding an element is insufficient.
 

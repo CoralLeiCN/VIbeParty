@@ -60,11 +60,9 @@ test("three and four directors: both topics, refresh, coordinated arena, vote, r
       await host.reload();
       await expect(host.getByLabel("Invite your friends")).toHaveValue(joinURL);
       await host
-        .getByRole("button", { name: "Copy link", exact: true })
+        .getByRole("button", { name: "Copy join link", exact: true })
         .click();
-      await expect(
-        host.getByRole("button", { name: "Link copied ✓" }),
-      ).toBeVisible();
+      await expect(host.getByRole("button", { name: "Copied!" })).toBeVisible();
       for (let i = 1; i < size; i++) {
         if (i === 1) {
           await pages[i].goto(baseURL + "/join");
@@ -121,14 +119,14 @@ test("three and four directors: both topics, refresh, coordinated arena, vote, r
         ).toBeVisible();
         await host.getByRole("button", { name: "Generate another" }).click();
         await expect(
-          host.getByRole("button", { name: "Start round ↗" }),
+          host.getByRole("button", { name: "Start round" }),
         ).toBeDisabled();
         await expect(
           host.getByRole("button", { name: "Confirm topic" }),
         ).toBeVisible();
         await host.getByRole("button", { name: "Confirm topic" }).click();
       }
-      await host.getByRole("button", { name: "Start round ↗" }).click();
+      await host.getByRole("button", { name: "Start round" }).click();
       for (let i = 0; i < size; i++) {
         await pages[i]
           .getByLabel("Your private scene")
@@ -288,16 +286,20 @@ test("three and four directors: both topics, refresh, coordinated arena, vote, r
         fullPage: true,
       });
       await host
-        .getByRole("button", { name: "Play again", exact: true })
+        .getByRole("button", { name: "Start another round", exact: true })
         .click();
       await expect(host.getByLabel("Choose a topic")).toHaveValue("");
       await expect(host.getByLabel("Invite your friends")).toHaveValue(joinURL);
       await host.goto(baseURL + "/");
       await host.getByRole("link", { name: /Continue party/ }).click();
       await expect(host.getByLabel("Invite your friends")).toHaveValue(joinURL);
-      await host.getByRole("button", { name: "End room", exact: true }).click();
+      await host.getByRole("button", { name: "End game", exact: true }).click();
+      await host
+        .getByRole("dialog")
+        .getByRole("button", { name: "End game", exact: true })
+        .click();
       await expect(
-        host.getByRole("button", { name: "Create party", exact: true }),
+        host.getByRole("button", { name: "Host Prompt Royale", exact: true }),
       ).toBeVisible();
       const retired = await host.request.post(baseURL + "/api/party/resolve", {
         data: { code: roomCode },

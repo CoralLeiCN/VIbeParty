@@ -18,7 +18,7 @@ Implemented route prefix: `/api/games/reverse-prompt`.
 
 Room codes follow [the shared standard](../../../shared/room-code-spec.md): exactly four ASCII digits stored and transmitted as strings, including `0042`. Creation uses the shared atomic `reservation.code` and `activate()` without an explicit code. Join uses the shared `RoomCode` validator and trims surrounding whitespace only; missing/non-string/malformed values return422 `Enter a 4-digit room code.` Valid unknown codes return404 `That party isn't available. Check the code with your host.` The create/join limiter runs before body validation, including malformed direct requests. The UI uses `RoomCodeInput`, the shared validator and a text field with numeric keyboard; it never pads, truncates or converts digits to a number.
 
-Round Reset preserves the roster and code. Close party retires the lookup and membership; a new party receives a newly generated code. The game has no roster-clearing in-place reset requiring code rotation. Cookies and separate room IDs continue to authorize state/actions/media; the four-digit code alone grants none of those permissions.
+Round Reset preserves the roster and code. End game retires the lookup and membership; a new party receives a newly generated code. The game has no roster-clearing in-place reset requiring code rotation. Cookies and separate room IDs continue to authorize state/actions/media; the four-digit code alone grants none of those permissions.
 
 Join checks the active code and closing state before reusing an existing member's session. A valid but different code returns404 even with a current cookie. A retry with the correct active code resumes that member without adding a player.
 

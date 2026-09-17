@@ -26,7 +26,7 @@ Examples:
 ## 2. Generation and lifecycle
 
 - Generate codes on the server using a cryptographically secure random choice from the four-digit range, formatted with leading zeros. Reserve the code atomically with room creation; codes must be unique among active rooms across all games served by the application. Retry a collision without replacing an existing room.
-- Generate a code when a room is created. Resuming the room, refreshing, returning to the portal, and starting another round with the same party keep the code. This includes Word by Word's **Another round**, Prompt Royale's **Play again**, and Reverse Prompt's round **Reset**.
+- Generate a code when a room is created. Resuming the room, refreshing, returning to the portal, and starting another round with the same party keep the code. All three games use **Start another round** for this action. Reverse Prompt also preserves the code when resetting an incomplete round.
 - A party reset that clears the roster rotates to a different code and removes the previous lookup. Closing or expiring a room removes its lookup; an in-memory server restart loses all room lookups and sessions. Creating a new party, including after switching games, generates a new code. Follow the game's cleanup guards before admitting new work.
 - Codes may be reused after retirement; they never restore previous membership. Use the separate room ID and authenticated session to identify an existing party and participant.
 

@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ApiError, apiFetch, apiPost } from "../../shared/api";
+import { HostControls } from "../../shared/HostControls";
+import { randomPlayerName } from "../../shared/playerNames";
 import { copyText } from "../../shared/clipboard";
 import { HostAccessField } from "../../shared/HostAccessField";
 import { HostRecovery } from "../../shared/HostRecovery";
@@ -211,7 +213,7 @@ function Admission({
   const [params] = useSearchParams();
   const access = useHostAccess(entry === "host");
   const [code, setCode] = useState(params.get("code") || "");
-  const [name, setName] = useState("");
+  const [name, setName] = useState(randomPlayerName);
   const [passcode, setPasscode] = useState("");
   const [entryError, setEntryError] = useState("");
   const submit = (event: FormEvent) => {
@@ -305,7 +307,7 @@ function Admission({
           {pending
             ? "Opening…"
             : entry === "host"
-              ? "Open host screen"
+              ? "Create party"
               : "Join the story"}
         </button>
       </form>
@@ -646,15 +648,6 @@ function Party({
                 To choose fewer players than have joined, use Reset party below.
               </p>
             )}
-            {host && (
-              <button
-                className="wbw-primary"
-                disabled={blocked || waitingPlayers !== 0 || liveBlocked}
-                onClick={() => void act("/round/start", { mode })}
-              >
-                Start round →
-              </button>
-            )}
           </section>
         </div>
       )}
@@ -760,33 +753,12 @@ function Party({
               No contributions were disclosed in this round.
             </p>
           )}
-          {host && phase === "RESULTS" && (
-            <button
-              className="wbw-primary"
-              disabled={blocked || (s.mode === "live" && !s.live_attempts_left)}
-              onClick={() => void act("/round/new")}
-            >
-              Another round · same players →
-            </button>
-          )}
           {host && !s.live_attempts_left && (
             <p className="wbw-notice">
               The live session allowance for this server run has been used.
             </p>
           )}
         </>
-      )}
-      {host && ["INPUT", "GENERATING", "STREAMING"].includes(phase) && (
-        <div className="wbw-bottom-actions">
-          <button
-            className="wbw-danger"
-            disabled={pending || s.closing}
-            onClick={() => void act("/round/end")}
-          >
-            End round
-          </button>
-          <span>Stops new work and keeps only the disclosed story.</span>
-        </div>
       )}
       {host && ["LOBBY", "RESULTS"].includes(phase) && (
         <div className="wbw-bottom-actions">
@@ -814,6 +786,36 @@ function Party({
             </button>
           )}
         </div>
+      )}
+      {host && (
+        <HostControls
+          gameId="word-by-word"
+          busy={pending || s.busy}
+          closing={s.closing}
+          start={
+            phase === "LOBBY"
+              ? {
+                  run: () => void act("/round/start", { mode }),
+                  disabled: blocked || waitingPlayers !== 0 || liveBlocked,
+                }
+              : undefined
+          }
+          again={
+            phase === "RESULTS"
+              ? {
+                  run: () => void act("/round/new"),
+                  disabled: blocked,
+                }
+              : undefined
+          }
+          stop={
+            ["INPUT", "GENERATING", "STREAMING"].includes(phase)
+              ? {
+                  run: () => void act("/round/end"),
+                }
+              : undefined
+          }
+        />
       )}
     </>
   );

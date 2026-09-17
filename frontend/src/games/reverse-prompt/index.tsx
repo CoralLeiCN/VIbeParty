@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { apiPost, ApiError } from "../../shared/api";
+import { HostControls } from "../../shared/HostControls";
+import { randomPlayerName } from "../../shared/playerNames";
 import { copyText } from "../../shared/clipboard";
 import { HostAccessField } from "../../shared/HostAccessField";
 import { useHostAccess } from "../../shared/useHostAccess";
@@ -195,7 +197,7 @@ function Input({
 function Entry({ entry, refresh }: GameEntryProps & { refresh: () => void }) {
   const [params] = useSearchParams();
   const access = useHostAccess(entry === "host");
-  const [name, setName] = useState("");
+  const [name, setName] = useState(randomPlayerName);
   const [code, setCode] = useState(params.get("code") ?? "");
   const [organizer, setOrganizer] = useState("");
   const [mode, setMode] = useState("rehearsal");
@@ -296,11 +298,7 @@ function Entry({ entry, refresh }: GameEntryProps & { refresh: () => void }) {
           </p>
         )}
         <button disabled={busy || !access.ready}>
-          {busy
-            ? "Joining…"
-            : entry === "host"
-              ? "Create party as author A"
-              : "Join party"}
+          {busy ? "Joining…" : entry === "host" ? "Create party" : "Join party"}
         </button>
       </form>
     </section>
@@ -389,7 +387,7 @@ function RoundView({
             <div className={s.join}>
               <strong>{state.players.length} / 3 players</strong>
               <button className={s.secondary} onClick={copy}>
-                {copied ? "Copied" : "Copy join link"}
+                {copied ? "Copied!" : "Copy join link"}
               </button>
               <a href={state.join_url}>{state.join_url}</a>
             </div>
@@ -402,14 +400,7 @@ function RoundView({
                 {state.start_blocked}
               </p>
             )}
-            {state.role === "A" ? (
-              <button
-                disabled={!state.can_start || busy}
-                onClick={() => command("start")}
-              >
-                {busy ? "Starting…" : "Start round"}
-              </button>
-            ) : (
+            {state.role !== "A" && (
               <p className={s.wait}>Waiting for the host to start.</p>
             )}
           </>
@@ -554,28 +545,53 @@ function RoundView({
           </p>
         )}
       </section>
-      {state.role === "A" && !["lobby", "cleanup"].includes(state.phase) && (
-        <div className={s.reset}>
-          {confirm ? (
-            <>
-              <p>
-                Stop this round and clear its scenes? Everyone keeps their role.
-              </p>
-              <button disabled={busy} onClick={() => command("reset")}>
-                Confirm reset to lobby
+      {state.role === "A" &&
+        !["lobby", "cleanup", "reveal", "error"].includes(state.phase) && (
+          <div className={s.reset}>
+            {confirm ? (
+              <>
+                <p>
+                  Stop this round and clear its scenes? Everyone keeps their
+                  role.
+                </p>
+                <button disabled={busy} onClick={() => command("reset")}>
+                  Confirm reset to lobby
+                </button>
+                <button
+                  className={s.secondary}
+                  onClick={() => setConfirm(false)}
+                >
+                  Keep playing
+                </button>
+              </>
+            ) : (
+              <button className={s.secondary} onClick={() => setConfirm(true)}>
+                Stop & reset round
               </button>
-              <button className={s.secondary} onClick={() => setConfirm(false)}>
-                Keep playing
-              </button>
-            </>
-          ) : (
-            <button className={s.secondary} onClick={() => setConfirm(true)}>
-              {state.phase === "reveal"
-                ? "Another round · return to lobby"
-                : "Stop & reset round"}
-            </button>
-          )}
-        </div>
+            )}
+          </div>
+        )}
+      {state.role === "A" && (
+        <HostControls
+          gameId="reverse-prompt"
+          busy={busy}
+          start={
+            state.phase === "lobby"
+              ? {
+                  run: () => void command("start"),
+                  disabled: !state.can_start,
+                }
+              : undefined
+          }
+          again={
+            ["reveal", "error"].includes(state.phase)
+              ? {
+                  run: () => void command("reset"),
+                  disabled: state.cleanup_pending,
+                }
+              : undefined
+          }
+        />
       )}
     </>
   );

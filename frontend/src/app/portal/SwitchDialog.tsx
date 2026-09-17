@@ -1,3 +1,4 @@
+import { END_GAME_TITLE, END_GAME_DESCRIPTION } from "../../shared/hostActions";
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import type { SessionSummary } from "../../shared/contracts";
@@ -58,14 +59,16 @@ export function SwitchDialog({
           : allowed
             ? nextTitle
               ? "Ready for a different game?"
-              : "Close this party?"
+              : END_GAME_TITLE
             : "There’s a party in progress"}
       </h2>
       <p id="switch-description">
         {closing
           ? "We’re waiting for the current game to finish cleanup. You can switch once everything has closed safely."
           : allowed
-            ? `Closing ${currentTitle} clears its replay and player list. Everyone will need to rejoin${nextTitle ? ` for ${nextTitle}` : " the next party"}.`
+            ? nextTitle
+              ? `Closing ${currentTitle} clears its replay and player list. Everyone will need to rejoin for ${nextTitle}.`
+              : END_GAME_DESCRIPTION
             : `${currentTitle} is already active on this laptop. Ask its host to close the party before starting a different game.`}
       </p>
       {error && (
@@ -84,12 +87,12 @@ export function SwitchDialog({
             disabled={busy}
           >
             {busy
-              ? "Closing party…"
+              ? "Ending game…"
               : closing
                 ? "Check cleanup"
                 : nextTitle
                   ? `Close & switch`
-                  : "Close party"}
+                  : "End game"}
           </button>
         ) : (
           <Link
@@ -100,7 +103,7 @@ export function SwitchDialog({
           </Link>
         )}
         <button className="button secondary" onClick={onDismiss}>
-          {closing || !allowed ? "Back to games" : "Keep this party"}
+          {closing || !allowed ? "Back to games" : "Keep playing"}
         </button>
       </div>
       <p className="dialog-note">

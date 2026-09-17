@@ -22,7 +22,7 @@ Room codes follow the [shared four-digit standard](shared/room-code-spec.md): ex
 
 Each card leads to `/games/<game-id>/host`. Game owners handle passcode/name forms, lobbies, game phases and their admission errors. Word by Word has no host-name step; other hosts also play. Generic `/join` resolves a room code and navigates to `/games/<id>/join?code=…`, where the game validates code/name and issues a cookie. Copied links, code-only legacy links, `/host` alias and direct loads work. Links use the configured laptop LAN origin.
 
-Opening any page never creates/resets a room or generates a round. Back to games opens `/` while preserving party, sessions and deadlines. Show Continue party only after authorized `/api/session` discovery; restore the correct role and phase. Discovery never refreshes presence/inactivity. Game-specific replay and another-round controls retain their own rules.
+Opening any page never creates/resets a room or generates a round. Back to games opens `/` while preserving party, sessions and deadlines. Show Continue party only after authorized `/api/session` discovery; restore the correct role and phase. Discovery never refreshes presence/inactivity. Replay follows each game specification. **Start another round** retains the room and players; **End game** requests closure and returns to the portal, which tracks any pending cleanup. Follow the [shared controls and name-entry standard](shared/host-controls-and-names.md) for labels, confirmation, and editable random name prefills.
 
 One active party exists across the application. A different game requires explicit host confirmation to close the current party, clear roster and replay, then launch the selected game. Explain “Everyone will need to rejoin.” Host authorization is checked by the current game. Keep the finishing/cleanup explanation visible until owned tasks and provider sessions are confirmed closed and admission is released. Unresolved closure blocks switching. Players can return/continue and ask the host to switch; they cannot close.
 
@@ -44,7 +44,7 @@ Publish runnable foundation first. Build complete responsive portal while game o
 
 - Home shows three games, accurate roles/counts and explicit runtime availability; release requires all three launchable.
 - For each game complete a round, return home and resume the same role/phase; replay never regenerates.
-- Manual code, copied join link, direct loads and refresh work without duplicate rooms/players.
+- Manual code, copied join link, direct loads and refresh work without duplicate rooms/players. Name suggestions can be kept or edited, and form errors preserve edits.
 - Back to games preserves deadlines; authenticated Continue party restores state.
 - Host close/switch clears old roster/replay and requires rejoin. Pending cleanup blocks switching; players cannot close.
 - Wrong code, full/in-progress game, expired room, another game active, partial result and network recovery have useful actions.
