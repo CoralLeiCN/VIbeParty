@@ -4,6 +4,7 @@ import logging
 import re
 import secrets
 import shutil
+import tempfile
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -61,6 +62,7 @@ class Game:
         self.total_seconds = total_seconds
         self.expiry_seconds = expiry_seconds
         self.media = context.settings.media_dir(GAME_ID)
+        self.recovery_file = self.media.parent / "host-recovery.txt"
         self.factory = provider_factory or self.default_provider
         self.live_settings = LiveSettings()
         self.live_reason = self.live_settings.unavailable_reason()
@@ -82,6 +84,7 @@ class Game:
     async def startup(self) -> None:
         # Only this game's disposable directory. Fixture source assets live elsewhere.
         await asyncio.to_thread(self.clear_files)
+        await asyncio.to_thread(self.recovery_file.unlink, missing_ok=True)
         self.codex_reason = await codex_unavailable_reason(
             self.live_settings.word_by_word_codex_command
         )
@@ -216,17 +219,61 @@ class Game:
     def busy(self) -> bool:
         return self.provider_closing or bool(self.task and not self.task.done())
 
+    def check_passcode(self, passcode: str) -> None:
+        configured = self.context.settings.host_passcode
+        if not configured or configured.lower() in {"change-me", "changeme", "your-passcode"}:
+            raise AppError(
+                503, "host_not_configured", "Ask the presenter to configure the host passcode."
+            )
+        if not secrets.compare_digest(passcode.encode(), configured.encode()):
+            raise AppError(403, "wrong_passcode", "That host passcode is incorrect.", "passcode")
+
+    def save_recovery_code(self, code: str) -> None:
+        # Outside round files so rematches retain recovery. Never served over HTTP.
+        # A private temporary file and replace avoid following an existing symlink.
+        with tempfile.NamedTemporaryFile(mode="w", dir=self.media.parent, delete=False) as output:
+            temporary = Path(output.name)
+            try:
+                output.write(code + "\n")
+                output.close()
+                temporary.replace(self.recovery_file)
+            finally:
+                temporary.unlink(missing_ok=True)
+
+    async def recovery_options(self) -> dict:
+        async with self.lock:
+            if not self.room or self.room.maintenance:
+                return {"available": False}
+            return {
+                "available": True,
+                "party_id": self.room.recovery_id,
+                "method": "local_code" if self.context.settings.local_mode else "passcode",
+            }
+
+    async def recover_host(self, party_id: str, credential: str) -> str:
+        # Serialize with close/reset, and check the exact party after waiting.
+        async with self.lifecycle_lock:
+            async with self.lock:
+                room = self.room
+                if not room or room.recovery_id != party_id or room.maintenance:
+                    raise AppError(
+                        409, "party_changed", "The party changed. Refresh and try again."
+                    )
+                if self.context.settings.local_mode:
+                    if not secrets.compare_digest(credential.encode(), room.recovery_code.encode()):
+                        raise AppError(
+                            403, "wrong_recovery_code", "That recovery code is incorrect."
+                        )
+                else:
+                    self.check_passcode(credential)
+                # Revoke the former host session. Player sessions and the round stay intact.
+                room.host = identifier()
+                room.touch(self.clock())
+                return room.host
+
     async def host(self, passcode: str, token: str | None) -> tuple[str, dict]:
         if not self.context.settings.local_mode:
-            configured = self.context.settings.host_passcode
-            if not configured or configured.lower() in {"change-me", "changeme", "your-passcode"}:
-                raise AppError(
-                    503, "host_not_configured", "Ask the presenter to configure the host passcode."
-                )
-            if not secrets.compare_digest(passcode.encode(), configured.encode()):
-                raise AppError(
-                    403, "wrong_passcode", "That host passcode is incorrect.", "passcode"
-                )
+            self.check_passcode(passcode)
         # Admission and game locks never nest with the shared coordinator lock.
         async with self.admission_lock:
             async with self.lock:
@@ -235,7 +282,8 @@ class Game:
                         raise AppError(
                             409,
                             "host_already_present",
-                            "Reopen the host screen in its original browser.",
+                            "This browser is not recognized as host. "
+                            "Recover host access to continue.",
                         )
                     self.room.touch(self.clock())
                     return token, self.snapshot(token)
@@ -247,10 +295,13 @@ class Game:
                 async with self.lock:
                     self.room = room
                 try:
+                    if self.context.settings.local_mode:
+                        await asyncio.to_thread(self.save_recovery_code, room.recovery_code)
                     await reservation.activate()
                 except BaseException:
                     async with self.lock:
                         self.room = None
+                    await asyncio.to_thread(self.recovery_file.unlink, missing_ok=True)
                     raise
                 async with self.lock:
                     room.maintenance = False
@@ -574,6 +625,7 @@ class Game:
                 if self.busy():
                     return False
             await asyncio.to_thread(self.clear_files)
+            await asyncio.to_thread(self.recovery_file.unlink, missing_ok=True)
             async with self.lock:
                 self.room = None
             await self.context.parties.finish_close(GAME_ID)

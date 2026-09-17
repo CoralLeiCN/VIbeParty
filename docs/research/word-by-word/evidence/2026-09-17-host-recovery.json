@@ -1,0 +1,59 @@
+{
+  "scenario": "WW-CAT-01",
+  "test": "PORTAL-001",
+  "started_at": "2026-09-17T20:00:16.785Z",
+  "provider": {
+    "model": "reactor/lingbot-world-2",
+    "closed": true,
+    "stage": "generation_completed",
+    "steps": [
+      {
+        "index": 0,
+        "at_seconds": 0
+      },
+      {
+        "index": 1,
+        "at_seconds": 6.333333333333333
+      },
+      {
+        "index": 2,
+        "at_seconds": 12.583333333333334
+      },
+      {
+        "index": 3,
+        "at_seconds": 18.875
+      }
+    ],
+    "finished_at": 1789675258.2944582
+  },
+  "answers": [
+    "Enchanted forest",
+    "A fox wearing a crown",
+    "Dances ballet",
+    "Glowing snow begins falling"
+  ],
+  "source": "configured forest image",
+  "passed": true,
+  "initial_playback": {
+    "currentTime": 0.253657,
+    "paused": false,
+    "readyState": 4,
+    "media_error": null
+  },
+  "recovered_phase": "STREAMING",
+  "old_host_revoked": true,
+  "all_four_cards": true,
+  "live_attempts": 1,
+  "round_result": "complete",
+  "provider_closing": false,
+  "recording_bytes": 8381446,
+  "replay": {
+    "currentTime": 0.332689,
+    "duration": 25.125,
+    "paused": false,
+    "readyState": 4,
+    "media_error": null
+  },
+  "switched_to_prompt_royale": true,
+  "finished_at": "2026-09-17T20:00:59.184Z"
+}

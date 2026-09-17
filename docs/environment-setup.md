@@ -19,6 +19,14 @@ Relative private media paths resolve against this worktree: `<MEDIA_ROOT>/<game-
 
 `LOCAL_MODE=true` is the default for all three games. Anyone using the configured laptop address can create a room without a host or organizer password, then copy the join link from the lobby. Guests open the link and enter their names; the room code is already filled in. The original host browser retains the controls for its room. To require host admission codes, set `LOCAL_MODE=false`, configure `HOST_PASSCODE` (or `ORGANIZER_CODE` for Reverse Prompt), and restart. The browser reads the active mode from `GET /api/config`. Local mode controls room admission; fixture/live generation settings still apply separately.
 
+If Word by Word is still running but your browser has lost host access, choose **Recover host access** in the switch dialog or on the Word by Word host screen. In passcode mode, enter the host passcode. In local mode, open a terminal on the host laptop in the running project and run:
+
+```sh
+uv run python -m scripts.host_recovery
+```
+
+Use the same `MEDIA_ROOT` and `LOCAL_MODE` settings as the server, including any environment overrides. Enter the private code shown by the command. It is stored in `<MEDIA_ROOT>/word-by-word/host-recovery.txt`, readable only by the operating-system user running VibeParty. Recovery transfers host controls to the current browser and invalidates the previous host cookie. The current party continues until you explicitly close it; **Close & switch** waits for provider cleanup and then opens the game you selected. Host cookies now survive browser restart for up to seven days, but the party still expires after inactivity or server shutdown. Alternate hostnames and profiles need their own recovery.
+
 Build and run the portal, Word by Word, Prompt Royale, and Reverse Prompt on the host laptop. The combined demo uses one FastAPI process with one Uvicorn worker serving the built frontend and API over HTTP. Remote deployment, domains, Caddy, and TLS setup are deferred. The commands above install the locked dependencies, build the frontend, and start the local server.
 
 Use `http://localhost:8000` for laptop-only checks. For group play, bind the server to `0.0.0.0:8000`, set `PUBLIC_ORIGIN=http://<laptop-LAN-IP>:8000`, and open that LAN URL on the host and phones connected to the same Wi-Fi or hotspot. A phone's `localhost` points to that phone. Verify the laptop firewall and network permit device connections, and keep the laptop awake. Use the configured browser origin for Origin checks and omit Secure on the local HTTP session cookies; keep HttpOnly and each game's SameSite setting.
