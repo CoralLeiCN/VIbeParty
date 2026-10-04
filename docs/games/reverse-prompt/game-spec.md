@@ -2,7 +2,9 @@
 
 [All docs](../../README.md) · [Technical stack](tech-stack.md) · [Simplification](simplification.md) · [Research](../../research/reverse-prompt/README.md) · [Shared controls and names](../../shared/host-controls-and-names.md)
 
-Version: 2.2 demo scope. Updated: 12 September 2026. Status: implemented with one FastH3 session per round and 30-second relay turns; full live relay and physical-phone acceptance remain open.
+Version: 2.3 demo scope. Updated: 4 October 2026. Status: implemented with one FastH3 session per round, 30-second relay turns, sequential reveals, and rotating authors; full live relay and physical-phone acceptance remain open.
+
+The [product backlog](../../backlog.md#reverse-prompt) tracks delivery. Sections 1–7 describe the current behavior; section 8 records the adopted review improvements.
 
 Build one complete, presenter-led game for **exactly three people in one private room**. This is the current source of truth for Reverse Prompt. The [app specification](../../app-spec.md) defines the wider product boundaries. See the [tech stack](tech-stack.md), [before and after](simplification.md), and [archived original spec](archive/game-spec-v1.md).
 
@@ -16,19 +18,19 @@ The essential experience is seeing how a scene changes through human interpretat
 
 ## 2. Fixed demo settings
 
-Run the app locally on the host laptop. All players open its HTTP LAN address on the same Wi-Fi or hotspot. The host remains author A and counts toward the three players. The laptop needs internet access for Reactor; final guesses are scored locally. Remote deployment is deferred.
+Run the app locally on the host laptop. All players open its HTTP LAN address on the same Wi-Fi or hotspot. The party creator remains host and counts toward the three players. They author the first round; the author rotates after each completed reveal. The laptop needs internet access for Reactor; final guesses are scored locally. Remote deployment is deferred.
 
 | Setting | Decision |
 | --- | --- |
 | Room and roster | One room; exactly three players; no joining during a round |
-| Roles | Creator is host and author A; guests B and C follow join order |
+| Roles | Creator keeps host authority. A is the current author; B and C interpret in cyclic roster order. |
 | Round | `P0 → V0 → P1 → V1 → P2 → V2 → final guesses → reveal` |
 | Clip | Five seconds, landscape, silent, tap-to-play and replay |
 | Input | 1–300 Unicode code points and within the local model's token limit; English; plain text |
 | Input timing | B and C each have 30 seconds to watch and describe their private clue; author input and final guesses are untimed |
 | Generation | Three independent clips in one retained FastH3 session; one attempt per video, 90 seconds per generation, 345-second round watchdog and 360-second provider cap; no automatic retry |
 | Scoring | One local Sentence Transformers batch after both guesses; 15-second deadline |
-| Replay | Host resets to lobby; same players and roles; new round ID |
+| Replay | Host returns to lobby with the same players and a new round ID. Completed reveals rotate the author; stopped or failed rounds retain their order. |
 | Recovery | Browser refresh restores identity while the server is running; server restart loses the round |
 | Optional polish | One prerecorded VEED intro after the core demo works |
 
@@ -36,13 +38,13 @@ These are demo defaults, not provider speed promises. Target a roughly three-to-
 
 ## 3. Complete player flow
 
-1. **Join.** The presenter creates a room using the configured organizer code and a display name. Two guests enter the displayed four-digit room code following the [shared standard](../../shared/room-code-spec.md), including leading zeros, and names at the laptop's LAN URL. The lobby lists A, B, and C. Host and guest name fields start with a random valid name that can be kept or edited; preserve edits while completing the form and correcting errors. Names are 1–24 characters; duplicate names receive visible suffixes. Start is enabled with three registered players, available generation capacity, and the local scoring model loaded. The presenter confirms everyone is looking at their phone; no player readiness system is needed.
+1. **Join.** The presenter creates a room using the configured organizer code and a display name. Two guests enter the displayed four-digit room code following the [shared standard](../../shared/room-code-spec.md), including leading zeros, and names at the laptop's LAN URL. The lobby names the next author and lists the current A → B → C order, marking the creator as host. The first round uses creator-then-join order; roles rotate independently of host authority. Host and guest name fields start with a random valid name that can be kept or edited; preserve edits while completing the form and correcting errors. Names are 1–24 characters; duplicate names receive visible suffixes. Start is enabled with three registered players, available generation capacity, and the local scoring model loaded. The presenter confirms everyone is looking at their phone; no player readiness system is needed.
 2. **Original.** A writes `P0`, for example “A tiny astronaut pours tea for a giant frog.” B and C see whose turn it is. A successful submission is final. Generate `V0` using only `P0` and the fixed rendering instruction.
 3. **First interpretation.** Only B can retrieve and replay `V0`. B has 30 seconds from publication of the clue to watch and submit `P1`. Generate `V1` using only `P1` and the same instruction in the retained provider session, omitting continuation and starting-frame inputs.
 4. **Second interpretation.** Only C can retrieve and replay `V1`. C has a new 30-second turn to watch and submit `P2`. Generate `V2` independently from `P2` in the same session. Close and independently verify the session before publishing `V2` for guessing.
-5. **Guess.** All three see `V2`. B and C each submit a separate final guess of `P0`. C may copy their own interpretation into the guess field, but must explicitly submit it. A sees “Author — unscored.” Guesses stay private until both are accepted.
-6. **Score and reveal.** Compare both guesses with the exact accepted original prompt. Display the original, three ordered prompt/video cards with player names, both final guesses, scores, and the winner or tie. Reveal cards can be replayed individually; no exported recap video is required.
-7. **Start another round.** After results or a stopped round, the host returns to setup with the same room, players, and roles. An incomplete round has a separate confirmed Stop & reset round action. Reset clears round content and files after active work stops. It keeps the roster and roles, and never replenishes the session quota. **End game** asks for confirmation, requests party closure, and returns the host to the portal to track any pending cleanup. Completed closure clears the party and its media. A server restart creates a fresh lobby and requires everyone to join again.
+5. **Guess.** All three see `V2`. B and C each submit a separate final guess of `P0`. C may copy their own interpretation into the guess field, but must explicitly submit it. A sees “Author — unscored.” Guesses stay private until the final reveal step.
+6. **Score and reveal.** Compare both guesses with the exact accepted original prompt, then show only the first pair, `P0 + V0`, with its contributor. The host uses **Reveal next scene** for `P1 + V1`, then `P2 + V2`. Each prompt appears together with its video; previously revealed pairs remain available for replay. After the last pair, **Reveal guesses and scores** shows both final guesses, scores, and the winner or tie. A failed scoring attempt follows the same sequence and then shows the guesses as unscored. Do not show a separate original or winner summary before the chain. Everyone follows the same server-controlled reveal step through refreshes; repeated advances do not skip a step.
+7. **Start another round.** After the guesses/results are revealed, the host returns to setup with the same room and players, advancing the author once in the stable cyclic roster order. For Alex, Bailey, Casey, successive orders are Alex → Bailey → Casey, Bailey → Casey → Alex, Casey → Alex → Bailey, then Alex again. This also applies when completed scoring was unscored. Stopped or failed rounds and resets before the result reveal keep the same author and relay order. An incomplete round has a separate confirmed Stop & reset round action. Reset clears round content and files after active work stops, preserves each player’s identity and the creator’s host controls, and never replenishes the session quota. **End game** asks for confirmation, requests party closure, and returns the host to the portal to track any pending cleanup. Completed closure clears the party and its media. A server restart creates a fresh lobby and requires everyone to join again.
 
 ## 4. Screens and privacy
 
@@ -50,18 +52,18 @@ Use one responsive page that renders the current phase. Large buttons, labelled 
 
 | Phase | Active player sees | Other players see |
 | --- | --- | --- |
-| Lobby | Names, join code, short rules; host Start | Same lobby without host controls |
+| Lobby | Names, next author and relay order, join code, short rules; creator has host Start | Same lobby without host controls |
 | Author input | A: original prompt editor | “Waiting for A to write the first scene” |
 | Generating | Accepted status, whose clip is being made, elapsed time | Public progress only |
 | Relay input | B or C: assigned clip, description editor and remaining seconds | “Waiting for B/C to describe their video” |
 | Guessing | B/C: final clip and guess editor; A: final clip | Submission counts, never another guess |
 | Scoring | Final clip and “Comparing guesses” | Same |
-| Reveal | Entire ordered chain, guesses, scores | Same |
+| Reveal | Only the disclosed prompt/video pairs; guesses/scores after the final advance. Host advances the reveal and can End game throughout; Start another round appears after results. | Same disclosed content, with waiting status instead of advance controls |
 | Error | Plain failure message; host Start another round when cleanup permits, or End game | Same, with no hidden chain automatically revealed |
 
-Before reveal, snapshots contain only public progress, the requesting player's own accepted text, and their currently permitted media reference. During relay input, only its assigned interpreter can fetch the clue. When that turn ends, that permission ends. During guessing/scoring, everyone can fetch only `V2`. Reveal permits all three clips. The host has no extra content access. Enforce this on the server, including video range requests; hiding an element is insufficient.
+Before reveal, snapshots contain only public progress, the requesting player's own accepted text, and their currently permitted media reference. During relay input, only its assigned interpreter can fetch the clue. When that turn ends, that permission ends. During guessing/scoring, everyone can fetch only `V2`. Reveal permits only clips through the shared reveal index, revealing the original with its first video and withholding other players’ unrevealed prompts, guesses, scores, winner flags, and scoring outcome until their step. Players retain access to their own accepted text. Having previously watched a clue does not grant its URL access during an earlier reveal step. The host has no extra content access. Enforce this on the server, including video range requests; hiding an element is insufficient.
 
-No shared-display role is required. Project the host's browser only at guessing/reveal, after any private author text is off screen. There are no accounts, invitations to spectators, QR generation, chat, uploads, galleries, or player removal controls.
+No shared-display role is required. Project the host's browser only during reveal. The host may now be an interpreter with a private clue or final guess; host controls grant no extra clue access. There are no accounts, invitations to spectators, QR generation, chat, uploads, galleries, or player removal controls.
 
 ## 5. Submission and scoring rules
 
@@ -78,7 +80,7 @@ points = floor(100 * clamp(similarity, 0, 1) + 0.5)
 
 An identical normalized guess gets 100. A similarity of 0.824 gets 82; a negative value gets 0. Highest integer score wins, including a tie at 0. Equal scores produce joint winners. A is always excluded. Display “Similarity: 82 / 100”; explain that meaning is compared and details may be missed. Do not describe this as accuracy or use an LLM judge. Provider rationale is in the [scoring decision](tech-stack.md#5-scoring-and-text-moderation).
 
-If local inference fails, times out, or returns invalid vectors, reveal the completed chain and both guesses as **unscored**, with no partial ranking. If someone never guesses, the presenter asks them to finish or resets; there is no missing-guess scoring branch.
+If local inference fails, times out, or returns invalid vectors, reveal the completed chain in the same sequence, then both guesses as **unscored**, with no partial ranking. If someone never guesses, the presenter asks them to finish or resets; there is no missing-guess scoring branch.
 
 ## 6. Failure and demo operation
 
@@ -100,7 +102,18 @@ If local inference fails, times out, or returns invalid vectors, reveal the comp
 | DEMO-04 | Both guesses compare locally with `P0` using the preloaded Sentence Transformers model, without scoring-network access; token-limit rejection, ties, exact matches, and score failures work; A cannot guess. |
 | DEMO-05 | Duplicate clicks create one submission/session; a late callback or command after reset cannot alter the next round. |
 | DEMO-06 | Refresh restores the right phase and remaining relay time; a backend restart loses the round but preserves the generation quota and unresolved-session block. |
-| DEMO-07 | Videos play/replay on the actual demo phones; reveal presents all three prompt/video pairs in order. |
+| DEMO-07 | Videos play/replay on the actual demo phones. All three browsers reveal each prompt/video pair in order; no later pair, guesses, scores or winner appears early. Refresh and repeated advances preserve the shared step; guests cannot advance. Both scored and unscored outcomes show guesses only after the final pair. |
 | DEMO-08 | A generation timeout, relay expiry or whole-round deadline stops unscored and initiates termination; provider cap and quota are verified before the event. |
+| DEMO-09 | Complete three rounds with the same party: each player authors once, the creator guesses/scores on their interpreter rounds and alone retains host controls. Refresh, duplicate reset and stale commands do not rotate twice. A stopped/failed round keeps its author; a fully revealed unscored comparison rotates normally. |
 
 Ship after a complete live three-player rehearsal and one deliberately failed generation. VEED, animations, and any post-hackathon feature are optional after these pass.
+
+## 8. Adopted review improvements
+
+### RP-002 — Sequential reveal
+
+Implemented 4 October 2026. The round flow and privacy requirements above own the host-controlled prompt/video sequence, followed by guesses and scores. Acceptance is covered by DEMO-07.
+
+### RP-003 — Author rotation
+
+Implemented 4 October 2026 for the current three-player roster. The creator keeps host authority; round assignments rotate after a completed reveal. Stopped and failed rounds keep their author so an interruption does not consume a turn. Acceptance is covered by DEMO-09. Apply the same cyclic rule if the future RP-001 roster expansion is implemented.

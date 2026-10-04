@@ -136,6 +136,36 @@ async def send(client, state, text, submission_id=None):
     )
 
 
+async def reveal_next(client, state, expected=None):
+    return await client.post(
+        BASE + "/reveal/next",
+        json={
+            "round_id": state["round_id"],
+            "expected_reveal_index": state["reveal_index"] if expected is None else expected,
+        },
+    )
+
+
+async def finish_reveal(host):
+    for index in range(3):
+        state = await snapshot(host)
+        assert state["reveal_index"] == index
+        assert "results" not in state and not state["results_revealed"]
+        assert (await reveal_next(host, state)).status_code == 200
+    return await snapshot(host)
+
+
+async def complete_chain(game, players):
+    for client, prompt in zip(players, PROMPTS):
+        assert (await send(client, await snapshot(client), prompt)).status_code == 200
+        await advance(game)
+    for role, client in zip("BC", players[1:]):
+        assert (
+            await send(client, await snapshot(client), f"secret {role} guess")
+        ).status_code == 200
+    await advance(game)
+
+
 @pytest.mark.parametrize("source", ["host", "override"])
 @pytest.mark.parametrize("configured", ["", "   ", "ChAnGe-Me", "changeme", "your-passcode"])
 async def test_unconfigured_organizer_cannot_admit_a_host(clients, source, configured):
@@ -276,7 +306,37 @@ async def test_complete_three_player_privacy_ranges_duplicates_and_replay(client
     assert (await send(c, gs, "secret C guess")).status_code == 200
     await advance(game)
     reveal = await snapshot(a)
-    assert reveal["phase"] == "reveal" and len(reveal["chain"]) == 3
+    assert reveal["phase"] == "reveal" and reveal["reveal_index"] == 0
+    assert (await reveal_next(b, reveal)).status_code == 403
+    assert (await reveal_next(fourth, reveal)).status_code == 401
+    assert (await reveal_next(a, reveal, expected=2)).status_code == 409
+    media_urls = [f"{BASE}/media/{media['id']}" for media in game.room.round.media]
+    for index in range(3):
+        reveal = await snapshot(a)
+        assert reveal["reveal_index"] == index
+        for client in (a, b, c):
+            visible = await snapshot(client)
+            assert visible["reveal_index"] == index
+            assert visible["chain"] == reveal["chain"]
+            assert [row["prompt"] for row in visible["chain"]] == PROMPTS[: index + 1]
+            assert len(visible["media"]) == index + 1
+            assert "results" not in visible and not visible["results_revealed"]
+            assert not visible["unscored"]
+            assert visible["own"]["prompt"] == PROMPTS["ABC".index(visible["role"])]
+            other_guess = "secret C guess" if client is b else "secret B guess"
+            assert other_guess not in str(visible)
+            for media_index, url in enumerate(media_urls):
+                for method in ("GET", "HEAD"):
+                    response = await client.request(method, url, headers={"Range": "bytes=0-31"})
+                    assert response.status_code == (206 if media_index <= index else 404)
+        response = await reveal_next(a, reveal)
+        assert response.status_code == 200
+        revision = game.room.revision
+        # Retry of this exact advance cannot reveal another pair or the results.
+        assert (await reveal_next(a, reveal)).json() == response.json()
+        assert game.room.revision == revision
+    reveal = await snapshot(a)
+    assert reveal["results_revealed"]
     assert [row["prompt"] for row in reveal["chain"]] == PROMPTS
     assert [row["role"] for row in reveal["results"]] == ["B", "C"]
     assert all(row["winner"] for row in reveal["results"])
@@ -290,7 +350,170 @@ async def test_complete_three_player_privacy_ranges_duplicates_and_replay(client
     assert lobby["phase"] == "lobby" and len(lobby["players"]) == 3
     assert lobby["round_id"] != reveal["round_id"]
     assert (await send(a, state, PROMPTS[0], receipt_id)).status_code == 409
+    assert (await reveal_next(a, reveal)).status_code == 409
+    assert (await reveal_next(a, lobby, expected=0)).status_code == 409
     assert (await a.get(clue0)).status_code == 404
+
+
+async def test_three_completed_rounds_rotate_roles_keep_host_and_private_clues(clients):
+    game, _, _ = clients
+    *players, _ = await party(clients)
+    host = players[0]
+    original = await snapshot(host)
+    names = [player["name"] for player in original["players"]]
+    tokens = [player.token for player in game.room.players]
+    for author_index in range(3):
+        ordered = players[author_index:] + players[:author_index]
+        expected_names = names[author_index:] + names[:author_index]
+        lobby = await snapshot(host)
+        assert lobby["code"] == original["code"]
+        assert [player["name"] for player in lobby["players"]] == expected_names
+        assert [player["role"] for player in lobby["players"]] == list("ABC")
+        assert [player.token for player in game.room.players] == tokens
+        assert lobby["can_start"]
+        for index, client in enumerate(players):
+            state = await snapshot(client)
+            assert state["role"] == "ABC"[(index - author_index) % 3]
+            assert state["is_host"] is (client is host)
+            assert state["players"] == lobby["players"]
+            assert state["can_start"] is (client is host)
+            summary = (await client.get("/api/session")).json()["session"]
+            assert summary["role"] == ("host" if client is host else "player")
+            assert summary["can_close"] is (client is host)
+            assert summary["continuation_url"].endswith("/host" if client is host else "/join")
+        assert (
+            await players[1].post(BASE + "/start", json={"round_id": lobby["round_id"]})
+        ).status_code == 403
+        assert (
+            await host.post(BASE + "/start", json={"round_id": lobby["round_id"]})
+        ).status_code == 200
+        for index, client in enumerate(ordered):
+            state = await snapshot(client)
+            assert state["role"] == "ABC"[index]
+            if index:
+                clue = state["media"][0]["url"]
+                for other in ordered:
+                    response = await other.get(clue, headers={"Range": "bytes=0-31"})
+                    assert response.status_code == (206 if other is client else 404)
+                    if other is not client:
+                        assert not (await snapshot(other))["media"]
+            assert (await send(client, state, PROMPTS[index])).status_code == 200
+            await advance(game)
+        assert (
+            await send(ordered[0], await snapshot(ordered[0]), "author guess")
+        ).status_code == 403
+        for client in ordered[1:]:
+            assert (await send(client, await snapshot(client), "a final guess")).status_code == 200
+        await advance(game)
+        reveal = await snapshot(host)
+        assert (await reveal_next(players[1], reveal)).status_code == 403
+        reveal = await finish_reveal(host)
+        assert [row["player"] for row in reveal["chain"]] == expected_names
+        assert [row["player"] for row in reveal["results"]] == expected_names[1:]
+        assert all(row["points"] == 100 for row in reveal["results"])
+        assert (
+            await players[1].post(BASE + "/reset", json={"round_id": reveal["round_id"]})
+        ).status_code == 403
+        assert (
+            await players[1].post("/api/party/close", json={"game_id": "reverse-prompt"})
+        ).status_code == 403
+        assert (
+            await host.post(BASE + "/reset", json={"round_id": reveal["round_id"]})
+        ).status_code == 200
+        await game.cleanup
+        # A stale replay cannot consume another author turn.
+        assert (
+            await host.post(BASE + "/reset", json={"round_id": reveal["round_id"]})
+        ).status_code == 409
+    assert (await snapshot(host))["players"] == original["players"]
+    assert (
+        await host.post("/api/party/close", json={"game_id": "reverse-prompt"})
+    ).status_code == 200
+    await game.cleanup
+    assert game.room is None
+
+
+@pytest.mark.parametrize("stop_at", ["author_input", "generating", "error", "reveal"])
+async def test_incomplete_rotated_round_retains_author_through_cleanup(clients, stop_at):
+    game, provider, _ = clients
+    host, first, second, _ = await party(clients)
+    await host.post(BASE + "/start", json={"round_id": game.room.round.id})
+    await complete_chain(game, [host, first, second])
+    revealed = await finish_reveal(host)
+    await host.post(BASE + "/reset", json={"round_id": revealed["round_id"]})
+    await game.cleanup
+    rotated = await snapshot(host)
+    assert rotated["role"] == "C" and rotated["players"][0]["name"] == "Guest"
+    await host.post(BASE + "/start", json={"round_id": rotated["round_id"]})
+    if stop_at == "generating":
+        provider.wait = asyncio.Event()
+        await send(first, await snapshot(first), PROMPTS[0])
+        await asyncio.sleep(0)
+    elif stop_at == "error":
+        provider.fail = True
+        await send(first, await snapshot(first), PROMPTS[0])
+        await advance(game)
+    elif stop_at == "reveal":
+        await complete_chain(game, [first, second, host])
+        # Even all three scenes are incomplete until guesses/results are revealed.
+        for _ in range(2):
+            await reveal_next(host, await snapshot(host))
+    state = await snapshot(host)
+    assert state["phase"] == stop_at
+    attempt = game.quota.consume()
+    await host.post(BASE + "/reset", json={"round_id": state["round_id"]})
+    await game.cleanup
+    cleaning = await snapshot(host)
+    assert cleaning["phase"] == "cleanup" and cleaning["players"] == rotated["players"]
+    await game.cleanup
+    assert (
+        await host.post(BASE + "/reset", json={"round_id": state["round_id"]})
+    ).status_code == 409
+    game.quota.confirm_closed(attempt, "operator verified fixture case")
+    await game.finish_cleanup()
+    resumed = await snapshot(host)
+    assert resumed["phase"] == "lobby" and resumed["players"] == rotated["players"]
+    assert (await snapshot(first))["role"] == "A"
+    assert not resumed["results_revealed"] and resumed["reveal_index"] is None
+    assert (
+        await host.post("/api/party/close", json={"game_id": "reverse-prompt"})
+    ).status_code == 200
+    await game.cleanup
+    assert game.room is None
+
+
+async def test_completed_round_rotates_once_after_delayed_cleanup(clients):
+    game, _, _ = clients
+    host, first, second, _ = await party(clients)
+    await host.post(BASE + "/start", json={"round_id": game.room.round.id})
+    await complete_chain(game, [host, first, second])
+    revealed = await finish_reveal(host)
+    attempt = game.quota.consume()
+    await host.post(BASE + "/reset", json={"round_id": revealed["round_id"]})
+    await game.cleanup
+    cleaning = await snapshot(host)
+    await game.cleanup
+    assert cleaning["phase"] == "cleanup" and cleaning["role"] == "A"
+    assert (
+        await host.post(BASE + "/reset", json={"round_id": revealed["round_id"]})
+    ).status_code == 409
+    # Retrying cleanup with its current ID preserves the retired round's completion.
+    assert (
+        await host.post(BASE + "/reset", json={"round_id": cleaning["round_id"]})
+    ).status_code == 200
+    await game.cleanup
+    game.quota.confirm_closed(attempt, "operator verified fixture case")
+    await snapshot(host)
+    await game.cleanup
+    lobby = await snapshot(host)
+    assert lobby["phase"] == "lobby" and lobby["role"] == "C"
+    assert (await snapshot(first))["role"] == "A"
+    assert (await snapshot(second))["role"] == "B"
+    for _ in range(2):
+        assert (
+            await host.post(BASE + "/reset", json={"round_id": cleaning["round_id"]})
+        ).status_code == 409
+        assert (await snapshot(host))["players"] == lobby["players"]
 
 
 @pytest.mark.asyncio
@@ -346,8 +569,13 @@ async def test_generation_timeout_terminates_and_scoring_failure_unscored(client
     await send(c, await snapshot(c), "guess C")
     await advance(game)
     state = await snapshot(a)
-    assert state["phase"] == "reveal" and state["unscored"]
+    assert state["phase"] == "reveal" and not state["unscored"]
+    state = await finish_reveal(a)
+    assert state["unscored"]
     assert all(row["points"] is None and not row["winner"] for row in state["results"])
+    await a.post(BASE + "/reset", json={"round_id": state["round_id"]})
+    await game.cleanup
+    assert (await snapshot(b))["role"] == "A"
 
 
 @pytest.mark.asyncio
@@ -392,7 +620,8 @@ async def test_scoring_timeout_keeps_worker_owned_until_finish(clients):
     await send(c, await snapshot(c), "guess C")
     await advance(game)
     state = await snapshot(a)
-    assert state["unscored"] and state["phase"] == "reveal"
+    assert not state["unscored"] and state["phase"] == "reveal"
+    assert "results" not in state and game.room.round.unscored
     assert not game.inference.done()
     await a.post(BASE + "/reset", json={"round_id": state["round_id"]})
     await asyncio.sleep(0.01)

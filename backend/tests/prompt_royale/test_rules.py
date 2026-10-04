@@ -82,6 +82,60 @@ async def test_full_round_privacy_stable_arena_refresh_replay(game):
     assert await e.context.parties.resolve(code) == "prompt-royale"
 
 
+@pytest.mark.parametrize("clip_status", ["unavailable", "not_submitted"])
+async def test_missing_clip_notice_is_private_and_player_can_still_vote(
+    game, monkeypatch, clip_status
+):
+    e, tokens, clock = game
+    generate = e.video.generate
+
+    async def fail_one(prompt, *args):
+        if "Private failed scene" in prompt:
+            raise ProviderFailure("Terminal fixture failure")
+        return await generate(prompt, *args)
+
+    monkeypatch.setattr(e.video, "generate", fail_one)
+    r = await start(e, tokens)
+    assert "clip_status" not in (await e.state(tokens[2]))["me"]
+    for index, token in enumerate(tokens[:2]):
+        await e.mutate(
+            token, "submission", {"round_id": r.id, "prompt": f"Ready private scene {index}"}
+        )
+    if clip_status == "unavailable":
+        await e.mutate(
+            tokens[2], "submission", {"round_id": r.id, "prompt": "Private failed scene"}
+        )
+    else:
+        clock.now = r.deadline
+        e.room.players[e.room.host].seen = clock.now
+        await e.tick()
+    await asyncio.gather(*list(e.generation_tasks))
+    assert r.phase == "screening" and len(r.arena) == 2
+
+    views = [await e.state(token) for token in tokens]
+    assert views[2]["me"]["clip_status"] == clip_status
+    assert all("clip_status" not in view["me"] for view in views[:2])
+    assert views[0]["arena"] == views[1]["arena"] == views[2]["arena"]
+    assert all(
+        "author" not in tile and "prompt" not in tile and "own" not in tile
+        for tile in views[2]["arena"]
+    )
+    assert "Private failed scene" not in json.dumps(views[:2])
+    assert (await e.state(tokens[2]))["me"]["clip_status"] == clip_status
+
+    await host_action(e, tokens, "open-voting", watched=True)
+    voter = await e.state(tokens[2])
+    assert voter["me"]["clip_status"] == clip_status
+    assert all(not tile.get("own") for tile in voter["arena"])
+    choice = r.ballot[0]
+    await e.mutate(tokens[2], "vote", {"round_id": r.id, "entry_id": choice})
+    assert (await e.state(tokens[2]))["me"]["vote"] == choice
+    assert (await e.state(tokens[0]))["me"]["vote"] is None
+    for token in tokens[:2]:
+        await e.mutate(token, "vote", {"round_id": r.id, "entry_id": None})
+    assert r.phase == "results" and r.scores[choice] == 1
+
+
 async def test_cap_identity_normalization_and_concurrent_join(game):
     e, tokens, _ = game
     await host_action(e, tokens, "player-count", player_count=4)

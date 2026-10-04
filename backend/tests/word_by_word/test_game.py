@@ -213,18 +213,34 @@ async def test_selected_player_count_shares_all_four_contributions(setup_game, p
     assert [slot.owner for slot in game.room.round.slots] == expected_owners
 
 
-async def test_input_deadline_rejects_late_final_submission(setup_game):
-    game, provider, host, players = setup_game
+@pytest.mark.parametrize("player_count,seconds", [(1, 60), (2, 30), (3, 30), (4, 15)])
+async def test_input_deadline_rejects_late_final_submission(setup_game, player_count, seconds):
+    game, provider, host, _ = setup_game
     now = [1000.0]
     game.clock = lambda: now[0]
     game.room.activity = now[0]
-    rid = game.room.round.id
+    state = await game.new_round(host, game.room.round.id, reset=True)
+    rid = state["round_id"]
+    await game.set_player_count(host, rid, player_count)
+    players = []
+    for index in range(player_count):
+        player, _ = await game.join(game.room.code, f"Player {index + 1}", None)
+        players.append(player)
     await game.start(host, rid, "fixture")
+    deadline = now[0] + seconds
+    assert game.snapshot(host)["input_deadline"] == deadline
+    assert all(game.snapshot(player)["input_deadline"] == deadline for player in players)
     for i in range(3):
-        await game.contribute(players[i], rid, i, FIXTURE_TEXT[i])
-    now[0] += 45
+        await game.contribute(players[i % player_count], rid, i, FIXTURE_TEXT[i])
+    now[0] = deadline - 0.01
+    await game.tick()
+    assert game.snapshot(host)["phase"] == "INPUT"
+    # Polling and retries of accepted ideas must not shorten or extend the window.
+    retried = await game.contribute(players[0], rid, 0, FIXTURE_TEXT[0])
+    assert retried["input_deadline"] == deadline
+    now[0] = deadline
     with pytest.raises(AppError) as error:
-        await game.contribute(players[0], rid, 3, FIXTURE_TEXT[3])
+        await game.contribute(players[3 % player_count], rid, 3, FIXTURE_TEXT[3])
     assert error.value.code == "collection_closed"
     assert game.snapshot(host)["result"] == "incomplete"
     assert game.snapshot(host)["cards"] == []

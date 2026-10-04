@@ -2,7 +2,7 @@
 
 Date: 17 September 2026. Related backlog item: [WW-003](../../backlog.md#ww-003--experiment-with-prompts-for-actions-and-consequences).
 
-Status: code inspection, provider guidance review, and retrospective frame review complete. New generation comparison: not run. No application behavior changed.
+Status at 17 September: code inspection, provider guidance review, and retrospective frame review complete. New generation comparison: not run. No application behavior changed during that review. A later prompt clarification and its limited validation are recorded below.
 
 ## Current prompt behavior
 
@@ -55,3 +55,13 @@ The first three runs are a pilot, not a reliability result. If there is a promis
 If effects remain late or absent, compare six versus twelve seconds per category while holding wording and all other settings fixed. Record time to the first visible effect rather than assuming command acknowledgement marks its appearance. If wording and timing changes still fail, evaluate model suitability as a separate experiment. Prompt composition is a hypothesis, not a promised fix.
 
 Execution status: every proposed variant run is **not run**. Any live batch should be recorded in the existing [trial ledger](../../development/live-provider-slots.md), with a fixed attempt count and independently confirmed session closure. The historical saved-video review consumed no new generation sessions.
+
+## 4 October implementation update
+
+The prompt builder now uses directions specific to each stage. Place establishes only the setting. Character joins the established setting. Action applies to the same character. Consequence requests a visible scene change while retaining the earlier character, setting, and ongoing action wherever compatible. This replaces the global “Add only the current idea” instruction and avoids character/action instructions before those categories are introduced.
+
+The builder still sends the exact accepted text under its original category labels, without parsing player prose, prescribing movements, or including future answers. No model, image source, update interval, or generation retry behavior changed. The change clarifies intent; it does not establish that ballet or snow becomes more recognizable.
+
+Validation on 4 October: `WW-CAT-01` (`categories-v1`), mapped to Place → Character → Action → Consequence, passed the mocked LingBot protocol test with the four exact standard answers. There was no player rehearsal or generated recording in this check. The mock received one image upload, one start, and four ordered cumulative prompts; each prompt retained all revealed answers and was unchanged when future answers were replaced. A separate non-scenario test covered 120-code-point Unicode input, punctuation, and multiline text without rewriting. The focused live-adapter and image suites passed all 26 tests; Ruff and formatting checks passed. Existing image checks retained Place-only generation input. No paid provider calls were made.
+
+Live visual comparison remains outstanding. The A/B/C plan above records the historical baseline; any new comparison must record its exact prompts because the application default now has these stage-specific directions. No new visual-quality result is claimed.

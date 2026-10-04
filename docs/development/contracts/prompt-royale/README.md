@@ -43,7 +43,10 @@ closure verification, private file/session cleanup, then shared admission releas
 
 Snapshots expose `boot_id,revision,version,server_time,room_id,code,join_url,mode,topic_source,
 phase,player_count,players,me,round_id,seconds_left,topic,closing,cleanup_pending`. Lobby topic state is
-host-only. `me.prompt` and `me.vote` contain only the caller's accepted input. Generation
+host-only. `me.prompt` and `me.vote` contain only the caller's accepted input. After prompting,
+private `me.clip_status` is `not_submitted` for a missing submission or `unavailable` for the
+caller's terminal failed/late entry; it is otherwise omitted and contains no entry mapping.
+Generation
 progress is aggregate status counts; there are no author-to-entry or clip mappings yet.
 
 Screening/voting/results add exactly four arena tiles with fixed position and label. Ready

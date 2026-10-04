@@ -65,7 +65,7 @@ Replace `/api` in the game specs with the following prefixes. Export router suff
 | --- | --- |
 | `/api/games/word-by-word` | POST `/host`, POST `/join`, GET `/state`, POST `/round/start`, POST `/contribution`, POST `/reveal/next`, GET `/clips/{round_id}/{index}`, POST `/round/end`, POST `/round/new`, POST `/room/reset` |
 | `/api/games/prompt-royale` | POST `/room`, POST `/room/join`, GET `/room`, POST `/room/topic`, POST `/room/topic/generate`, POST `/room/topic/confirm`, POST `/room/start`, POST `/round/submission`, POST `/round/exclude`, POST `/round/open-voting`, POST `/round/vote`, POST `/round/abort`, POST `/round/again`, DELETE `/room`, GET `/media/{opaque_id}` |
-| `/api/games/reverse-prompt` | POST `/room`, POST `/join`, GET `/state`, POST `/start`, POST `/submit`, POST `/reset`, GET `/media/{media_id}` |
+| `/api/games/reverse-prompt` | POST `/room`, POST `/join`, GET `/state`, POST `/start`, POST `/submit`, POST `/reveal/next`, POST `/reset`, GET/HEAD `/media/{media_id}` |
 
 Additional game routes stay namespaced and are recorded in game API examples. Existing unprefixed game APIs are not global aliases.
 

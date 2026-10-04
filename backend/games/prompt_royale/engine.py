@@ -926,6 +926,14 @@ class Engine:
             result["me"]["prompt"] = r.submissions.get(player.id)
             result["me"]["voted"] = player.id in r.votes
             result["me"]["vote"] = r.votes.get(player.id)
+            if r.phase != "prompting":
+                if player.id not in r.submissions:
+                    result["me"]["clip_status"] = "not_submitted"
+                elif any(
+                    entry.player == player.id and entry.status == "unavailable"
+                    for entry in r.entries.values()
+                ):
+                    result["me"]["clip_status"] = "unavailable"
             if r.phase in {"screening", "voting", "results"}:
                 tiles = []
                 for position in range(4):

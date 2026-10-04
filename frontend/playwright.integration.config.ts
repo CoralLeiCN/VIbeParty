@@ -1,7 +1,12 @@
 import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests",
-  testMatch: ["combined.spec.ts", "host-recovery.spec.ts"],
+  testMatch: [
+    "combined.spec.ts",
+    "host-recovery.spec.ts",
+    "word-playback.spec.ts",
+    "reverse-reveal.spec.ts",
+  ],
   workers: 1,
   retries: 0,
   reporter: "list",

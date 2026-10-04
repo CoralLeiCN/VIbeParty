@@ -43,6 +43,8 @@ class Round:
     error: str | None = None
     generation_started: float | None = None
     relay_deadline: float | None = None
+    reveal_index: int | None = None
+    results_revealed: bool = False
 
 
 @dataclass
@@ -50,6 +52,8 @@ class Room:
     mode: str
     players: list
     code: str
+    host_token: str
+    author_index: int = 0
     id: str = field(default_factory=identifier)
     round: Round = field(default_factory=Round)
     revision: int = 1
@@ -124,9 +128,15 @@ class Game:
 
     def host(self, token):
         player = self.member(token)
-        if player.role != "A":
+        if not self.is_host(player):
             raise AppError(403, "host_only", "Only the host can do that.")
         return player
+
+    def is_host(self, player):
+        return player.token == self.room.host_token
+
+    def round_players(self):
+        return sorted(self.room.players, key=lambda player: player.role)
 
     def current(self, round_id, allow_cleanup=False):
         room = self.room
@@ -199,7 +209,7 @@ class Game:
         async with self.context.parties.reserve(GAME) as reservation:
             async with self.lock:
                 player = Player("A", name)
-                created = Room(mode, [player], code=reservation.code)
+                created = Room(mode, [player], code=reservation.code, host_token=player.token)
                 self.room = created
             try:
                 await reservation.activate()
@@ -467,11 +477,33 @@ class Game:
                 round.scores = scores
                 round.unscored = scores is None
                 round.phase = "reveal"
+                round.reveal_index = 0
                 self.room.revision += 1
+
+    async def reveal_next(self, token, round_id, expected_reveal_index):
+        async with self.lock:
+            self.host(token)
+            round = self.current(round_id)
+            if round.phase != "reveal":
+                raise AppError(409, "wrong_phase", "The scene reveal has not started.")
+            if expected_reveal_index > round.reveal_index:
+                raise AppError(
+                    409, "wrong_reveal", "The reveal changed. Refresh before continuing."
+                )
+            if expected_reveal_index == round.reveal_index and not round.results_revealed:
+                if round.reveal_index < 2:
+                    round.reveal_index += 1
+                else:
+                    round.results_revealed = True
+                self.room.revision += 1
+            return {
+                "reveal_index": round.reveal_index,
+                "results_revealed": round.results_revealed,
+            }
 
     def allowed_media(self, player, round):
         if round.phase == "reveal":
-            return round.media
+            return [m for m in round.media if m["step"] <= round.reveal_index]
         if round.phase in {"guessing", "scoring"}:
             return [m for m in round.media if m["step"] == 2]
         if round.phase == "relay_input" and player.role == "ABC"[round.step]:
@@ -485,6 +517,7 @@ class Game:
         async with self.lock:
             player = self.member(token)
             room, round = self.room, self.room.round
+            players = self.round_players()
             reason = self.capacity_reason(room.mode)
             media = self.allowed_media(player, round)
 
@@ -508,12 +541,15 @@ class Game:
                 "phase": round.phase,
                 "step": round.step,
                 "role": player.role,
-                "players": [{"role": p.role, "name": p.name} for p in room.players],
+                "is_host": self.is_host(player),
+                "players": [
+                    {"role": p.role, "name": p.name, "is_host": self.is_host(p)} for p in players
+                ],
                 "own": own,
                 "media": [reference(m) for m in media],
                 "guess_count": len(round.guesses),
                 "token_limit": self.scorer.token_limit,
-                "can_start": player.role == "A"
+                "can_start": self.is_host(player)
                 and round.phase == "lobby"
                 and len(room.players) == 3
                 and not reason
@@ -521,7 +557,9 @@ class Game:
                 "start_blocked": reason,
                 "closing": room.closing,
                 "error": round.error,
-                "unscored": round.unscored,
+                "unscored": round.unscored and (round.phase != "reveal" or round.results_revealed),
+                "reveal_index": round.reveal_index,
+                "results_revealed": round.results_revealed,
                 "join_url": (
                     f"{self.context.settings.public_origin}/games/{GAME}/join?code={room.code}"
                 ),
@@ -546,16 +584,17 @@ class Game:
                 result["chain"] = [
                     {
                         "prompt": round.prompts[i],
-                        "player": room.players[i].name,
+                        "player": players[i].name,
                         "role": "ABC"[i],
                         "media": reference(round.media[i]),
                     }
-                    for i in range(3)
+                    for i in range(round.reveal_index + 1)
                 ]
+            if round.results_revealed:
                 result["results"] = [
                     {
                         "role": role,
-                        "player": room.players[i + 1].name,
+                        "player": players[i + 1].name,
                         "guess": round.guesses[role],
                         "points": round.scores[i] if round.scores is not None else None,
                         "winner": round.scores is not None and round.scores[i] == max(round.scores),
@@ -605,6 +644,10 @@ class Game:
             if close:
                 self.room = None
             else:
+                if retired and retired.phase == "reveal" and retired.results_revealed:
+                    self.room.author_index = (self.room.author_index + 1) % len(self.room.players)
+                    for index, player in enumerate(self.room.players):
+                        player.role = "ABC"[(index - self.room.author_index) % 3]
                 self.room.round = Round()
                 self.room.revision += 1
             self.retired = None

@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-04",
+  "mode": "scripted rehearsal",
+  "tester": "Codex",
+  "backend": "69 Reverse Prompt tests passed; role and reveal privacy, media GET/HEAD/Range authorization, duplicate/stale commands, delayed cleanup, failed/stopped rounds and scoring-failure results covered",
+  "browser": {
+    "test": "frontend/tests/reverse-reveal.spec.ts",
+    "result": "passed in 29.4 seconds",
+    "contexts": "one 1360x1000 creator and two 390x844 players",
+    "round_orders": [
+      [
+        "Alex",
+        "Bailey",
+        "Casey"
+      ],
+      [
+        "Bailey",
+        "Casey",
+        "Alex"
+      ],
+      [
+        "Casey",
+        "Alex",
+        "Bailey"
+      ]
+    ],
+    "creator_roles": [
+      "A",
+      "C",
+      "B"
+    ],
+    "checks": [
+      "All three players authored once; next lobby wrapped to Alex.",
+      "Creator interpreted and submitted a final guess in rounds two and three while retaining exclusive host controls.",
+      "Each scene prompt and video appeared together; video count advanced 1, 2, 3 before guesses/results became available.",
+      "Creator and guest refresh retained the active round, reveal index and role.",
+      "Revealed clip playback worked; the room and player identities persisted."
+    ]
+  },
+  "combined_game_browser_test": "Complete all three games with continuation, cleanup, and fresh joins passed in 44.0 seconds.",
+  "live_provider_calls": 0,
+  "limits": "Fixture and desktop browser contexts only. Physical phones and live retained-session quality were not evaluated."
+}

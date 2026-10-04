@@ -302,13 +302,22 @@ export function GameRoute({ entry }: GameEntryProps) {
               <span>
                 ROOM <strong>{state.code}</strong>
               </span>
-              {state.phase !== "lobby" && state.phase !== "results" && (
+              {!["lobby", "results", "voting"].includes(state.phase) && (
                 <strong className={styles.timer} aria-label="Time remaining">
                   {seconds}s
                 </strong>
               )}
             </div>
           </div>
+          {state.player_count === 2 &&
+            (state.phase === "lobby" ||
+              (["screening", "voting"].includes(state.phase) &&
+                state.arena?.filter((tile) => tile.status === "ready")
+                  .length === 2)) && (
+              <p className={styles.duoNotice}>
+                Two players: if you both vote, it’s a 1–1 tie.
+              </p>
+            )}
           {(state.closing || state.cleanup_pending) && (
             <p className={styles.error}>
               Finishing provider cleanup. New rounds and switching are blocked
@@ -618,6 +627,16 @@ export function GameRoute({ entry }: GameEntryProps) {
               </p>
             </section>
           )}
+          {state.me.clip_status && (
+            <p className={styles.clipNotice} role="status">
+              {state.me.clip_status === "unavailable"
+                ? "Your clip couldn’t finish."
+                : "No scene was submitted, so you don’t have a clip this round."}
+              {["screening", "voting"].includes(state.phase) &&
+                (state.arena?.filter((tile) => tile.status === "ready").length || 0) >= 2 &&
+                " You can still vote."}
+            </p>
+          )}
           {state.phase === "results" && (
             <div className={styles.result} role="status">
               <h2>
@@ -634,7 +653,13 @@ export function GameRoute({ entry }: GameEntryProps) {
             </div>
           )}
           {state.arena && (
-            <Arena key={state.round_id} state={state} busy={busy} act={act} />
+            <Arena
+              key={state.round_id}
+              state={state}
+              busy={busy}
+              act={act}
+              seconds={seconds}
+            />
           )}
           {state.me.host && (
             <HostControls

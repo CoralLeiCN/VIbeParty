@@ -42,6 +42,10 @@ class SubmissionBody(RoundBody):
     text: str = Field(max_length=2000)
 
 
+class RevealBody(RoundBody):
+    expected_reveal_index: int = Field(ge=0, le=2)
+
+
 def token(request):
     return request.cookies.get(COOKIE)
 
@@ -91,6 +95,11 @@ async def reset(body: RoundBody, request: Request):
     return await game.reset(token(request), body.round_id)
 
 
+@router.post("/reveal/next")
+async def reveal_next(body: RevealBody, request: Request):
+    return await game.reveal_next(token(request), body.round_id, body.expected_reveal_index)
+
+
 @router.api_route("/media/{media_id}", methods=["GET", "HEAD"])
 async def media(media_id: str, request: Request):
     async with game.lock:
@@ -125,7 +134,7 @@ async def session_summary(request: Request) -> SessionSummary | None:
             player = game.member(token(request))
         except AppError:
             return None
-        host = player.role == "A"
+        host = game.is_host(player)
         return SessionSummary(
             game_id=GAME,
             role="host" if host else "player",
