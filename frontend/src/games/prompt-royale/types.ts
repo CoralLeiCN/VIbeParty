@@ -33,6 +33,7 @@ export type Snapshot = {
     prompt?: string;
     voted?: boolean;
     vote?: string | null;
+    clip_status?: "unavailable" | "not_submitted";
   };
   round_id: string | null;
   seconds_left: number;

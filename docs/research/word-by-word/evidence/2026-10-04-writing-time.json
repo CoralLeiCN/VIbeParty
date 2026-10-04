@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-04",
+  "tester": "Codex",
+  "fixture_version": "categories-v1",
+  "scenario_id": "WW-CAT-01",
+  "flow": "one-player current four-slot demo",
+  "mode": "fixture",
+  "answers": {
+    "Place": "Enchanted forest",
+    "Character": "A fox wearing a crown",
+    "Action": "Dances ballet",
+    "Consequence": "Glowing snow begins falling"
+  },
+  "assignments": {
+    "Bailey": ["Place", "Character", "Action", "Consequence"]
+  },
+  "browser": {
+    "surface": "Codex in-app browser",
+    "viewport": {"width": 390, "height": 844},
+    "initial_writing_window_seconds": 60,
+    "category_instructions_and_examples": "pass: the four standard categories, instructions, and exact fixture answers were visible",
+    "remaining_assignments": "pass: accepting each idea removed its category from the status and changed the remaining count from 4 to 3, 2, and 1",
+    "scroll": "pass: at scrollY 1186.5, the timer and remaining categories stayed pinned 8 pixels from the viewport top",
+    "refresh": "pass: after accepting Place, refresh retained the accepted answer and three remaining assignments; countdown continued from 44 to 41 seconds",
+    "early_completion": "pass: accepting the fourth idea with 29 seconds remaining immediately entered preparation",
+    "screenshot_rehearsal": "A second fixture round was used to capture the phone status after accepting Place, then deliberately closed."
+  },
+  "automated_validation": {
+    "backend": "35 focused Word by Word game/API tests passed",
+    "deadline_coverage": "Shared windows of 60/30/30/15 seconds for 1/2/3/4 players; same deadline for host and players; retries preserve deadline; final missing idea rejected at expiry without generation",
+    "frontend": "TypeScript, lint, production build, and git diff --check passed"
+  },
+  "scope": "Writing-time and collection-interface verification only. Live generation, visual effects, and playback were not evaluated in this run. Fixture mode made no paid provider calls.",
+  "overall": "pass for writing-time change"
+}

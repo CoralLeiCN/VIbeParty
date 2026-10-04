@@ -6,9 +6,10 @@ type Props = {
   state: Snapshot;
   busy: boolean;
   act: (path: string, data?: object) => Promise<void>;
+  seconds: number;
 };
 
-export function Arena({ state, busy, act }: Props) {
+export function Arena({ state, busy, act, seconds }: Props) {
   const videos = useRef<Record<string, HTMLVideoElement>>({});
   const running = useRef(false);
   const starting = useRef(false);
@@ -25,6 +26,8 @@ export function Arena({ state, busy, act }: Props) {
   const eligibleIds = readyTiles.map((t) => t.id!).join(",");
   const allReady =
     readyTiles.length > 0 && readyTiles.every((t) => status[t.id!] === "ready");
+  const selectedId = state.me.voted ? (state.me.vote ?? null) : selection;
+  const selectedTile = readyTiles.find((tile) => tile.id === selectedId);
 
   function pause() {
     running.current = false;
@@ -92,6 +95,48 @@ export function Arena({ state, busy, act }: Props) {
 
   return (
     <section aria-label="Anonymous arena" className={styles.arenaSection}>
+      {state.phase === "voting" && (
+        <section className={styles.voteBar} aria-label="Your vote">
+          <div className={styles.voteSummary}>
+            <div aria-live="polite">
+              <strong>
+                {state.me.voted
+                  ? state.me.vote
+                    ? "Vote locked ✓"
+                    : "Abstention locked ✓"
+                  : selectedTile
+                    ? `${selectedTile.label} selected`
+                    : "Choose a clip"}
+              </strong>
+              <span>
+                {state.me.voted
+                  ? selectedTile?.label || "Waiting for the room."
+                  : "Your selection stays editable until you vote."}
+              </span>
+            </div>
+            <strong className={styles.timer} aria-label="Time remaining">
+              {seconds}s
+            </strong>
+          </div>
+          {!state.me.voted && (
+            <div className={styles.voteActions}>
+              <button
+                disabled={busy || !selection}
+                onClick={() => void act("/round/vote", { entry_id: selection })}
+              >
+                Vote
+              </button>
+              <button
+                className={styles.secondary}
+                disabled={busy}
+                onClick={() => void act("/round/vote", { entry_id: null })}
+              >
+                Abstain
+              </button>
+            </div>
+          )}
+        </section>
+      )}
       <div className={styles.arenaHeading}>
         <h2>The arena</h2>
         <span>Same clips. Same positions.</span>
@@ -101,7 +146,7 @@ export function Arena({ state, busy, act }: Props) {
           <article
             key={tile.position}
             data-testid={`tile-${tile.position}`}
-            className={`${styles.tile} ${tile.winner ? styles.winner : ""} ${selection === tile.id ? styles.selected : ""}`}
+            className={`${styles.tile} ${tile.winner ? styles.winner : ""} ${selectedId === tile.id ? styles.selected : ""}`}
           >
             <div className={styles.tileTitle}>
               <strong>{tile.label}</strong>
@@ -191,13 +236,13 @@ export function Arena({ state, busy, act }: Props) {
                 {state.phase === "voting" && (
                   <button
                     className={styles.choose}
-                    aria-pressed={selection === tile.id}
+                    aria-pressed={selectedId === tile.id}
                     disabled={busy || state.me.voted || tile.own}
                     onClick={() => setSelection(tile.id!)}
                   >
                     {tile.own
                       ? "Your clip · cannot vote"
-                      : selection === tile.id
+                      : selectedId === tile.id
                         ? "Selected ✓"
                         : `Choose ${tile.label}`}
                   </button>
@@ -278,30 +323,9 @@ export function Arena({ state, busy, act }: Props) {
         <p>The host opens voting after everyone has watched.</p>
       )}
       {state.phase === "voting" && (
-        <div className={styles.hostControls}>
-          <p>Vote privately. Authors and totals stay hidden until results.</p>
-          {state.me.voted ? (
-            <strong role="status">
-              {state.me.vote ? "Vote locked ✓" : "Abstention locked ✓"}
-            </strong>
-          ) : (
-            <div className={styles.controls}>
-              <button
-                disabled={busy || !selection}
-                onClick={() => void act("/round/vote", { entry_id: selection })}
-              >
-                Vote
-              </button>
-              <button
-                className={styles.secondary}
-                disabled={busy}
-                onClick={() => void act("/round/vote", { entry_id: null })}
-              >
-                Abstain
-              </button>
-            </div>
-          )}
-        </div>
+        <p className={styles.hint}>
+          Vote privately. Authors and totals stay hidden until results.
+        </p>
       )}
     </section>
   );

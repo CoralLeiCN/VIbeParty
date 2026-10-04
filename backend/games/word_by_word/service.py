@@ -38,7 +38,7 @@ class Game:
         *,
         provider_factory: Callable[[str], Provider] | None = None,
         clock: Callable[[], float] = time.time,
-        input_seconds: float = 45,
+        input_seconds_per_idea: float = 15,
         total_seconds: float = 180,
         expiry_seconds: float = 1800,
         attempt_limit: int = 3,
@@ -58,7 +58,7 @@ class Game:
         self.provider_closing = False
         self.attempts = 0
         self.attempt_limit = attempt_limit
-        self.input_seconds = input_seconds
+        self.input_seconds_per_idea = input_seconds_per_idea
         self.total_seconds = total_seconds
         self.expiry_seconds = expiry_seconds
         self.media = context.settings.media_dir(GAME_ID)
@@ -391,7 +391,10 @@ class Game:
             r.mode = mode
             r.phase = "INPUT"
             r.slots = [Slot(i, room.players[i % len(room.players)].token) for i in range(4)]
-            r.input_deadline = self.clock() + self.input_seconds
+            most_ideas = max(
+                sum(slot.owner == player.token for slot in r.slots) for player in room.players
+            )
+            r.input_deadline = self.clock() + self.input_seconds_per_idea * most_ideas
             room.touch(self.clock())
             return self.snapshot(token)
 

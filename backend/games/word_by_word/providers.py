@@ -9,18 +9,27 @@ from typing import Protocol
 
 from .domain import CATEGORIES, FIXTURE_TEXT, Clip
 
-STYLE = (
-    "Playful illustrated scene, wide fixed camera, minimal camera movement. "
-    "Preserve the established setting and the same character appearance. "
-    "Apply the action to the existing character. Add only the current idea. "
+STYLE = "Playful illustrated scene, wide fixed camera, minimal camera movement. "
+STAGE_DIRECTIONS = (
+    "Establish only the Place described below, without adding a main subject or story event.",
+    "Introduce the Character in the established Place. Preserve the setting and the "
+    "character's described appearance.",
+    "Show the same Character performing the Action in the established Place. Preserve the "
+    "setting and the character's appearance.",
+    "Show the Consequence as a visible change in the established scene. Retain the same "
+    "Character, its appearance, the Place, and the ongoing Action wherever compatible "
+    "with this change.",
 )
 Update = Callable[[int, float], Awaitable[None]]
 
 
 def scene_prompt(texts: list[str], index: int) -> str:
     # Preserve accepted text and include only facts through this category.
-    return STYLE + "\n".join(
-        f"{CATEGORIES[i]}: {text}" for i, text in enumerate(texts[: index + 1])
+    return (
+        STYLE
+        + STAGE_DIRECTIONS[index]
+        + "\n"
+        + "\n".join(f"{CATEGORIES[i]}: {text}" for i, text in enumerate(texts[: index + 1]))
     )
 
 

@@ -2,7 +2,7 @@
 
 [All docs](../../README.md) · [Game spec](game-spec.md) · [Simplification](simplification.md) · [Research](../../research/reverse-prompt/README.md)
 
-Version: 2.4 local FastH3 demo scope. Updated: 12 September 2026. Status: retained-session relay implemented in `11a9010`, following the FastH3 replacement and compact-event correction. Local tests and timed fixture walkthroughs pass; real retained-session acceptance remains open.
+Version: 2.5 local FastH3 demo scope. Updated: 4 October 2026. Status: retained-session relay, sequential reveal, and author rotation implemented. Local tests and three-round fixture walkthroughs pass; real retained-session acceptance remains open.
 
 **The stack is sufficient for the three-player demo.** Use one persistent Python application, in-memory game state, and private local video files. One real five-second capture passed. The outstanding feasibility test is completing all three independent clips in one retained session within the demo's time budget. Follow the [game specification](game-spec.md); this document replaces the broader [backend requirements](../../backend-spec.md) for Reverse Prompt. See [before and after](simplification.md) and the [archived architecture](archive/tech-stack-v1.md).
 
@@ -53,14 +53,14 @@ Suggested files are sufficient: `frontend/src/App.tsx`, `api.ts`, `components/`,
 
 ## 3. State and HTTP contract
 
-Keep one `Room` containing its random internal ID, a separate four-digit room code string, three player records, host ID, and current `Round`. Each player has a server-issued random guest token. A round holds its ID, phase, step index, three immutable prompts, three local media descriptors, two guesses, final scores/outcome, and submission receipts. No history survives reset or restart.
+Keep one `Room` containing its random internal ID, a separate four-digit room code string, three player records, host ID, and current `Round`. Each player has a server-issued random guest token. A round holds its ID, phase, step index, three immutable prompts, three local media descriptors, two guesses, final scores/outcome, submission receipts, reveal index, and whether the final results have been disclosed. Host authority belongs to the creator independently of the current A/B/C assignments. Keep the original roster stable and derive the cyclic role order for each round. No history survives reset or restart.
 
-Follow the shared [room code standard](../../shared/room-code-spec.md) for generation, validation, join links, lifecycle, and implementation acceptance. **Start another round** and the unfinished-round reset keep the roster and code; a server restart removes the room lookup and requires everyone to join a newly created room.
+Follow the shared [room code standard](../../shared/room-code-spec.md) for generation, validation, join links, lifecycle, and implementation acceptance. **Start another round** and the unfinished-round reset keep the roster and code. Only resetting after the final results reveal advances the author once; stopped/failed rounds keep their assignments. Scoring failure still rotates after its completed unscored reveal; a server restart removes the room lookup and requires everyone to join a newly created room.
 
 ```text
 lobby → author_input → generating(0) → relay_input(1)
       → generating(1) → relay_input(2) → generating(2)
-      → guessing → scoring → reveal
+      → guessing → scoring → reveal(pair 0 → pair 1 → pair 2 → guesses/results)
 Generation failure, relay expiry or round deadline → error; host reset → lobby
 ```
 
@@ -71,12 +71,13 @@ Generation failure, relay expiry or round deadline → error; host reset → lob
 | `GET /api/state` | Return only this guest's public state, own accepted text, and allowed media IDs |
 | `POST /api/start` | Host only; exactly three players, scoring model ready, no unresolved session, at least three unused attempts |
 | `POST /api/submit` | Round ID, expected phase/step, client submission UUID, text; server derives player/role |
+| `POST /api/reveal/next` | Creator only; round ID and expected reveal index. Advance one pair or disclose results after pair 2; duplicate advances are idempotent and future indices conflict. |
 | `POST /api/reset` | Host only, expected round ID; stop current work and return to lobby when cleanup permits |
 | `GET /api/media/{media_id}` | Authenticate and recheck current phase/role; support byte ranges |
 
 Return `200` with the submission receipt after local validation and acceptance; generation or scoring continues in its retained task. Same ID/body returns the same receipt without scheduling duplicate work. Different content for the same ID, a filled slot, or the wrong phase returns `409`. Invalid text returns `422` without occupying the slot; corrected input uses a new UUID. Store duplicate receipts only for the current round. Check Start/Reset under the same lock and reject stale host commands. Join retries from an already issued guest cookie return that guest instead of consuming a slot.
 
-Poll every second while visible, immediately on focus and after commands, with one request in flight and a short error backoff. Show a connection message after repeated failure. Snapshots carry room/round ID and monotonically increasing revision; ignore older responses. Replace private UI state when its phase permission ends. Input drafts stay component-local and clear on round change.
+Poll every second while visible, immediately on focus and after commands, with one request in flight and a short error backoff. Show a connection message after repeated failure. Snapshots carry room/round ID, `is_host`, the current role and ordered roster with host flags, `reveal_index` (null outside reveal), `results_revealed`, and monotonically increasing revision; ignore older responses. During reveal, project only the disclosed chain prefix and its media. Hide final results and the unscored flag until results are disclosed. The requester’s own accepted text remains private to them. Replace private UI state when its phase permission ends. Input drafts stay component-local and clear on round change.
 
 Use a random opaque `HttpOnly`, `SameSite=Strict` guest cookie, same-origin fetch, JSON-only mutations, and an Origin check against the configured browser origin. Omit `Secure` for the trusted local HTTP demo so phones can send cookies to the laptop's LAN address. Names and room codes are not identity. Keep the organizer code server-side and apply simple per-IP attempt limits to create/join. Secrets and Reactor tokens never reach the browser. A restart invalidates guest sessions; no recovery account is necessary.
 

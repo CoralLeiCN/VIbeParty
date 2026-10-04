@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-04",
+  "tester": "Codex",
+  "fixture_version": "categories-v1",
+  "scenario_id": "WW-CAT-01",
+  "flow": "one-player demo; Bailey owns Place, Character, Action, Consequence",
+  "mode": "fixture",
+  "inputs": [
+    "Enchanted forest",
+    "A fox wearing a crown",
+    "Dances ballet",
+    "Glowing snow begins falling"
+  ],
+  "category_form_instructions": "not independently checked; assigned fixture answers submitted through authenticated API",
+  "test": "frontend/tests/word-playback.spec.ts",
+  "browser": "Playwright Chromium 153 headless",
+  "overall": "passed",
+  "baseline": {
+    "result": "expected failure with original playback implementation",
+    "interrupted_seconds": 7.917986,
+    "resumed_seconds": 0.000124
+  },
+  "fixed": {
+    "scenario": "WW-CAT-01",
+    "mode": "fixture",
+    "flow": "one-player demo; Bailey owns Place, Character, Action, Consequence",
+    "recoveryResults": [
+      {
+        "interrupted": 7.956908,
+        "resumed": 7.957141
+      },
+      {
+        "interrupted": 13.64879,
+        "resumed": 13.669498
+      }
+    ],
+    "blockedSegments": [
+      8,
+      8,
+      9,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      14,
+      15,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19
+    ],
+    "replayStart": 0.000808,
+    "savedPlayback": {
+      "interruption": "simulated media error after real playback",
+      "interrupted": 4.905078,
+      "resumed": 4.905254,
+      "replayWhileLoadingStart": 0
+    },
+    "browserApiMutations": []
+  },
+  "checks": {
+    "two_real_HLS_request_failures_and_reconnects": "passed",
+    "forward_progress_and_matching_contribution_cards": "passed",
+    "round_stream_and_live_attempt_count_preserved": "passed",
+    "native_MP4_reconnect_after_simulated_media_error": "passed",
+    "explicit_replay_from_zero": "passed",
+    "replay_while_MP4_metadata_request_pending": "passed",
+    "frontend_build_and_lint": "passed",
+    "native_HLS_on_Safari": "not tested",
+    "live_generation_and_visual_quality": "not tested; synthetic fixture only",
+    "provider_closure_billable_time_cost": "not applicable; no provider session created"
+  },
+  "media_retention": "Temporary fixture media removed by test party cleanup."
+}

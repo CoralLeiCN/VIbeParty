@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-04",
+  "tester": "Codex game review",
+  "fixture_version": "categories-v1",
+  "scenario_id": "WW-CAT-01",
+  "repeat": 1,
+  "flow": "three-player demo with separate laptop host",
+  "mode": "fixture",
+  "scenario_inputs": [
+    {"category": "Place", "player": "Bailey", "text": "Enchanted forest"},
+    {"category": "Character", "player": "Casey", "text": "A fox wearing a crown"},
+    {"category": "Action", "player": "Drew", "text": "Dances ballet"},
+    {"category": "Consequence", "player": "Bailey", "text": "Glowing snow begins falling"}
+  ],
+  "method": "Existing frontend/tests/combined.spec.ts browser integration test against a local fixture-only server, using Chromium with separate laptop and 390x844 phone contexts. Contributions submitted through authenticated test API clients using assigned fixture_text.",
+  "checks": {
+    "create_and_join": "pass",
+    "refresh_preserves_identity": "pass",
+    "category_form_instructions_and_examples": "not independently checked in this rehearsal",
+    "submission_privacy_and_locking": "covered by separate backend tests; not independently asserted in this browser scenario",
+    "automatic_continuous_playback": "pass",
+    "same_stream_after_refresh": "pass",
+    "four_result_cards": "pass",
+    "saved_recording_replay": "pass",
+    "return_and_continue": "pass",
+    "another_round_keeps_room_and_roster": "pass",
+    "switch_retires_old_room_and_media": "pass",
+    "live_visual_effects_and_timing": "not tested; synthetic fixtures do not establish model quality",
+    "provider_closure_billable_duration_and_cost": "not applicable; no provider session created",
+    "physical_phone_playback": "not tested"
+  },
+  "overall": "pass for the listed fixture flow checks only",
+  "combined_review": {
+    "backend": "239 tests passed, 2 dependency deprecation warnings",
+    "frontend_build": "passed; large JavaScript bundle warning",
+    "frontend_lint": "passed",
+    "frontend_unit_tests": "no Vitest test files; not counted as test coverage",
+    "browser": "Existing complete-all-three-games integration test passed in 43.8 seconds. Word by Word, Reverse Prompt scripted rehearsal, and four-player Prompt Royale fixture rounds completed, with continuation, rematch, and cleanup.",
+    "live_generation": "not run"
+  }
+}

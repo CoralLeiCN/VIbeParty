@@ -8,7 +8,7 @@ Shared prefix: `/api/games/word-by-word`. `integration.py` exports the frozen sh
 | POST `/join` | `{code,name}`. Accepts up to the host-selected 1–4 players, join order preserved. Existing player cookie resumes even when full. |
 | POST `/room/settings` | `{round_id,player_count}`. Host only, lobby only, strict integer 1–4 (default 3). Rejects a count below the joined roster, stale rounds, and pending cleanup. |
 | GET `/state` | Explicit role projection below. Does not update inactivity. |
-| POST `/round/start` | `{round_id,mode:"fixture"}` or live after the live gate. Requires exactly the selected player count. Freezes roster, four round-robin slots, 45-second collection. Duplicate/stale start conflicts. |
+| POST `/round/start` | `{round_id,mode:"fixture"}` or live after the live gate. Requires exactly the selected player count. Freezes roster and four round-robin slots. Shared collection time is 15 seconds times the largest individual assignment: 60/30/30/15 seconds for 1/2/3/4 players. The fixed `input_deadline` survives refresh and accepted-submission retries. Duplicate/stale start conflicts. |
 | POST `/contribution` | `{round_id,slot_index,text}`. Owner only; 1–120 Unicode code points after Unicode White_Space trimming. Same accepted text succeeds again; changed text conflicts. Fourth accepted input starts exactly one generation task. |
 | POST `/reveal/next` | `{round_id,expected_reveal_index}`. Host only. Initial index -1 means Play; current expected index prevents duplicate Next advancement. After the last clip, changes to RESULTS. |
 | GET `/clips/{round_id}/{index}` | Host cookie and disclosed index required, including Range requests. Saved H.264 MP4, no-store. No static media mount, no future URLs. |

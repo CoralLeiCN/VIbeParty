@@ -8,7 +8,8 @@ export type Snapshot = {
   phase: string;
   step: number;
   role: string;
-  players: { role: string; name: string }[];
+  is_host: boolean;
+  players: { role: string; name: string; is_host: boolean }[];
   own: { prompt?: string; guess?: string };
   media: Media[];
   guess_count: number;
@@ -24,6 +25,8 @@ export type Snapshot = {
   remaining_attempts?: number;
   cleanup_pending: boolean;
   scripted_text?: string;
+  reveal_index: number | null;
+  results_revealed: boolean;
   chain?: { prompt: string; player: string; role: string; media: Media }[];
   results?: {
     role: string;

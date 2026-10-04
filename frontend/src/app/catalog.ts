@@ -30,7 +30,7 @@ export const catalog: {
     description:
       "Pass an idea through videos and descriptions. Can you guess where it started?",
     players: "Exactly 3 players, including the host",
-    host: "The host starts the story",
+    host: "Take turns as the author",
     tag: "Guess the original",
   },
 ];

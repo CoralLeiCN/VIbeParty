@@ -202,6 +202,21 @@
   padding: 14px;
   margin: 14px 0;
 }
+.duoNotice {
+  padding: 12px 16px;
+  margin-bottom: 24px;
+  border-left: 3px solid var(--accent);
+  background: #282c20;
+  color: var(--ink);
+  font-size: 14px;
+}
+.clipNotice {
+  padding: 12px 16px;
+  border: 1px solid #baa4ef;
+  border-radius: 10px;
+  background: #282330;
+  font-size: 14px;
+}
 .phaseBar {
   display: flex;
   justify-content: space-between;
@@ -353,6 +368,42 @@
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 16px;
+}
+.voteBar {
+  position: sticky;
+  top: max(8px, env(safe-area-inset-top));
+  z-index: 3;
+  max-width: 900px;
+  margin: 0 auto 18px;
+  padding: 12px 16px;
+  border: 1px solid #788c43;
+  border-radius: 12px;
+  background: #24282a;
+  box-shadow: 0 5px 20px #0006;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.voteSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  gap: 16px;
+}
+.voteSummary span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.voteActions {
+  display: flex;
+  gap: 8px;
+}
+.arena .choose {
+  scroll-margin-top: 180px;
 }
 .arenaHeading h2 {
   margin: 0;
@@ -522,6 +573,17 @@
   }
 }
 @media (max-width: 700px) {
+  .voteBar {
+    display: block;
+    padding: 10px 12px;
+  }
+  .voteActions {
+    margin-top: 10px;
+  }
+  .voteActions button {
+    flex: 1;
+    padding: 10px 14px;
+  }
   .page {
     padding: 18px 16px;
   }

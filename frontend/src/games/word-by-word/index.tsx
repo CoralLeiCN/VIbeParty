@@ -371,6 +371,12 @@ function Party({
   const blocked = pending || s.provider_closing || s.busy || s.closing;
   const phase = s.phase;
   const waitingPlayers = s.player_count - s.players.length;
+  const remainingAssignments =
+    s.assignments?.filter((assignment) => assignment.accepted_text === null) ??
+    [];
+  const remainingIdeas = host
+    ? Math.max(0, 4 - s.collected)
+    : remainingAssignments.length;
   const imageSource = s.image_sources?.find(
     (source) => source.id === s.image_source,
   );
@@ -425,9 +431,6 @@ function Party({
       )}
       <div className="wbw-phase-heading">
         <h2>{phaseLabels[phase]}</h2>
-        {phase === "INPUT" && s.input_deadline && (
-          <Countdown deadline={s.input_deadline} serverTime={s.server_time} />
-        )}
       </div>
       {phase === "LOBBY" && (
         <div className="wbw-lobby">
@@ -643,6 +646,10 @@ function Party({
                 : "Your group is ready."}{" "}
               {assignmentSummary}
             </p>
+            <p className="wbw-muted">
+              Writing time: {Math.ceil(4 / s.player_count) * 15} seconds for the
+              group, with 15 seconds per idea in the largest assignment.
+            </p>
             {host && s.players.length > 1 && (
               <p className="wbw-muted">
                 To choose fewer players than have joined, use Reset party below.
@@ -651,35 +658,65 @@ function Party({
           </section>
         </div>
       )}
-      {phase === "INPUT" &&
-        (host ? (
-          <section className="wbw-panel wbw-center">
-            <span className="wbw-big-count">
-              {s.collected}
-              <i>/4</i>
-            </span>
-            <h3>Secret ideas are coming in.</h3>
-            <p>
-              The story stays folded until the reveal. Everyone has 45 seconds.
-            </p>
-            <Progress count={s.collected} />
-          </section>
-        ) : (
-          <div className="wbw-assignments">
-            {s.assignments?.map((a) => (
-              <Contribution
-                key={a.index}
-                assignment={a}
-                act={act}
-                pending={pending}
-              />
-            ))}
-            <p className="wbw-muted">
-              {s.collected} of 4 contributions accepted. Keep the others a
-              surprise.
-            </p>
+      {phase === "INPUT" && (
+        <>
+          <div
+            className={`wbw-writing-status ${host ? "" : "wbw-writing-status-player"}`}
+          >
+            <div aria-live="polite">
+              <strong>
+                {remainingIdeas === 0 && !host
+                  ? "All your ideas are in"
+                  : `${remainingIdeas} ${remainingIdeas === 1 ? "idea" : "ideas"} left${host ? " for the group" : " for you"}`}
+              </strong>
+              <p>
+                {host
+                  ? "15 seconds per idea in the largest assignment."
+                  : remainingAssignments.length
+                    ? remainingAssignments
+                        .map((assignment) => assignment.category)
+                        .join(" · ")
+                    : "Waiting for the rest of the group."}
+              </p>
+            </div>
+            {s.input_deadline && (
+              <div className="wbw-writing-time">
+                <span>Time left</span>
+                <Countdown
+                  deadline={s.input_deadline}
+                  serverTime={s.server_time}
+                />
+              </div>
+            )}
           </div>
-        ))}
+          {host ? (
+            <section className="wbw-panel wbw-center">
+              <span className="wbw-big-count">
+                {s.collected}
+                <i>/4</i>
+              </span>
+              <h3>Secret ideas are coming in.</h3>
+              <p>The story stays folded until the reveal.</p>
+              <Progress count={s.collected} />
+            </section>
+          ) : (
+            <div className="wbw-assignments">
+              {s.assignments?.map((a) => (
+                <Contribution
+                  key={a.index}
+                  assignment={a}
+                  act={act}
+                  pending={pending}
+                />
+              ))}
+              <p className="wbw-muted">
+                {s.collected} of 4 contributions accepted. Keep the others a
+                surprise.
+              </p>
+            </div>
+          )}
+        </>
+      )}
       {phase === "GENERATING" && (
         <section className="wbw-panel wbw-center">
           <div className="wbw-orbit" aria-hidden="true">
@@ -920,7 +957,7 @@ function Contribution({
 
 function Playback({ state: s }: { state: Snapshot }) {
   const video = useRef<HTMLVideoElement>(null);
-  const initialPosition = useRef(
+  const resumePosition = useRef(
     s.phase === "STREAMING" ? (s.cards.at(-1)?.at_seconds ?? 0) : 0,
   );
   const [replaying, setReplaying] = useState(false);
@@ -938,29 +975,63 @@ function Playback({ state: s }: { state: Snapshot }) {
     const element = video.current;
     if (!element || !source) return;
     let disposed = false;
+    let trackingPosition = false;
+    const startPosition = resumePosition.current;
+    const rememberPosition = () => {
+      // Loading and teardown can reset currentTime before playback resumes.
+      if (
+        disposed ||
+        !trackingPosition ||
+        element.readyState < HTMLMediaElement.HAVE_METADATA
+      )
+        return;
+      resumePosition.current = element.currentTime;
+      setPosition(element.currentTime);
+    };
+    const playing = () => {
+      trackingPosition = true;
+      rememberPosition();
+      setNeedsPlay(false);
+    };
+    const interrupted = () => {
+      if (disposed) return;
+      rememberPosition();
+      trackingPosition = false;
+      setPlaybackError(true);
+    };
     const play = () => {
       void element.play().catch(() => {
         if (!disposed) setNeedsPlay(true);
       });
     };
+    const restoreNativePosition = () => {
+      // Replay may reset the requested position while metadata is loading.
+      element.currentTime = resumePosition.current;
+      play();
+    };
+    element.addEventListener("timeupdate", rememberPosition);
+    element.addEventListener("playing", playing);
+    element.addEventListener("error", interrupted);
     let hls: Hls | undefined;
     if (source.endsWith(".m3u8") && Hls.isSupported()) {
       hls = new Hls({
-        startPosition: initialPosition.current,
+        startPosition,
         maxBufferLength: 30,
       });
       hls.loadSource(source);
       hls.attachMedia(element);
       hls.on(Hls.Events.MANIFEST_PARSED, play);
       hls.on(Hls.Events.ERROR, (_event, data) => {
-        if (data.fatal && !disposed) setPlaybackError(true);
+        if (data.fatal) interrupted();
       });
     } else if (
       !source.endsWith(".m3u8") ||
       element.canPlayType("application/vnd.apple.mpegurl")
     ) {
+      element.addEventListener("loadedmetadata", restoreNativePosition, {
+        once: true,
+      });
       element.src = source;
-      play();
     } else {
       // This callback runs after setup, matching media event error handling.
       queueMicrotask(() => {
@@ -969,6 +1040,10 @@ function Playback({ state: s }: { state: Snapshot }) {
     }
     return () => {
       disposed = true;
+      element.removeEventListener("timeupdate", rememberPosition);
+      element.removeEventListener("playing", playing);
+      element.removeEventListener("error", interrupted);
+      element.removeEventListener("loadedmetadata", restoreNativePosition);
       hls?.destroy();
       element.pause();
       element.removeAttribute("src");
@@ -992,9 +1067,6 @@ function Playback({ state: s }: { state: Snapshot }) {
             muted
             playsInline
             autoPlay
-            onTimeUpdate={() => setPosition(video.current?.currentTime ?? 0)}
-            onPlaying={() => setNeedsPlay(false)}
-            onError={() => setPlaybackError(true)}
             aria-label={replaying ? "Saved story" : "Continuous story"}
           />
           {card && (
@@ -1026,6 +1098,15 @@ function Playback({ state: s }: { state: Snapshot }) {
           Playback was interrupted. Your story keeps running.
           <button
             onClick={() => {
+              const element = video.current;
+              // Buffered playback may advance after the interruption was reported.
+              // Keep the saved time if the failed source has already reset to zero.
+              if (
+                element &&
+                element.readyState >= HTMLMediaElement.HAVE_METADATA &&
+                element.currentTime > 0
+              )
+                resumePosition.current = element.currentTime;
               setPlaybackError(false);
               setReload((value) => value + 1);
             }}
@@ -1039,6 +1120,7 @@ function Playback({ state: s }: { state: Snapshot }) {
           <button
             className="wbw-primary"
             onClick={() => {
+              resumePosition.current = 0;
               setPlaybackError(false);
               setPosition(0);
               if (replaying && video.current) {

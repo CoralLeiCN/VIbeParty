@@ -25,6 +25,17 @@ Friends privately contribute four ideas, then watch them enter **one continuous 
 
 Each form says: “Write a word, phrase, or short sentence. Keep it to one idea.” Assign slots round-robin in join order. One player writes all four; with two players each writes two; with three the first writes Place and Consequence; with four each writes one. Rematches preserve the roster and assignments.
 
+Allow **15 seconds per idea**, using the largest individual assignment to set one shared writing countdown. Everyone writes in parallel and can submit their assigned ideas in any order within that window.
+
+| Players | Largest assignment | Shared writing time |
+| --- | --- | --- |
+| 1 | 4 ideas | 60 seconds |
+| 2 | 2 ideas | 30 seconds |
+| 3 | 2 ideas | 30 seconds |
+| 4 | 1 idea | 15 seconds |
+
+Keep a compact writing status visible while scrolling on laptop and phone screens: the shared countdown and the player's remaining idea count and category names. Once their ideas are accepted, show that they are waiting for the others. The host sees the shared countdown and total remaining count; private answers stay hidden.
+
 Each contribution is 1–120 Unicode code points after trimming surrounding whitespace. Preserve exact wording, capitalization, punctuation, and non-ASCII text. Empty, over-limit, invalid Unicode, and configured filtered text are rejected with correctable feedback. The categories guide players without an AI grammar check. Accepted text locks; duplicate identical submissions are idempotent. Ownership is enforced by the server. Never autofill a live player's contribution.
 
 The fixture rehearsal uses the exact `WW-CAT-01` examples and one scripted 24-second video. It is clearly labelled, never represented as generated output, and cannot accept unrelated fixture answers.
@@ -33,17 +44,19 @@ The fixture rehearsal uses the exact `WW-CAT-01` examples and one scripted 24-se
 
 1. **Join:** the host opens the laptop screen (with a passcode when required) and chooses 1–4 players. Phones join with a prefilled random name they can keep or edit and the shared four-digit room code. Preserve name edits while completing the form and correcting errors. Codes can start with zero. No late joins or waiting list.
 2. **Start:** in live mode, the host chooses a starting-image source for this round: generate with Codex, upload an image, generate through the OpenAI API, or use the configured server image. Upload requires a valid still PNG, JPEG, or WebP up to 10 MiB and 16 megapixels; the host sees a private preview and ready status. When the selected number has joined and the source is ready, freeze the roster and assign the categories.
-3. **Write:** collect all four contributions privately within 45 seconds. The host sees only the count. Missing input ends the round without generation.
+3. **Write:** collect all four contributions privately using the shared writing time above, fixed when the round starts. Accepted submissions and refreshes do not reset or extend the deadline. Start preparing early when all four are accepted. Missing input when the shared countdown expires ends the round without generation.
 4. **Prepare:** after all four answers are accepted, use the selected image source, then open a LingBot World 2 session. Both generation sources use only the first joined player’s accepted Place answer, regardless of submission order. Codex uses the host’s saved ChatGPT login through `codex exec`; API generation requires `OPENAI_API_KEY`. An uploaded or configured image supplies the scene directly and should match Place. The configured file never overrides another selected source. Show “Preparing your story.”
 5. **Stream:** automatically play the video once it is available. Establish Place, then send cumulative prompts for Character, Action, and Consequence in the same running session. Apply the next prompt on a timer; no visual inspection or manual Next action is required. Show the submitted words and contributor names as their category is introduced. Phones follow the disclosed story.
 6. **Finish:** after the final category has run, stop generation, finish the single recording, and independently confirm provider closure. The browser finishes buffered video without changing its source.
 7. **Replay:** Replay plays the saved recording from the beginning, with no generation. Start another round clears the recording and uploaded/generated round images, resets the image choice to Codex, and returns the same players to the lobby.
 
-Refreshing the host screen reconnects to the current round's stream; it never creates another model session. Muted inline playback starts automatically where the browser permits it. A Resume control handles autoplay restrictions. Reconnect video retries playback only.
+Refreshing the host screen reconnects to the current round's stream; it never creates another model session. Muted inline playback starts automatically where the browser permits it. A Resume control handles autoplay restrictions. **Reconnect video** retries the current stream or saved recording from its last known playback position, including after repeated interruptions. The round keeps running while playback reconnects; reconnecting does not regenerate the story or reset the round. **Replay saved story** deliberately starts the recording at the beginning.
 
 ## 4. Video behavior
 
 The model is fixed to `reactor/lingbot-world-2`. Upload one reference image, set Place, and start once. Subsequent `set_prompt` commands contain established facts plus the next category. They replace the active prompt and take effect at the next model chunk boundary. No resets or new generation sessions occur between categories. Navigation remains idle.
+
+Give each stage explicit directions: establish only Place; introduce Character into that setting; have the same Character perform Action; then show Consequence as a visible scene change while retaining the character, setting, and ongoing action wherever compatible. Place receives no instructions to introduce a character or perform an action. Keep accepted answers verbatim under their category labels, without rewriting their meaning or inventing specific movements. Future answers stay out of earlier prompts and generated starting images. These directions clarify the requested scene; they do not guarantee visual results.
 
 The default interval is six seconds of the paced stream; `WORD_BY_WORD_CATEGORY_SECONDS` allows 3–15 seconds. Command latency may extend the preceding stage. Timings mark when inputs were accepted, not a claim that their effects became visible at that exact frame. App checks cover accepted commands, received media, deadlines, access control, recording, and cleanup. They do not judge whether the fox, dance, or snow looks correct.
 
@@ -68,5 +81,11 @@ Unconfirmed provider closure blocks another live session and party switching unt
 ## 6. Acceptance
 
 Use `WW-CAT-01` for functional rehearsal, with Place mapped to the theme and Consequence mapped to Scene change. Verify private input, 1–4-player assignments, exact text, automatic progression through all four categories, a single video source, refresh, replay, cancellation, timeout, and host-only media access. The fixture run verifies app behavior; a mocked LingBot protocol test verifies one image upload/start and four cumulative prompt updates. Record the scenario and actual results. Visual model evaluation is not required for this implementation.
+
+Check that every prompt retains all accepted answers through its stage exactly, including punctuation, multiline text, non-ASCII characters, and the 120-code-point limit. Changing a future answer must leave all earlier prompts unchanged. Review generated video separately before claiming improved realization of actions or consequences.
+
+Verify writing windows of 60, 30, 30, and 15 seconds for one through four players. Refresh and accepted-submission retries retain the original deadline. The server rejects a missing idea submitted at or after expiry and starts no generation for an incomplete round. While scrolling through all assigned forms on a phone, the countdown and remaining categories stay visible and update after acceptance without exposing another player's ideas.
+
+Interrupt playback after the story has advanced, then reconnect twice. Verify playback resumes near each interruption position, contribution cards match the resumed video, and reconnecting does not create a new round or generation request. Cover hls.js playback and native media playback, including the saved MP4; verify an explicit Replay still starts at zero. Check native HLS on a supporting browser when available and record any unverified browser coverage.
 
 Multi-room operation, accounts, public sharing, audio, phone video synchronization, restart recovery, and durable saved stories remain outside this local demo.

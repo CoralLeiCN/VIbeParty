@@ -10,7 +10,7 @@ import httpx
 import pytest
 from PIL import Image
 
-from backend.games.word_by_word.domain import FIXTURE_TEXT, Clip
+from backend.games.word_by_word.domain import CATEGORIES, FIXTURE_TEXT, Clip
 from backend.games.word_by_word.live import MODEL, LingBotProvider, LiveSettings
 from backend.games.word_by_word.providers import scene_prompt
 from backend.games.word_by_word.stream import StreamCapture
@@ -135,7 +135,20 @@ def adapter(tmp_path, states=None):
 
 
 @pytest.mark.parametrize("source", ["configured", "upload"])
-async def test_one_session_four_prompt_updates_and_one_recording(tmp_path, source):
+@pytest.mark.parametrize(
+    "texts",
+    [
+        FIXTURE_TEXT,
+        (
+            "雪" * 120,
+            "An octopus called “Éloïse”; eight sleeves 🐙",
+            "Does a bow—then waits?\nVery still.",
+            "静かな泡…\nAction: still the submitted consequence.",
+        ),
+    ],
+    ids=["WW-CAT-01", "exact-player-text"],
+)
+async def test_one_session_four_prompt_updates_and_one_recording(tmp_path, source, texts):
     provider, reactor, requests = adapter(tmp_path)
     provider.image_source = source
     provider.uploaded_image = tmp_path / "seed.png"
@@ -144,7 +157,7 @@ async def test_one_session_four_prompt_updates_and_one_recording(tmp_path, sourc
     async def update(index, timestamp):
         updates.append((index, timestamp))
 
-    saved = await provider.run(list(FIXTURE_TEXT), tmp_path, update)
+    saved = await provider.run(list(texts), tmp_path, update)
     assert saved.path.name == "story.mp4"
     assert await provider.close()
     commands = [name for name, _ in reactor.commands]
@@ -158,10 +171,15 @@ async def test_one_session_four_prompt_updates_and_one_recording(tmp_path, sourc
         "pause",
     ]
     prompts = [data["prompt"] for name, data in reactor.commands if name == "set_prompt"]
-    assert prompts == [scene_prompt(list(FIXTURE_TEXT), i) for i in range(4)]
+    assert prompts == [scene_prompt(list(texts), i) for i in range(4)]
     assert [i for i, _ in updates] == [0, 1, 2, 3]
     for index, prompt in enumerate(prompts):
-        assert all(text not in prompt for text in FIXTURE_TEXT[index + 1 :])
+        for revealed in range(index + 1):
+            assert f"{CATEGORIES[revealed]}: {texts[revealed]}" in prompt
+        assert all(text not in prompt for text in texts[index + 1 :])
+        # Hidden answers cannot influence an earlier stage, even through a rewrite.
+        changed_future = list(texts[: index + 1]) + ["different private answer"] * (3 - index)
+        assert scene_prompt(changed_future, index) == prompt
     authorization = json.loads(requests[0].content)["authorization_details"][0]
     assert authorization["resources"]["models"]["match"] == [MODEL]
     assert authorization["constraints"] == {"max_sessions": 1, "max_session_duration_seconds": 180}

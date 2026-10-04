@@ -265,13 +265,7 @@
   font-weight: 750;
   color: #55665b;
 }
-.original {
-  padding: 25px;
-  background: #edf4e8;
-  border-radius: 14px;
-  margin-top: 24px;
-}
-.original blockquote {
+.chain blockquote {
   font-size: 1.45rem;
   font-family: Georgia, serif;
   margin: 0;
@@ -308,6 +302,9 @@
 }
 .chain .eyebrow {
   margin-bottom: 10px;
+}
+.revealControls {
+  padding: 12px 0;
 }
 .reset {
   padding: 24px 4px;

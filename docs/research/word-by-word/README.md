@@ -4,6 +4,8 @@
 
 Follow-up (17 September 2026): [action and consequence prompt experiment](2026-09-17-prompt-following.md). The user reported weak following of later contributions. Initial code and saved-frame review is complete; a controlled comparison of prompt wording and timing is pending.
 
+Update (4 October 2026): [stage-specific prompt directions](2026-09-17-prompt-following.md#4-october-implementation-update) now make the character/action relationship and compatible earlier details explicit. Mock protocol and exact-text checks pass; improved visual results still require the pending live comparison.
+
 Researched: 12 September 2026. Scope: the [Consequences-inspired Word by Word game](consequences.md). This is a review of public vendor documentation and API schemas, not a completed integration or a measurement of generation quality. No authenticated generation, account quota check, or paid trial was performed.
 
 Later playback/capture guidance: [FastH3 with smoothing on](../../shared/fast-h3-smoothing.md) is the shared implementation guide. It links the subsequent live diagnostics and native experiments, and describes the proposed timestamp-aware replay path and remaining acceptance work.

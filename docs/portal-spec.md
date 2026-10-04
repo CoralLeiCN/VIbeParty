@@ -14,7 +14,7 @@ A short responsive page at `/` with VibeParty identity, a visible Join party act
 | --- | --- | --- |
 | Word by Word | Secret words. One evolving scene. Everyone creates together. | 3–4 player phones and a separate laptop host/display; the presenter may separately join a phone. Cooperative. |
 | Prompt Royale | One topic. Your wildest prompts. Watch the clips and vote for your favorite. | 3–4 players including the playing host. Both topic modes belong to the game. |
-| Reverse Prompt | Pass an idea through videos and descriptions. Guess where it started. | Exactly 3 players including the playing host, who begins as author A. No input countdown. |
+| Reverse Prompt | Pass an idea through videos and descriptions. Guess where it started. | Exactly 3 players including the playing host. Authors rotate after completed reveals; interpreters have 30-second turns. |
 
 Room codes follow the [shared four-digit standard](shared/room-code-spec.md): exactly four ASCII digits stored as strings, including leading zeros. Shared generation, validation and entry components apply to every game.
 

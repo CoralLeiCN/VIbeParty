@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-04",
+  "tester": "Codex",
+  "mode": "fixture",
+  "scenario": "Four-player room with one deliberately failed fixture generation and three eligible clips",
+  "method": "Local-only fixture provider wrapper raised ProviderFailure for the reserved synthetic failure input. Production provider code and normal fixture behavior were unchanged. Host used the Codex in-app browser; synthetic guests used separate authenticated API clients.",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "checks": {
+    "private_failure_notice": "pass: affected host saw Your clip couldn\u2019t finish. You can still vote. during screening and voting; refresh preserved it.",
+    "other_player_privacy": "pass: all three other authenticated snapshots omitted clip_status; backend tests also cover absent identity/entry mapping leaks.",
+    "sticky_voting": "pass: selected Clip 3, countdown, Vote and Abstain remained visible at top 8px with scrollY 495.",
+    "editable_selection": "pass: chose Clip 1, then Clip 3 before accepting.",
+    "failed_player_can_vote": "pass: affected player voted for Clip 3; results counted that vote.",
+    "locked_refresh": "pass after correction: refreshed voting bar retained Vote locked / Clip 3 and the selected tile remained highlighted with aria-pressed true.",
+    "countdown": "pass: countdown continued after refresh; no timer extension."
+  },
+  "backend": "28 Prompt Royale rules/API tests passed, including terminal failure and missing-submission private feedback and voting rights.",
+  "frontend": "TypeScript production build, ESLint and diff checks passed; combined browser integration passed in 44.0 seconds.",
+  "provider_calls": 0,
+  "limits": "Desktop browser emulating a phone viewport; no physical-phone or live-video quality validation.",
+  "overall": "pass"
+}

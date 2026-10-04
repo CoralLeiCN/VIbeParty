@@ -2,7 +2,7 @@
 
 [All docs](../../README.md) · [Technical stack](tech-stack.md) · [Simplification](simplification.md) · [Research](../../research/prompt-royale/README.md) · [Shared controls and names](../../shared/host-controls-and-names.md)
 
-Version: 1.5, 12 September 2026. Status: simplified demo design with two topic modes, an arena reveal, 10-second voting, and one bounded retry; no application or live performance has been validated yet.
+Version: 1.6, 4 October 2026. Status: fixture application verified with two topic modes, an arena reveal, 10-second voting, and one bounded retry. Mobile voting controls and private clip-failure feedback are implemented; current live performance and physical-phone acceptance remain open.
 
 This is the authoritative scope for the Prompt Royale hackathon demo. The [app specification](../../app-spec.md) defines the wider product boundaries. See the [demo stack](tech-stack.md), [before-and-after decisions](simplification.md), and [partner research](../../research/prompt-royale/README.md).
 
@@ -27,6 +27,8 @@ No accounts, matchmaking, tournaments, game-switching UI, audience role, paired 
 ### Hackathon limitations and future exploration
 
 **The host selects 1–4 players, including themselves, at creation or in the lobby.** The default is three. Start requires exactly the selected number. The host can adjust the count between rounds, but cannot lower it below the number already joined. Joins beyond the selected count are rejected as room full. Solo rounds use the unscored showcase flow after screening. Joining during an active round is closed; there is no waiting-list implementation.
+
+For a selected two-player game, show both players the concise notice **“Two players: if you both vote, it’s a 1–1 tie.”** below the phase heading in the lobby, and during screening and voting when both clips are eligible. Update its visibility when the selected count changes. Hide it for other player counts and unscored showcases. Two-player games retain the normal voting and abstention rules.
 
 The limit reflects current generation capacity and validation time; it is not a claim that Reactor imposes a four-player limit. Rehearse the intended player count before enabling live play. Only enable the live sizes that have passed rehearsal. [Capacity research](../../research/prompt-royale/README.md#cost-capacity-and-waiting-time).
 
@@ -95,6 +97,8 @@ Allow one automatic retry for a confirmed transient failure, using the same inpu
 
 Show aggregate Queued, Generating, Retrying, and Preparing states and elapsed time. Hide clips, authors, and other players' prompts. Close once all entries finish, including eligible retries, or at 180 seconds. Freeze only completed, playable clips; failed and late entries remain unavailable. With zero clips, show no result; with one, offer an unscored showcase; with two or more, screen them for voting.
 
+Privately tell an affected player **“Your clip couldn’t finish.”** when their entry becomes unavailable. If they missed submission, use **“No scene was submitted, so you don’t have a clip this round.”** instead. During screening and voting, append **“You can still vote.”** when at least two eligible clips remain. Keep the notice through results and restore it after refresh. Other players continue to see only aggregate progress and anonymous arena tiles; the notice must not reveal an unavailable entry's author, prompt, or clip mapping.
+
 ### Screening: arena reveal
 
 Reveal every completed eligible clip together in a **2×2 arena grid**. Shuffle entries into positions once on the server and assign neutral labels, Clip 1 through Clip 4. Every browser uses the same labels and positions throughout screening, voting, and results. Authors and prompts stay hidden until results.
@@ -103,7 +107,7 @@ Reveal every completed eligible clip together in a **2×2 arena grid**. Shuffle 
 | --- | --- |
 | Clip 3 | Clip 4 |
 
-All four silent videos, each up to five seconds, start **at the same time** and repeat together so players can compare them. A shorter clip finishes and waits on its final image until every eligible clip has ended, then the group restarts. Show the topic above the arena. Load the eligible videos before playback, then provide one “Play arena” action to start all videos on that screen together, plus Pause all and Replay all. Keep all four tiles visible on phones and the projected screen. Playback is coordinated within each screen; browsers can start after their own tap, without requiring frame-perfect synchronization across devices.
+All four silent videos, each up to five seconds, start **at the same time** and repeat together so players can compare them. A shorter clip finishes and waits on its final image until every eligible clip has ended, then the group restarts. Show the topic above the arena. Load the eligible videos before playback, then provide one “Play arena” action to start all videos on that screen together, plus Pause all and Replay all. Keep the 2×2 arrangement on phones and the projected screen; allow the page to scroll when needed. Playback is coordinated within each screen; browsers can start after their own tap, without requiring frame-perfect synchronization across devices.
 
 With three eligible clips, leave the fourth tile empty with “No entry”; with two, show two clips and two empty tiles. Empty tiles are not candidates. If a clip cannot load or play, show the affected tile's status and allow playback retry within the screening deadline. The host can use **Exclude clip** on any tile before voting, with a public reason; replace it with a neutral excluded placeholder and keep other positions fixed. Exclusion does not regenerate a clip. No separate reporting queue or automated output-review service is required for this supervised demo. Provider input moderation is not a guarantee about every generated frame.
 
@@ -116,6 +120,8 @@ The host selects **Open voting** to confirm that the group has watched at least 
 Every player on the frozen roster can vote once for another player's eligible clip or choose Abstain. Players who missed submission or whose generation failed can still vote. A local selection is editable until Vote is accepted; then the ballot locks. Reject self-votes, changed ballots, excluded targets, and late requests on the server.
 
 Keep the same arena grid, labels, positions, and topic visible, with simultaneous playback and Pause all/Replay all available. Players select a tile and press Vote, or choose Abstain. Mark the author's own entry as unavailable only in their private view; empty and excluded tiles cannot be selected. Keep totals, other ballots, authors, and prompts hidden. Close when every player votes/abstains or 10 seconds expires; missing ballots add no votes.
+
+Keep a compact voting bar above the arena, pinned while players scroll its grid on phones. It shows the selected clip label, the countdown, and Vote and Abstain together. Before acceptance, choosing another eligible tile updates the selection and leaves it editable. After acceptance, show the locked vote and clip label or the locked abstention in the same bar. Refresh restores the accepted ballot and original deadline.
 
 If a serious playback/content problem arises after voting opens, the host can abort the whole round unscored. Do not change candidates after ballots arrive.
 
@@ -155,8 +161,11 @@ Keep Quiplash / Jackbox Games in About/Credits as inspiration, Reactor as the sc
 | Four-player cap | Four can play after live validation; a fifth join and forged larger roster fail in both modes. |
 | Arena reveal | All eligible clips become accessible together at screening and play simultaneously in a 2×2 grid. Labels/positions match across players and stay fixed through results. Three/two clips leave empty tiles; exclusions show placeholders. Play arena, Pause all, and Replay all work on phones and projection, including after refresh. The host opens voting after the group watches every remaining clip. |
 | Voting | Voting closes after 10 seconds or earlier when everyone votes/abstains. Self/duplicate/changed/late votes are rejected; ties, abstention, and zero-vote outcomes are correct. |
+| Phone voting | While scrolling the arena, the selected clip label, countdown, and Vote/Abstain actions remain visible. Players can change their selection until accepted; the bar then confirms the locked vote or abstention. Refresh restores the accepted choice and remaining time. |
+| Two-player notice | Host and guest see the tie notice in a two-player lobby and while screening/voting with two eligible clips. Changing the selected count updates the notice; other room sizes and unscored showcases do not show it. |
 | Privacy | No other player's prompt/author can be fetched before results, and no contest clip can be fetched before arena screening; individual ballots never become public. |
 | Timing/failure | Partial generation failure, late completion, screening timeout, and host absence yield a clear outcome. |
+| Private clip outcome | Failed generation and missed submission show distinct notices only to the affected player, including after refresh. With at least two eligible clips, that player is told they can still vote and can successfully vote. Other players receive no private failure or missing-submission identity. |
 | Simple retry | A transient failure can recover once with unchanged inputs; no third creation attempt, deadline extension, or retry of rejected/unknown sessions. Reuse saved media for a preparation retry. |
 | Refresh/restart | Browser refresh restores state; process restart clears it and never restarts a paid request. |
 | Live media | Four real Reactor clips, including shorter clips when fewer frames arrive, play together in the arena on phone Safari and Chrome and the projected host screen; playback loading/failure controls work, and owned sessions terminate. |

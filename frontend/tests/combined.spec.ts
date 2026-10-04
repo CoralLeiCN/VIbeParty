@@ -298,6 +298,20 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
         timeout: 10000,
       })
       .toBe("reveal");
+    await expect(host.locator("video")).toHaveCount(1);
+    await expect(
+      host.getByRole("region", { name: "Guesses and scores" }),
+    ).toHaveCount(0);
+    for (const count of [2, 3]) {
+      await host.getByRole("button", { name: "Reveal next scene" }).click();
+      await expect(host.locator("video")).toHaveCount(count);
+    }
+    await host
+      .getByRole("button", { name: "Reveal guesses and scores" })
+      .click();
+    await expect(
+      host.getByRole("region", { name: "Guesses and scores" }),
+    ).toBeVisible();
     const reverseResult = await read(host, reverse + "/state");
     await checkHostControls("reverse-prompt");
 
@@ -349,9 +363,14 @@ test("complete all three games with continuation, cleanup, and fresh joins", asy
       .poll(async () => (await read(host, reverse + "/state")).phase)
       .toBe("lobby");
     expect((await read(host, reverse + "/state")).code).toBe(reverseLobby.code);
-    expect((await read(host, reverse + "/state")).players).toEqual(
-      reverseResult.players,
-    );
+    const rotated = await read(host, reverse + "/state");
+    expect(rotated.players.map((p: { name: string }) => p.name)).toEqual([
+      reverseResult.players[1].name,
+      reverseResult.players[2].name,
+      reverseResult.players[0].name,
+    ]);
+    expect(rotated.is_host).toBe(true);
+    expect(rotated.role).toBe("C");
     await host.goto("/");
     await host
       .getByRole("button", { name: "Host Prompt Royale", exact: true })

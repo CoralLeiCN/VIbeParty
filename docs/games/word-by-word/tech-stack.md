@@ -12,6 +12,8 @@ The backend uses the existing pinned `reactor-sdk==1.5.1`. `StreamCapture` retai
 
 FFmpeg atomically publishes transport fragments and the playlist inside the private round directory. At completion it closes the playlist and remuxes it to `story.mp4`. The browser keeps the HLS source through the final buffered frames, then Replay selects the one MP4. Source media is limited to 1920×1080 and replay to 80 MiB.
 
+The player retains the last known playback time across reconnects. hls.js receives that time as its start position; native HLS and MP4 playback restore it after metadata loads. Source teardown and loading events must not overwrite the retained position with zero. Explicit Replay resets the position to zero. These operations only reload saved or already published media.
+
 ## Configuration
 
 ```dotenv
@@ -45,7 +47,7 @@ Keep credentials on the backend. No new user permission or visual-approval step 
 5. At each interval, send the complete scene description through the next category. Keep generation active throughout. Await prompt acceptance and record the update's media offset.
 6. After the final interval, pause generation, finalize the recording, and close the provider. Verify CLOSED/INACTIVE or 404 using the session API; a disconnect acknowledgment alone does not clear the closure guard.
 
-The prompt builder uses only accepted answers through the current category, fixed illustrated style, a wide camera, and continuity instructions. It never truncates the 120-code-point answers. SDK `command_error` events, command timeouts, and transport errors stop the run. There is no vision evaluator or quality retry.
+The prompt builder uses only accepted answers through the current category, fixed illustrated style, a wide camera, and stage-specific directions. Place establishes the setting alone; Character joins that setting; Action applies to the same character; Consequence changes the scene while retaining compatible earlier character details, setting, and action. Keep the original category labels and accepted answers verbatim, including punctuation, line breaks, and non-ASCII text. Never truncate the 120-code-point answers, rewrite arbitrary player prose, add prescribed movements, or read future answers when assembling an earlier prompt. SDK `command_error` events, command timeouts, and transport errors stop the run. There is no vision evaluator or quality retry.
 
 [Reactor model contract](https://www.reactor.inc/models/lingbot-world-2/api) · [OpenAI image API](https://developers.openai.com/api/docs/guides/image-generation)
 
@@ -54,6 +56,8 @@ The prompt builder uses only accepted answers through the current category, fixe
 `LOBBY → INPUT → GENERATING → STREAMING → RESULTS`. The provider task advances categories and phase on the server. Host refresh and phone polling are read-only and cannot duplicate generation.
 
 `Round` stores the disclosed index, category media offsets, whether a stream is published, and an optional single recording. Public snapshots are explicitly assembled; undisclosed text never enters host snapshots or other players' assignments. Original accepted text and contributors are retained on the cards.
+
+At round start, assign the four slots and set `input_deadline` to server time plus 15 seconds times the largest number of slots owned by one player. The shared deadline is fixed for the collection phase and included in every authorized snapshot. Deadline checks run both before accepting a new contribution and in the background expiry task; refreshes and accepted-submission retries cannot extend it.
 
 | Endpoint | Purpose |
 | --- | --- |

@@ -2,7 +2,7 @@
 
 [All docs](README.md)
 
-Recorded: 17 September 2026. Updated: 18 September 2026. General items GEN-001 and GEN-002 are complete. Game-specific items remain open; open decisions are noted below.
+Recorded: 17 September 2026. Updated: 4 October 2026. General items GEN-001 and GEN-002 are complete. Game-specific delivery statuses and open decisions are noted below.
 
 ## Across all games
 
@@ -43,7 +43,7 @@ Improve how reliably actions and consequences appear in the video.
 - Link each action to its character and each consequence to the scene; preserve player meaning and original contribution cards.
 - Review generated video for visible effects, response delay, and retained scene details. Use the results to choose changes to prompts, timing, or model.
 
-**Progress:** code and saved-frame review complete; live comparison pending. [Findings and experiment plan](research/word-by-word/2026-09-17-prompt-following.md).
+**Progress:** code and saved-frame review complete. Stage-specific prompt instructions implemented 4 October 2026 to preserve the current character/action and exclude future-stage guidance; live comparison and visual-quality validation remain pending. [Findings and experiment plan](research/word-by-word/2026-09-17-prompt-following.md).
 
 ### WW-004 — Rename the game to World by Word
 
@@ -63,12 +63,40 @@ Place a **Vote** button beside each clip label. Clicking it submits the vote and
 
 Replace **Play arena** and **Replay all** with one clearly labelled button that restarts every clip from the beginning and loops them together.
 
+### PR-004 — Keep voting controls visible on phones
+
+**Status:** Implemented 4 October 2026.
+
+Pin the selected clip, countdown, Vote/Abstain actions, and locked confirmation while players scroll the arena. The [game spec](games/prompt-royale/game-spec.md#voting) owns selection and acceptance behavior.
+
+### PR-005 — Explain a player's missing clip privately
+
+**Status:** Implemented 4 October 2026.
+
+Distinguish failed generation from a missed submission, and tell the affected player they can still vote when the round has enough eligible clips. Keep other players' identities private; see [generation feedback](games/prompt-royale/game-spec.md#generating).
+
 ## Reverse Prompt
 
 ### RP-001 — Support two to four players, including the host
 
 Replace the fixed three-player roster with a host-selected count of **one to three guests**, for **two to four players total**.
 
-- The host writes the original prompt; each guest takes a relay turn and submits a final guess.
+- The current round's author writes the original prompt; every other player, including the host when not author, takes a relay turn and submits a final guess. Follow the author rotation in RP-003.
 - Match lobby capacity, start readiness, relay length, scoring, and results to the selected count.
 - Support a complete round with one host and one guest, and verify all three supported player counts.
+
+### RP-002 — Reveal the story before guesses and scores
+
+**Status:** Implemented 4 October 2026.
+
+Reveal each prompt and its video together, in relay order, with the host advancing the shared reveal. Show guesses, scores, and the winner only after the last pair. This lets the group discover how the idea changed before seeing the outcome.
+
+Requirements, controls, and acceptance: [sequential reveal](games/reverse-prompt/game-spec.md#rp-002--sequential-reveal).
+
+### RP-003 — Rotate the author between rounds
+
+**Status:** Implemented 4 October 2026 for the current three-player roster. RP-001 remains a separate expansion.
+
+Rotate the author through the roster so everyone can write the original and interpret or guess on other rounds. Keep host controls with the party creator; being host does not permanently make that player the author or exclude them from guessing.
+
+Requirements and acceptance: [author rotation](games/reverse-prompt/game-spec.md#rp-003--author-rotation).

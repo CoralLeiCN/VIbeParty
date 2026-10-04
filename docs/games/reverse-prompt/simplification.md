@@ -2,11 +2,11 @@
 
 [All docs](../../README.md) · [Game spec](game-spec.md) · [Technical stack](tech-stack.md) · [Research](../../research/reverse-prompt/README.md)
 
-Updated: 12 September 2026. Decision: scope Reverse Prompt to a presenter-led hackathon demonstration with one room and three players.
+Historical decision: 12 September 2026. Scope Reverse Prompt to a presenter-led hackathon demonstration with one room and three players. The “After” columns record that original decision, not today's implementation. The [current game spec](game-spec.md) owns subsequent changes, including 30-second relay turns, sequential reveals, rotating authors, and projection only during reveal.
 
 The original stack could support a broader product, but required databases, queues, recovery machinery, and deployment work before demonstrating the interesting part. The simplified stack is sufficient for the demo. Its remaining technical uncertainty is Reactor capture, termination, and playback latency on the actual phones; that is the first implementation task.
 
-These changes are applied to the [current game spec](game-spec.md) and [current tech stack](tech-stack.md). The full before versions are preserved in the [archived game spec](archive/game-spec-v1.md) and [archived tech stack](archive/tech-stack-v1.md). This is a documentation change; the application has not been built.
+The full before versions are preserved in the [archived game spec](archive/game-spec-v1.md) and [archived tech stack](archive/tech-stack-v1.md). At the time of this decision, the application had not been built. Consult the [current game spec](game-spec.md) and [current tech stack](tech-stack.md) for implementation and verification status.
 
 **Reactor remains the video generator. Sentence Transformers remains the local embedding scorer. The demo requires no OpenAI service or API key.**
 
@@ -60,7 +60,7 @@ The small persistent quota file is intentional: game state can be disposable, bu
 
 Provider evidence and the reason for each choice are linked in the [technical specification](tech-stack.md) and [Reactor/VEED research](../../research/reverse-prompt/README.md). Exact package versions and live compatibility remain to be verified during implementation.
 
-## What we still must build and prove
+## Original build checklist (historical)
 
 1. Generate one real Reactor clip, download and convert it, terminate the session, and play it on the demo phones. Measure the entire operation.
 2. Build the three-player loop, enforce private snapshots/media, and show the ordered reveal.

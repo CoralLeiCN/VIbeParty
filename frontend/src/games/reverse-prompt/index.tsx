@@ -240,8 +240,8 @@ function Entry({ entry, refresh }: GameEntryProps & { refresh: () => void }) {
       <p className={s.eyebrow}>THREE PEOPLE · ONE CHANGING IDEA</p>
       <h2>{entry === "host" ? "Start a private relay" : "Join the relay"}</h2>
       <p>
-        The host writes a scene. Two friends pass it through videos, then guess
-        where it started.
+        One player writes a scene. Two friends pass it through videos, then
+        guess where it started. Take turns as the author each round.
       </p>
       <form onSubmit={submit} className={s.entry} noValidate={entry === "join"}>
         <label htmlFor="player-name">Your name</label>
@@ -322,11 +322,15 @@ function RoundView({
     (["author_input", "relay_input"].includes(state.phase) &&
       state.role === active) ||
     (state.phase === "guessing" && state.role !== "A");
-  async function command(action: string) {
+  async function command(action: string, data: object = {}) {
+    if (busy) return;
     setBusy(true);
     setError("");
     try {
-      await apiPost(API + "/" + action, { round_id: state.round_id });
+      await apiPost(API + "/" + action, {
+        round_id: state.round_id,
+        ...data,
+      });
       refresh();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Please try again.");
@@ -349,7 +353,8 @@ function RoundView({
         </span>
         <span>
           You are <strong>{state.role}</strong> ·{" "}
-          {state.role === "A" ? "Author & host" : "Interpreter"}
+          {state.role === "A" ? "Author" : "Interpreter"}
+          {state.is_host && " · Host"}
         </span>
       </div>
       <ol className={s.roster}>
@@ -363,6 +368,8 @@ function RoundView({
                 {role === "A"
                   ? "Original author · unscored"
                   : `Interpreter ${role}`}
+                {state.players.find((p) => p.role === role)?.is_host &&
+                  " · Host"}
               </small>
             </span>
           </li>
@@ -381,6 +388,11 @@ function RoundView({
               watches the final video, then B and C guess the original.
             </p>
             <p>
+              Next author: <strong>{state.players[0]?.name}</strong>. Authors
+              rotate after each completed reveal. A stopped round keeps the
+              same author.
+            </p>
+            <p>
               B and C each have 30 seconds to watch and describe their private
               clue. The original scene and final guesses have no countdown.
             </p>
@@ -395,17 +407,21 @@ function RoundView({
               MiniMax FastH3 makes each live scene through Reactor. Final
               guesses stay on the laptop for local comparison.
             </p>
+            <p className={s.note}>
+              Keep your screen private while writing or guessing. Share it
+              during the reveal.
+            </p>
             {state.start_blocked && (
               <p className={s.error} role="status">
                 {state.start_blocked}
               </p>
             )}
-            {state.role !== "A" && (
+            {!state.is_host && (
               <p className={s.wait}>Waiting for the host to start.</p>
             )}
           </>
         )}
-        {state.media.length === 1 && (
+        {state.media.length === 1 && state.phase !== "reveal" && (
           <Clip
             key={state.media[0].id}
             media={state.media[0]}
@@ -457,7 +473,7 @@ function RoundView({
           <>
             <p className={s.note}>
               {state.guess_count} / 2 final guesses accepted. Guesses stay
-              private until both are submitted.
+              private until the host reveals guesses and scores.
             </p>
             {state.role === "A" && (
               <p className={s.author}>Author — unscored</p>
@@ -483,53 +499,19 @@ function RoundView({
         )}
         {state.phase === "reveal" && (
           <>
-            <div className={s.original}>
-              <p className={s.eyebrow}>THE ORIGINAL SCENE</p>
-              <blockquote>{state.chain?.[0].prompt}</blockquote>
-            </div>
-            <h3>
-              {state.unscored
-                ? "Completed, unscored"
-                : state.results?.filter((r) => r.winner).length === 2
-                  ? "A shared win!"
-                  : `${state.results?.find((r) => r.winner)?.player} kept the idea closest`}
-            </h3>
-            <p className={s.note}>
-              {state.mode === "rehearsal"
-                ? "Sample scores for this scripted rehearsal."
-                : state.unscored
-                  ? "The local comparison could not finish. No scores or ranking were assigned."
-                  : "Meaning is compared; details may be missed. These are casual similarity scores."}{" "}
-              The author is unscored.
+            <p className={s.note} role="status">
+              {state.results_revealed
+                ? "All three scenes and the final guesses are revealed."
+                : `Scene ${(state.reveal_index ?? 0) + 1} of 3. Follow the changing idea before the guesses and scores.`}
             </p>
-            <div className={s.results}>
-              {state.results?.map((row) => (
-                <article key={row.role}>
-                  <strong>
-                    {row.player} · {row.role}
-                  </strong>
-                  <p>{row.guess}</p>
-                  <span className={s.score}>
-                    {row.points === null
-                      ? "Unscored"
-                      : `Similarity: ${row.points} / 100`}
-                  </span>
-                  {row.winner && (
-                    <small>
-                      {state.mode === "rehearsal" ? "Sample winner" : "Winner"}
-                    </small>
-                  )}
-                </article>
-              ))}
-            </div>
-            <h3>Follow the idea through all three scenes</h3>
-            <ol className={s.chain}>
+            <ol className={s.chain} aria-label="Revealed scenes">
               {state.chain?.map((row, i) => (
                 <li key={row.role}>
                   <p className={s.eyebrow}>
-                    0{i + 1} · {row.player} · {row.role}
+                    {i === 0 ? "THE ORIGINAL" : `SCENE ${i + 1}`} · {row.player}{" "}
+                    · {row.role}
                   </p>
-                  <p>{row.prompt}</p>
+                  <blockquote>{row.prompt}</blockquote>
                   <Clip
                     media={row.media}
                     label={`Scene ${i + 1} by ${row.player}`}
@@ -537,6 +519,71 @@ function RoundView({
                 </li>
               ))}
             </ol>
+            {!state.results_revealed && (
+              <div className={s.revealControls}>
+                {state.is_host ? (
+                  <button
+                    disabled={busy}
+                    onClick={() =>
+                      void command("reveal/next", {
+                        expected_reveal_index: state.reveal_index,
+                      })
+                    }
+                  >
+                    {state.reveal_index === 2
+                      ? "Reveal guesses and scores"
+                      : "Reveal next scene"}
+                  </button>
+                ) : (
+                  <p className={s.note}>
+                    {state.reveal_index === 2
+                      ? "Waiting for the host to reveal guesses and scores."
+                      : "Waiting for the host to reveal the next scene."}
+                  </p>
+                )}
+              </div>
+            )}
+            {state.results_revealed && (
+              <section aria-label="Guesses and scores">
+                <h3>
+                  {state.unscored
+                    ? "Completed, unscored"
+                    : state.results?.filter((r) => r.winner).length === 2
+                      ? "A shared win!"
+                      : `${state.results?.find((r) => r.winner)?.player} kept the idea closest`}
+                </h3>
+                <p className={s.note}>
+                  {state.unscored
+                    ? "The local comparison could not finish. No scores or ranking were assigned."
+                    : state.mode === "rehearsal"
+                      ? "Sample scores for this scripted rehearsal."
+                      : "Meaning is compared; details may be missed. These are casual similarity scores."}{" "}
+                  The author is unscored.
+                </p>
+                <div className={s.results}>
+                  {state.results?.map((row) => (
+                    <article key={row.role}>
+                      <strong>
+                        {row.player} · {row.role}
+                      </strong>
+                      <p>{row.guess}</p>
+                      <span className={s.score}>
+                        {row.points === null
+                          ? "Unscored"
+                          : `Similarity: ${row.points} / 100`}
+                      </span>
+                      {row.winner && (
+                        <small>
+                          {state.mode === "rehearsal"
+                            ? "Sample winner"
+                            : "Winner"}
+                        </small>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
           </>
         )}
         {error && (
@@ -545,8 +592,9 @@ function RoundView({
           </p>
         )}
       </section>
-      {state.role === "A" &&
-        !["lobby", "cleanup", "reveal", "error"].includes(state.phase) && (
+      {state.is_host &&
+        !["lobby", "cleanup", "error"].includes(state.phase) &&
+        !state.results_revealed && (
           <div className={s.reset}>
             {confirm ? (
               <>
@@ -571,7 +619,7 @@ function RoundView({
             )}
           </div>
         )}
-      {state.role === "A" && (
+      {state.is_host && (
         <HostControls
           gameId="reverse-prompt"
           busy={busy}
@@ -584,7 +632,8 @@ function RoundView({
               : undefined
           }
           again={
-            ["reveal", "error"].includes(state.phase)
+            state.phase === "error" ||
+            (state.phase === "reveal" && state.results_revealed)
               ? {
                   run: () => void command("reset"),
                   disabled: state.cleanup_pending,
