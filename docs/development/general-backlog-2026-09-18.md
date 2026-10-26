@@ -2,19 +2,9 @@
 
 18 September 2026. Scope: [GEN-001 and GEN-002](../backlog.md). Requirements: [shared host controls and player names](../shared/host-controls-and-names.md).
 
-## Host controls
+## Implementation
 
-All three games use the same host controls below the current round content, with matching button order, styling, and responsive layout. The lobby uses **Start round** followed by **End game**. Finished rounds use **Start another round** followed by **End game**.
-
-**Start another round** returns to setup with the same room, players, and identities, clearing the previous round's content. Reverse Prompt no longer asks the host to confirm a reset after results. Word by Word can return to setup when its live allowance is exhausted; further live starts remain blocked, and fixture play remains available.
-
-**End game** opens the same confirmation in each game. **Keep playing** dismisses it and restores focus to the opener. Confirmation calls the shared, authenticated party-close endpoint and returns the host to the portal. If cleanup is still pending, the portal tracks it and keeps new admission blocked. Errors stay in the dialog with a retry. Guest screens never show host controls.
-
-Equivalent creation and invite actions use **Create party**, **Copy join link**, and **Copied!**. Word by Word and Prompt Royale use **End round** to stop a round and show its outcome. Reverse Prompt retains its separate **Stop & reset round** action during an unfinished relay because it clears content and returns to the lobby.
-
-## Player names
-
-Every existing host and guest name field starts with a random adjective and animal, such as `Sunny Otter`. Suggested names fit all three games' 24-character limit. The default is initialized once per mounted form; ordinary rerenders, polling, other fields, and validation errors preserve edits. Players can submit the suggestion unchanged. Word by Word's host currently has no player-name field; playing-host support remains tracked under WW-001.
+GEN-001 introduced shared host controls, confirmation, and action labels. GEN-002 introduced editable random player-name prefills. The [shared standard](../shared/host-controls-and-names.md) owns their behavior and acceptance criteria. This dated record retains the verification performed for that delivery.
 
 ## Verification
 

@@ -1,31 +1,21 @@
 import asyncio
-import json
 import math
 from pathlib import Path
 
+from backend.shared.media import probe_media, run_command
+
 
 async def command(*args: str, timeout: float = 20) -> bytes:
-    process = await asyncio.create_subprocess_exec(
-        *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+    return await run_command(
+        *args,
+        timeout=timeout,
+        stderr=asyncio.subprocess.PIPE,
+        error_message="Media preparation failed",
     )
-    try:
-        stdout, _ = await asyncio.wait_for(process.communicate(), timeout)
-        if process.returncode:
-            raise ValueError("Media preparation failed")
-        return stdout
-    except BaseException:
-        if process.returncode is None:
-            process.kill()
-        await process.wait()
-        raise
 
 
 async def probe(path: Path, ffprobe: str) -> dict:
-    return json.loads(
-        await command(
-            ffprobe, "-v", "error", "-show_streams", "-show_format", "-of", "json", str(path)
-        )
-    )
+    return await probe_media(path, ffprobe, command)
 
 
 async def prepare(source: Path, target: Path, ffmpeg: str, ffprobe: str) -> None:

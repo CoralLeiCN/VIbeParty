@@ -1,33 +1,20 @@
 """Bounded conversion and probe; source media is never public."""
 
 import asyncio
-import json
 from pathlib import Path
+
+from backend.shared.media import probe_media, run_command
 
 MAX_SOURCE = 100 * 1024 * 1024
 MAX_OUTPUT = 10 * 1024 * 1024
 
 
 async def command(*args: str) -> bytes:
-    process = await asyncio.create_subprocess_exec(
-        *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL
-    )
-    try:
-        output, _ = await process.communicate()
-        if process.returncode:
-            raise ValueError("Video preparation failed")
-        return output
-    finally:
-        if process.returncode is None:
-            process.kill()
-            await process.wait()
+    return await run_command(*args)
 
 
 async def probe(path: Path) -> dict:
-    raw = await command(
-        "ffprobe", "-v", "error", "-show_streams", "-show_format", "-of", "json", str(path)
-    )
-    return json.loads(raw)
+    return await probe_media(path, "ffprobe", command)
 
 
 async def prepare(source: Path, destination: Path) -> dict:

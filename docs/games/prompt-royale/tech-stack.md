@@ -48,6 +48,8 @@ This is the implementation map for the demo, not a claim that these dependencies
 
 The retry adds a counter, a short delay, and a second pass through the existing task. It adds no service or retry library. Exact package versions, and compatibility with the demo laptop's OS/architecture remain to be verified in the first integration build.
 
+Media process execution, probing, and invite-copy state use the shared helpers. See the [shared helper contract](../../development/contracts/shared.md#shared-media-and-invite-helpers) for ownership; game-specific policies remain here.
+
 ## 2. Architecture and its boundary
 
 ```mermaid

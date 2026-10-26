@@ -1,8 +1,10 @@
-# FastH3 with smoothing on: playback and replay guide
+# FastH3 with smoothing on: historical playback and replay proposal
 
 [All docs](../README.md) · [Word by Word technical plan](../games/word-by-word/tech-stack.md) · [Measured smoothing experiments](../research/word-by-word/smoothing-experiment-2026-09-13.md)
 
-Updated: 14 September 2026. Shared guidance for VibeParty integrations using FastH3. **Keep smoothing on for live playback. Timestamp-aware replay capture is a proposed implementation that still needs validation.** Each game's specification continues to own its reveal rules and accepted video quality.
+Historical proposal, 14 September 2026. The descriptions of “current” behavior below refer to the FastH3 implementation at that date. Word by Word has since moved to LingBot World 2; this proposal does not define the running app or enable a capture policy. Current implementation and validation are owned by the [Word by Word](../games/word-by-word/tech-stack.md), [Prompt Royale](../games/prompt-royale/tech-stack.md), and [Reverse Prompt](../games/reverse-prompt/tech-stack.md) technical stacks. Source links into code may now point to replacement implementations.
+
+The original proposal retained smoothing for live playback and called for validation of timestamp-aware replay capture. The analysis below is preserved as research context.
 
 ## 1. Choose the playback and recording contract
 

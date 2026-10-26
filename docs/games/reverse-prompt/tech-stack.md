@@ -29,6 +29,8 @@ Version: 2.5 local FastH3 demo scope. Updated: 4 October 2026. Status: retained-
 
 The shared manifests and lockfiles contain the installed dependency set. The FastH3 replacement uses the existing generic SDK command interface and requests no new dependency or model-selector environment variable.
 
+Media process execution, probing, and invite-copy state use the shared helpers. See the [shared helper contract](../../development/contracts/shared.md#shared-media-and-invite-helpers) for ownership; game-specific policies remain here.
+
 ## 2. Small architecture and ownership
 
 ```mermaid

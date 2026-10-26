@@ -4,7 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { apiPost, ApiError } from "../../shared/api";
 import { HostControls } from "../../shared/HostControls";
 import { randomPlayerName } from "../../shared/playerNames";
-import { copyText } from "../../shared/clipboard";
+import { useCopyLink } from "../../shared/useCopyLink";
 import { HostAccessField } from "../../shared/HostAccessField";
 import { useHostAccess } from "../../shared/useHostAccess";
 import {
@@ -314,7 +314,7 @@ function RoundView({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [confirm, setConfirm] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const { copyLink, copyLabel } = useCopyLink();
   const relaySeconds = useRelaySeconds(state.relay_remaining_ms);
   const active = "ABC"[state.step];
   const who = state.players.find((p) => p.role === active)?.name;
@@ -341,8 +341,7 @@ function RoundView({
     }
   }
   async function copy() {
-    const success = await copyText(state.join_url);
-    setCopied(success);
+    const success = await copyLink(state.join_url);
     setError(success ? "" : "Select and copy the join address shown below.");
   }
   return (
@@ -399,7 +398,7 @@ function RoundView({
             <div className={s.join}>
               <strong>{state.players.length} / 3 players</strong>
               <button className={s.secondary} onClick={copy}>
-                {copied ? "Copied!" : "Copy join link"}
+                {copyLabel}
               </button>
               <a href={state.join_url}>{state.join_url}</a>
             </div>

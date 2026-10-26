@@ -10,18 +10,13 @@ Recorded: 17 September 2026. Updated: 4 October 2026. General items GEN-001 and 
 
 **Status:** Completed 18 September 2026. [Implementation and verification](development/general-backlog-2026-09-18.md).
 
-Use identical button text for equivalent host actions in all three games, with consistent button order, placement, styling, and confirmation wording. After each round, use these exact labels:
-
-- **Start another round:** return to round setup with the same players and room.
-- **End game:** close the party and return the host to the game portal.
-
-Verify that equivalent controls have identical wording and the same meaning and behavior across games.
+Requirements and acceptance: [shared host controls](shared/host-controls-and-names.md#host-controls).
 
 ### GEN-002 — Prefill player names
 
 **Status:** Completed 18 September 2026. [Implementation and verification](development/general-backlog-2026-09-18.md).
 
-Prefill every player-name field with a random valid name across all games, including host and guest entry. Let players keep or edit the name. Preserve their edits while completing the form.
+Requirements and acceptance: [shared player names](shared/host-controls-and-names.md#player-names).
 
 ## Word by Word
 

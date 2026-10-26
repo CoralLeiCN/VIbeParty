@@ -26,6 +26,12 @@ GET `/api/games/word-by-word/host/recovery` returns `{available:false}` or `{ava
 
 `backend.shared.errors.AppError(status, code, message, field=None)` emits `{code,message,field?}`. Statuses: 401 missing session, 403 forbidden/origin, 404 expired/wrong code, 409 phase/admission/cleanup conflict, 415 JSON required, 422 validation, 429 attempts, 503 unavailable. Never put secret input in errors. Games own domain reasons. All API responses are no-store. Same-origin JSON mutations require Origin matching configured browser/public origins, with a 64KiB shared body bound. For DELETE send an empty JSON body.
 
+## Shared media and invite helpers
+
+[`backend.shared.media`](../../../backend/shared/media.py) owns subprocess execution, cancellation cleanup, and ffprobe JSON parsing for Prompt Royale and Reverse Prompt. Game media modules retain their public wrappers and choose executable paths, per-command timeouts, stderr handling, and error messages. Conversion arguments, size and duration limits, and publication validation remain in each game's media module and technical stack.
+
+[`useCopyLink`](../../../frontend/src/shared/useCopyLink.ts) owns invite-copy state and the shared button label, using the existing clipboard fallback. Games retain their markup and failure messages. Prompt Royale retains a previous success label after a failed attempt; Word by Word and Reverse Prompt reflect the latest copy result. The [host controls standard](../../shared/host-controls-and-names.md) owns the action labels.
+
 ## Party admission and lifecycle
 
 `context.parties` exposes async `reserve(game_id)` context manager, `public_state()`, `resolve(code)`, `rotate_code(game_id)`, `begin_close(game_id)`, `finish_close(game_id)`, `set_blocker(key, message_or_none)`.
