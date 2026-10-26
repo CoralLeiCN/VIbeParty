@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { ApiError, apiPost } from "../../shared/api";
 import { HostControls } from "../../shared/HostControls";
 import { randomPlayerName } from "../../shared/playerNames";
-import { copyText } from "../../shared/clipboard";
+import { useCopyLink } from "../../shared/useCopyLink";
 import { HostAccessField } from "../../shared/HostAccessField";
 import { useHostAccess } from "../../shared/useHostAccess";
 import {
@@ -45,7 +45,7 @@ export function GameRoute({ entry }: GameEntryProps) {
   const [code, setCode] = useState(params.get("code") || "");
   const [draft, setDraft] = useState("");
   const [seconds, setSeconds] = useState(0);
-  const [copied, setCopied] = useState(false);
+  const { copyLink, copyLabel } = useCopyLink({ retainSuccessOnFailure: true });
 
   function accept(next: Snapshot) {
     const old = latest.current;
@@ -356,9 +356,8 @@ export function GameRoute({ entry }: GameEntryProps) {
                   className={styles.secondary}
                   onClick={async () => {
                     try {
-                      if (!(await copyText(state.join_url)))
+                      if (!(await copyLink(state.join_url)))
                         throw new Error("Manual copy needed");
-                      setCopied(true);
                     } catch {
                       setError(
                         "Select the invite link and copy it. Clipboard access is unavailable on this HTTP browser.",
@@ -366,7 +365,7 @@ export function GameRoute({ entry }: GameEntryProps) {
                     }
                   }}
                 >
-                  {copied ? "Copied!" : "Copy join link"}
+                  {copyLabel}
                 </button>
                 <p>
                   60 seconds to write. Up to five seconds on screen. Ten seconds

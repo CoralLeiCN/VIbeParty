@@ -5,7 +5,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { ApiError, apiFetch, apiPost } from "../../shared/api";
 import { HostControls } from "../../shared/HostControls";
 import { randomPlayerName } from "../../shared/playerNames";
-import { copyText } from "../../shared/clipboard";
+import { useCopyLink } from "../../shared/useCopyLink";
 import { HostAccessField } from "../../shared/HostAccessField";
 import { HostRecovery } from "../../shared/HostRecovery";
 import { useHostAccess } from "../../shared/useHostAccess";
@@ -364,7 +364,7 @@ function Party({
   pending: boolean;
 }) {
   const [mode, setMode] = useState<"fixture" | "live">("fixture");
-  const [copied, setCopied] = useState(false);
+  const { copyLink, copyLabel } = useCopyLink();
   const [copyFailed, setCopyFailed] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const host = s.role === "host";
@@ -461,12 +461,11 @@ function Party({
                 </label>
                 <button
                   onClick={async () => {
-                    const success = await copyText(s.join_url);
-                    setCopied(success);
+                    const success = await copyLink(s.join_url);
                     setCopyFailed(!success);
                   }}
                 >
-                  {copied ? "Copied!" : "Copy join link"}
+                  {copyLabel}
                 </button>
                 {copyFailed && (
                   <p role="status">

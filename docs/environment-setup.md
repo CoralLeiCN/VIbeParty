@@ -47,7 +47,7 @@ cp -n example.env .env
 chmod 600 .env
 ```
 
-`cp -n` preserves an existing configuration. Open `.env` in your editor and set `REACTOR_API_KEY` to your Reactor key. Keep credentials in this file and backend environment variables. The [local configuration guide](README.md#local-configuration) covers the other settings, including fixture mode and the LAN origin for phone play.
+`cp -n` preserves an existing configuration. Open `.env` in your editor and set `REACTOR_API_KEY` to your Reactor key. Keep credentials in this file and backend environment variables. Keep `GENERATION_MODE=fixture` while preparing the app. The [local target guidance above](#local-target-for-the-portal-and-all-games) covers local mode, LAN origins, and provider readiness. Restart the backend after configuration changes, between rounds.
 
 Check that Git ignores the file without displaying its contents:
 

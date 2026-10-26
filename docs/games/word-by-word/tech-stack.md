@@ -14,6 +14,8 @@ FFmpeg atomically publishes transport fragments and the playlist inside the priv
 
 The player retains the last known playback time across reconnects. hls.js receives that time as its start position; native HLS and MP4 playback restore it after metadata loads. Source teardown and loading events must not overwrite the retained position with zero. Explicit Replay resets the position to zero. These operations only reload saved or already published media.
 
+Invite-copy state uses the shared frontend hook. See the [shared helper contract](../../development/contracts/shared.md#shared-media-and-invite-helpers) for ownership; game-specific policies remain here.
+
 ## Configuration
 
 ```dotenv
